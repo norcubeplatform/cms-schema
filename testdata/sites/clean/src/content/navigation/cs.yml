@@ -1,0 +1,7 @@
+main:
+  - label: Služby
+    page: services
+  - label: Kontakt
+    page: contact
+  - label: Blog
+    href: /blog/

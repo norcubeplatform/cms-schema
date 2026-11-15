@@ -1,0 +1,23 @@
+label: Design
+path: src/content/settings
+match: 'theme.md'
+area: site
+hasBody: false
+previewPath: '/'
+fields:
+  - key: accent
+    type: color
+    format: hex
+    label: Accent
+  - key: radius
+    type: range
+    label: Roundness
+    min: 0
+    max: 32
+    step: 1
+    default: 10
+  - key: density
+    type: select
+    label: Density
+    options: [compact, regular, airy]
+    default: regular

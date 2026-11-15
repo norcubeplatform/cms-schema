@@ -1,0 +1,8 @@
+label: Posts
+path: src/content/pages
+match: '*.md'
+schemaVersion: 2
+fields:
+  - key: title
+    type: text
+    label: Title

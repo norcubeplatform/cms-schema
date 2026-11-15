@@ -1,0 +1,8 @@
+label: Docs
+path: src/content/docs
+previewPath: '/docs/{slug}/'
+localeFrom: none
+fields:
+  - key: title
+    type: text
+    label: Title

@@ -1,0 +1,3 @@
+label: Loop A
+fields:
+  - $ref: loop-b

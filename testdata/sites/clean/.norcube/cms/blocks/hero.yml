@@ -1,0 +1,29 @@
+label: Hero
+fields:
+  - key: id
+    type: text
+    label: Anchor id
+  - key: title
+    type: text
+    label: Title
+    required: true
+  - key: lead
+    type: richtext
+    format: markdown
+    label: Lead
+    options:
+      bold: true
+      link: true
+  - key: image
+    type: image
+    label: Image
+  - key: ctas
+    type: array
+    label: Buttons
+    maxItems: 2
+    items:
+      - $ref: button
+preview:
+  title:
+    - key: title
+    - Hero

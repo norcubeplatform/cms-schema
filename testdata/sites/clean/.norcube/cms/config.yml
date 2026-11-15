@@ -1,0 +1,25 @@
+siteUrl: https://example.com
+pagesDir: src/content/pages
+storages:
+  assets:
+    type: repo
+    path: src/assets
+    accept: image/*
+    naming: slug
+  uploads:
+    type: repo
+    path: public/uploads
+    publicUrl: /uploads
+    naming: slug+hash
+    dedup: hash
+defaultStorage: assets
+redirects:
+  file: public/_redirects
+  format: netlify
+knownPaths: ['/404/', '/api/*']
+preview:
+  defaultLocale: cs
+  locales: [cs, en]
+  prefixDefaultLocale: false
+variables:
+  file: src/content/settings/globals.md

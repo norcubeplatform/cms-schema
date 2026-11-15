@@ -1,0 +1,4 @@
+fields:
+  - key: x
+    type: text
+    label: X

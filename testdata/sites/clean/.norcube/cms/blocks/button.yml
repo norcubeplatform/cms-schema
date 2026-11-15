@@ -1,0 +1,28 @@
+label: Button
+fields:
+  - key: label
+    type: text
+    label: Label
+    required: true
+  - key: href
+    type: link
+    label: Link
+    required: true
+  - key: variant
+    type: select
+    label: Style
+    options:
+      - value: primary
+        label: Primary
+      - value: ghost
+        label: Ghost
+    default: primary
+  - key: external
+    type: boolean
+    label: New tab
+    default: false
+  - key: rel
+    type: text
+    label: Rel
+    visibleIf: { field: external, op: truthy }
+    whenHidden: drop

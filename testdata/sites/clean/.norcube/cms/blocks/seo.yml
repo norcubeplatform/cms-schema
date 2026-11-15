@@ -1,0 +1,15 @@
+label: SEO
+fields:
+  - key: description
+    type: paragraph
+    label: Meta description
+    rows: 3
+    recommendedLength: { from: 70, to: 160 }
+  - key: image
+    type: image
+    label: Share image
+    storage: uploads
+  - key: noindex
+    type: boolean
+    label: Hide from search engines
+    default: false

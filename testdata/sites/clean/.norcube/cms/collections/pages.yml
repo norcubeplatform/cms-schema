@@ -1,0 +1,35 @@
+label: Pages
+path: src/content/pages
+match: '**/*.md'
+hasBody: false
+previewPath: '/{locale}/{slug}/'
+localeFrom: path
+fields:
+  - key: title
+    type: text
+    label: Title
+    required: true
+  - key: slug
+    type: text
+    label: Slug
+    regex: '^[a-z0-9]*(?:-[a-z0-9]+)*$'
+    computed:
+      from: title
+      transform: slug
+      mode: suggest
+  - key: translationKey
+    type: text
+    label: Translation key
+    required: true
+  - $ref: seo
+  - key: blocks
+    type: array
+    label: Blocks
+    idKey: _component
+    uniqueOn: id
+    items:
+      - $ref: hero
+      - $ref: faq
+preview:
+  title:
+    - key: title

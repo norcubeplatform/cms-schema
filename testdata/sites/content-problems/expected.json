@@ -1,0 +1,165 @@
+[
+  {
+    "file": ".norcube/cms/meta/src/content/pages/deleted.yml",
+    "severity": "warning",
+    "rule": "links.orphan_sidecar"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "severity": "error",
+    "rule": "content.extra_keys"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "severity": "warning",
+    "rule": "content.unexpected_body"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "blocks",
+    "severity": "error",
+    "rule": "content.min_items"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "body",
+    "severity": "warning",
+    "rule": "links.unresolved_link"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "body",
+    "severity": "warning",
+    "rule": "links.unresolved_link"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "count",
+    "severity": "error",
+    "rule": "content.max"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "hero",
+    "severity": "error",
+    "rule": "links.missing_asset"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "kind",
+    "severity": "error",
+    "rule": "content.shape"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "partner",
+    "severity": "error",
+    "rule": "links.unresolved_reference"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "published",
+    "severity": "error",
+    "rule": "content.shape"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "related",
+    "severity": "error",
+    "rule": "links.unresolved_reference"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "seats",
+    "severity": "error",
+    "rule": "content.required"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "slug",
+    "severity": "error",
+    "rule": "content.regex"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "tags",
+    "severity": "error",
+    "rule": "content.max_items"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "tags",
+    "severity": "error",
+    "rule": "content.shape"
+  },
+  {
+    "file": "src/content/pages/about.md",
+    "path": "title",
+    "severity": "error",
+    "rule": "content.min_length"
+  },
+  {
+    "file": "src/content/pages/broken.md",
+    "severity": "error",
+    "rule": "content.parse_error"
+  },
+  {
+    "file": "src/content/pages/dup-a.md",
+    "path": "discount",
+    "severity": "error",
+    "rule": "content.custom"
+  },
+  {
+    "file": "src/content/pages/dup-b.md",
+    "severity": "error",
+    "rule": "links.url_collision"
+  },
+  {
+    "file": "src/content/pages/dup-b.md",
+    "path": "discount",
+    "severity": "error",
+    "rule": "content.custom"
+  },
+  {
+    "file": "src/content/pages/index.md",
+    "path": "blocks[0].link",
+    "severity": "warning",
+    "rule": "links.unresolved_link"
+  },
+  {
+    "file": "src/content/pages/index.md",
+    "path": "blocks[1]",
+    "severity": "error",
+    "rule": "content.unique"
+  },
+  {
+    "file": "src/content/pages/index.md",
+    "path": "blocks[1].link",
+    "severity": "warning",
+    "rule": "links.unresolved_link"
+  },
+  {
+    "file": "src/content/pages/index.md",
+    "path": "blocks[3]",
+    "severity": "error",
+    "rule": "content.item_type_unknown"
+  },
+  {
+    "file": "src/content/pages/index.md",
+    "path": "blocks[4]",
+    "severity": "warning",
+    "rule": "content.item_type_missing"
+  },
+  {
+    "file": "src/content/pages/index.md",
+    "path": "discount",
+    "severity": "error",
+    "rule": "content.custom"
+  },
+  {
+    "file": "src/content/pages/nofm.md",
+    "path": "body",
+    "severity": "warning",
+    "rule": "links.unresolved_link"
+  }
+]

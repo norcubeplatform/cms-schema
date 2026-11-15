@@ -1,0 +1,249 @@
+[
+  {
+    "file": ".norcube/cms/blocks/broken.yml",
+    "severity": "error",
+    "rule": "schema.parse_error"
+  },
+  {
+    "file": ".norcube/cms/blocks/list.yml",
+    "severity": "error",
+    "rule": "schema.not_mapping"
+  },
+  {
+    "file": ".norcube/cms/blocks/loop-a.yml",
+    "severity": "error",
+    "rule": "schema.ref_cycle"
+  },
+  {
+    "file": ".norcube/cms/blocks/loop-b.yml",
+    "severity": "error",
+    "rule": "schema.ref_cycle"
+  },
+  {
+    "file": ".norcube/cms/blocks/nolabel.yml",
+    "path": "label",
+    "severity": "error",
+    "rule": "schema.missing_label"
+  },
+  {
+    "file": ".norcube/cms/collections/notes.yml",
+    "path": "path",
+    "severity": "warning",
+    "rule": "schema.missing_collection_path"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "severity": "error",
+    "rule": "schema.unresolved_ref"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "extraKeysPolicy",
+    "severity": "warning",
+    "rule": "schema.unknown_knob"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.body",
+    "severity": "warning",
+    "rule": "schema.unknown_knob"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.cards.items[__entry_0]",
+    "severity": "error",
+    "rule": "schema.anonymous_item_shapes"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.code",
+    "severity": "warning",
+    "rule": "schema.invalid_regex"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.code",
+    "severity": "warning",
+    "rule": "schema.unknown_custom_validator"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.kind",
+    "severity": "error",
+    "rule": "schema.empty_options"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.mystery",
+    "severity": "error",
+    "rule": "schema.unknown_type"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.nolabel",
+    "severity": "error",
+    "rule": "schema.missing_label"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.notype",
+    "severity": "error",
+    "rule": "schema.missing_type"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.photo",
+    "severity": "warning",
+    "rule": "schema.unknown_storage"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.seats",
+    "severity": "error",
+    "rule": "schema.min_above_max"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.seats",
+    "severity": "warning",
+    "rule": "schema.unresolved_condition_path"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.slug",
+    "severity": "warning",
+    "rule": "schema.unresolved_computed_path"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.tags",
+    "severity": "error",
+    "rule": "schema.ambiguous_item_shapes"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.tags",
+    "severity": "error",
+    "rule": "schema.min_above_max"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.tier",
+    "severity": "error",
+    "rule": "schema.default_not_option"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.tier",
+    "severity": "warning",
+    "rule": "schema.unknown_knob"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.title",
+    "severity": "error",
+    "rule": "schema.duplicate_key"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.title",
+    "severity": "error",
+    "rule": "schema.min_above_max"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.title",
+    "severity": "warning",
+    "rule": "schema.invalid_regex"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields[9]",
+    "severity": "error",
+    "rule": "schema.missing_key"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "localeFrom",
+    "severity": "error",
+    "rule": "schema.invalid_locale_from"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "path",
+    "severity": "error",
+    "rule": "schema.duplicate_collection_path"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "previewPath",
+    "severity": "error",
+    "rule": "schema.unknown_preview_token"
+  },
+  {
+    "file": ".norcube/cms/collections/posts.yml",
+    "path": "path",
+    "severity": "error",
+    "rule": "schema.duplicate_collection_path"
+  },
+  {
+    "file": ".norcube/cms/collections/posts.yml",
+    "path": "schemaVersion",
+    "severity": "error",
+    "rule": "schema.unsupported_version"
+  },
+  {
+    "file": ".norcube/cms/config.yml",
+    "path": "defaultStorage",
+    "severity": "error",
+    "rule": "schema.unknown_default_storage"
+  },
+  {
+    "file": ".norcube/cms/config.yml",
+    "path": "inputsFromGlob",
+    "severity": "warning",
+    "rule": "schema.inputs_glob_unsupported"
+  },
+  {
+    "file": ".norcube/cms/config.yml",
+    "path": "preview.defaultLocale",
+    "severity": "error",
+    "rule": "schema.default_locale_not_declared"
+  },
+  {
+    "file": ".norcube/cms/config.yml",
+    "path": "redirects.format",
+    "severity": "error",
+    "rule": "schema.unknown_redirects_format"
+  },
+  {
+    "file": ".norcube/cms/config.yml",
+    "path": "storages.bad",
+    "severity": "error",
+    "rule": "schema.invalid_storage"
+  },
+  {
+    "file": ".norcube/cms/config.yml",
+    "path": "storages.bad",
+    "severity": "error",
+    "rule": "schema.invalid_storage"
+  },
+  {
+    "file": ".norcube/cms/config.yml",
+    "path": "storages.bad",
+    "severity": "error",
+    "rule": "schema.invalid_storage"
+  },
+  {
+    "file": ".norcube/cms/config.yml",
+    "path": "storages.bad",
+    "severity": "error",
+    "rule": "schema.invalid_storage"
+  },
+  {
+    "file": ".norcube/cms/config.yml",
+    "path": "variables.file",
+    "severity": "error",
+    "rule": "schema.missing_variables_file"
+  }
+]

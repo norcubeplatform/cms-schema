@@ -1,0 +1,12 @@
+pagesDir: src/content/pages
+publicDir: public
+storages:
+  images:
+    type: repo
+    path: public/images
+    publicUrl: /images
+knownPaths: ['/styleguide/']
+preview:
+  defaultLocale: en
+  locales: [en]
+  prefixDefaultLocale: false

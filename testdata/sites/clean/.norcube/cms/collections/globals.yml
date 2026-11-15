@@ -1,0 +1,23 @@
+label: Global variables
+path: src/content/settings
+match: 'globals.md'
+area: site
+hasBody: false
+previewPath: '/'
+fields:
+  - key: variables
+    type: array
+    label: Variables
+    items:
+      - key: variable
+        type: group
+        label: Variable
+        fields:
+          - key: key
+            type: text
+            label: Key
+            required: true
+            regex: '^[a-zA-Z][a-zA-Z0-9_]*$'
+          - key: value
+            type: text
+            label: Value

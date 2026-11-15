@@ -1,0 +1,22 @@
+label: FAQ
+fields:
+  - key: id
+    type: text
+    label: Anchor id
+  - key: items
+    type: array
+    label: Questions
+    minItems: 1
+    items:
+      - key: qa
+        type: group
+        label: Question
+        fields:
+          - key: question
+            type: text
+            label: Question
+            required: true
+          - key: answer
+            type: richtext
+            label: Answer
+            required: true

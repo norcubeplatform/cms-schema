@@ -1,0 +1,9 @@
+label: Settings
+path: src/content/settings
+match: 'site.yml'
+area: site
+previewPath: '/'
+fields:
+  - key: name
+    type: text
+    label: Name

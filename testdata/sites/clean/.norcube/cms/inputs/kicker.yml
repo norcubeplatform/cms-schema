@@ -1,0 +1,4 @@
+key: kicker
+type: text
+label: Kicker
+maxLength: 40

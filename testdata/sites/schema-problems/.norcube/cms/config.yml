@@ -1,0 +1,21 @@
+pagesDir: src/content/pages
+storages:
+  images:
+    type: repo
+    path: public/images
+    publicUrl: /images
+  bad:
+    type: s3
+    naming: slugh
+    dedup: hash
+    mode: readonly
+defaultStorage: nope
+preview:
+  defaultLocale: de
+  locales: [cs, en]
+redirects:
+  file: public/_redirects
+  format: apache
+variables:
+  file: src/content/settings/globals.md
+inputsFromGlob: 'shared/**/*.yml'

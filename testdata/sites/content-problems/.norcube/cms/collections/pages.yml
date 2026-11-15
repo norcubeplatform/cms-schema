@@ -1,0 +1,88 @@
+label: Pages
+path: src/content/pages
+hasBody: false
+extraKeysPolicy: strip
+previewPath: '/{slug}/'
+localeFrom: path
+fields:
+  - key: title
+    type: text
+    label: Title
+    required: true
+    minLength: 3
+    maxLength: 20
+  - key: slug
+    type: text
+    label: Slug
+    regex: '^[a-z-]*$'
+    regexMessage: Lowercase letters and hyphens only.
+  - key: count
+    type: number
+    label: Count
+    min: 1
+    max: 10
+  - key: published
+    type: boolean
+    label: Published
+  - key: kind
+    type: select
+    label: Kind
+    options: [page, landing]
+  - key: tags
+    type: multichoice
+    label: Tags
+    options: [a, b, c]
+    max: 2
+  - key: tier
+    type: select
+    label: Tier
+    options: [free, pro]
+  - key: seats
+    type: number
+    label: Seats
+    required: true
+    visibleIf: { field: tier, op: eq, value: pro }
+  - key: discount
+    type: number
+    label: Discount
+    customValidators:
+      - type: expression
+        message: A discount needs a pro tier.
+        condition: { field: tier, op: eq, value: pro }
+  - key: hero
+    type: image
+    label: Hero
+  - key: related
+    type: reference
+    collection: pages
+    by: field:slug
+    label: Related
+  - key: partner
+    type: reference
+    label: Partner page
+  - key: body
+    type: richtext
+    label: Body
+  - key: blocks
+    type: array
+    label: Blocks
+    minItems: 1
+    uniqueOn: id
+    items:
+      - key: text
+        type: group
+        label: Text
+        fields:
+          - key: id
+            type: text
+            label: Id
+          - key: link
+            type: link
+            label: Link
+      - key: quote
+        type: group
+        label: Quote
+        fields:
+          - key: id
+            type: text
+            label: Id

@@ -1,0 +1,86 @@
+label: Pages
+path: src/content/pages
+previewPath: '/{lang}/{slug}/'
+localeFrom: folder
+extraKeysPolicy: keep
+fields:
+  - key: title
+    type: text
+    label: Title
+    regex: '(?<=a)b'
+    minLength: 10
+    maxLength: 5
+  - key: title
+    type: text
+    label: Title again
+  - key: kind
+    type: select
+    label: Kind
+    options: []
+  - key: tier
+    type: select
+    label: Tier
+    options: [free, pro]
+    default: enterprise
+    widget: dropdown
+    toolbar: [bold]
+  - key: seats
+    type: number
+    label: Seats
+    min: 10
+    max: 1
+    visibleIf: { field: plan, op: eq, value: pro }
+  - key: slug
+    type: text
+    label: Slug
+    computed:
+      from: headline
+      transform: slug
+  - key: body
+    type: richtext
+    label: Body
+    toolbar: [bold, italic]
+  - key: photo
+    type: image
+    label: Photo
+    storage: pictures
+  - key: nolabel
+    type: text
+  - type: text
+    label: No key
+  - key: mystery
+    type: wysiwyg
+    label: Mystery
+  - key: notype
+    label: No type
+  - key: tags
+    type: array
+    label: Tags
+    minItems: 3
+    maxItems: 2
+    items:
+      - key: short
+        type: text
+        label: Short
+      - key: long
+        type: paragraph
+        label: Long
+  - key: cards
+    type: array
+    label: Cards
+    items:
+      - type: group
+        label: Anonymous card
+        fields:
+          - key: title
+            type: text
+            label: Title
+      - $ref: missing-block
+  - key: code
+    type: text
+    label: Code
+    customValidators:
+      - type: regex
+        pattern: '[unclosed'
+      - type: remote
+        url: https://example.com

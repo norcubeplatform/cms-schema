@@ -1,0 +1,27 @@
+label: Navigation
+path: src/content/navigation
+match: '*.yml'
+area: site
+previewPath: '/'
+fields:
+  - key: main
+    type: array
+    label: Links
+    items:
+      - key: item
+        type: group
+        label: Link
+        fields:
+          - key: label
+            type: text
+            label: Label
+            required: true
+          - key: page
+            type: reference
+            collection: pages
+            by: field:translationKey
+            label: Page
+          - key: href
+            type: link
+            label: Direct link
+            visibleIf: { field: page, op: empty }
