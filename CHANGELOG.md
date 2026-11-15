@@ -4,6 +4,12 @@ Notable changes, newest first.
 
 ## Unreleased
 
+### Changes
+
+- A `{fields.<key>}` value that holds a full URL (`https://example.com/about/`) resolves to its path, so sites that store addresses with the host compare like sites that store paths.
+
+## 0.1.0 (2026-11-15)
+
 ### New
 
 - First version of the module: the typed schema model, the directory

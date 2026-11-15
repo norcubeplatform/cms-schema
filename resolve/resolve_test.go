@@ -59,6 +59,18 @@ func TestURL(t *testing.T) {
 			t.Fatalf("got %q", got)
 		}
 	})
+	t.Run("a field holding the whole address", func(t *testing.T) {
+		coll := schema.Collection{Key: "pages", Path: "src/content/pages", PreviewPath: "{fields.url}", LocaleFrom: "none"}
+		for in, want := range map[string]string{
+			"/cs/reseni/hosting/":                   "/cs/reseni/hosting/",
+			"https://jetlio.com/cs/reseni/hosting/": "/cs/reseni/hosting/",
+			"HTTP://jetlio.com":                     "/",
+		} {
+			if got := URL("src/content/pages/x.md", coll, urlSite, map[string]any{"url": in}); got != want {
+				t.Errorf("url %q: got %q, want %q", in, got, want)
+			}
+		}
+	})
 	t.Run("fields token and locale from a field", func(t *testing.T) {
 		coll := schema.Collection{Key: "posts", Path: "src/content/posts", PreviewPath: "/blog/{fields.category}/{slug}/", LocaleFrom: "none"}
 		if got := URL("src/content/posts/hello.md", coll, urlSite, map[string]any{"slug": "hello", "category": "news"}); got != "/blog/news/hello/" {

@@ -285,11 +285,27 @@ func URL(filePath string, coll schema.Collection, site schema.PreviewSite, fm ma
 			return fmt.Sprint(v)
 		}
 	})
+	out = stripOrigin(out)
 	out = multiSlashRe.ReplaceAllString(out, "/")
 	if !strings.HasPrefix(out, "/") {
 		out = "/" + out
 	}
 	return out
+}
+
+// stripOrigin reduces a full URL a `{fields.<key>}` value may hold
+// (`https://example.com/about/`) to its path, so a site that stores
+// addresses with the host compares like one that stores paths.
+func stripOrigin(u string) string {
+	lower := strings.ToLower(u)
+	if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
+		return u
+	}
+	rest := u[strings.Index(u, "://")+3:]
+	if i := strings.Index(rest, "/"); i >= 0 {
+		return rest[i:]
+	}
+	return "/"
 }
 
 // TemplateRoutes reports whether the collection derives URLs from the
