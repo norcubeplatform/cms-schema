@@ -154,3 +154,27 @@ func TestRuleListIsFrozen(t *testing.T) {
 		t.Errorf("rule count changed to %d; adding a rule is fine, renaming or removing one is not", len(seen))
 	}
 }
+
+func TestDuplicatePathOnlyWhenAmbiguous(t *testing.T) {
+	files := map[string]string{
+		load.ConfigFile:                       "pagesDir: content\n",
+		load.CollectionsDir + "/pages.yml":    "label: Pages\npath: content\nmatch: '**/*.md'\nfields: []\n",
+		load.CollectionsDir + "/blog.yml":     "label: Blog index\npath: content\nmatch: 'blog.md'\nfields: []\n",
+		load.CollectionsDir + "/settings.yml": "label: Settings\npath: content\nmatch: 'settings.md'\nfields: []\n",
+	}
+	res, err := validate.Site(site(files), validate.Options{Only: []string{validate.ScopeSchema}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Findings) != 0 {
+		t.Fatalf("a pattern collection with single-document collections beside it is fine, got %v", res.Findings)
+	}
+	files[load.CollectionsDir+"/posts.yml"] = "label: Posts\npath: content\nmatch: '*.md'\nfields: []\n"
+	res, err = validate.Site(site(files), validate.Options{Only: []string{validate.ScopeSchema}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := rules(res.Findings); n[load.CollectionsDir+"/pages.yml#path schema.duplicate_collection_path"] != 1 || n[load.CollectionsDir+"/posts.yml#path schema.duplicate_collection_path"] != 1 || len(res.Findings) != 2 {
+		t.Fatalf("two pattern collections on one path must be reported once each, got %v", res.Findings)
+	}
+}

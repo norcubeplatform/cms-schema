@@ -85,17 +85,16 @@ func Schema(doc *load.Document, exists func(path string) bool) []report.Finding 
 	}
 	sort.Strings(paths)
 	for _, p := range paths {
-		keys := byPath[p]
-		if len(keys) < 2 || literalMatchesDistinct(cfg, keys) {
+		keys := ambiguousKeys(cfg, byPath[p])
+		if len(keys) == 0 {
 			continue
 		}
-		sort.Strings(keys)
 		for _, key := range keys {
 			file := load.CollectionFile(key)
 			if doc.Legacy {
 				file = configFile
 			}
-			f(file, "path", report.SeverityError, report.RuleSchemaDuplicateCollectionPath, fmt.Sprintf("collections %s share path %q; files under it resolve to one of them arbitrarily", strings.Join(keys, ", "), p), "Give each collection its own directory, or merge them into one collection.")
+			f(file, "path", report.SeverityError, report.RuleSchemaDuplicateCollectionPath, fmt.Sprintf("collections %s share path %q and their `match` patterns cannot tell them apart; files under it resolve to one of them arbitrarily", strings.Join(keys, ", "), p), "Give each collection its own directory, merge them, or let all but one name a single file with a literal `match`.")
 		}
 	}
 
@@ -383,17 +382,35 @@ func strconvI(i int) string { return fmt.Sprintf("%d", i) }
 
 func quote(s string) string { return fmt.Sprintf("%q", s) }
 
-// literalMatchesDistinct reports whether every collection in the list
-// claims one distinct file by a literal `match`, the documented way to
-// keep several single-document collections in one directory.
-func literalMatchesDistinct(cfg *schema.Config, keys []string) bool {
-	seen := map[string]bool{}
+// ambiguousKeys returns the collections among keys (which share one
+// path) that `match` cannot tell apart, sorted: every pattern collection
+// when there are two or more of them (the resolver would pick one by key
+// order), and the literal single-document collections that claim the
+// same file name. One pattern collection plus distinct single-document
+// collections in the same directory is fine: the literal names win.
+func ambiguousKeys(cfg *schema.Config, keys []string) []string {
+	var patterns []string
+	byLiteral := map[string][]string{}
 	for _, key := range keys {
 		m := strings.TrimSpace(cfg.Collections[key].Match)
-		if !resolve.IsLiteralMatch(m) || seen[m] {
-			return false
+		if m == "" {
+			m = "**/*.md"
 		}
-		seen[m] = true
+		if resolve.IsLiteralMatch(m) {
+			byLiteral[m] = append(byLiteral[m], key)
+			continue
+		}
+		patterns = append(patterns, key)
 	}
-	return true
+	var out []string
+	if len(patterns) >= 2 {
+		out = append(out, patterns...)
+	}
+	for _, dup := range byLiteral {
+		if len(dup) >= 2 {
+			out = append(out, dup...)
+		}
+	}
+	sort.Strings(out)
+	return out
 }

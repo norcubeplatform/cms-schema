@@ -2,6 +2,12 @@
 
 Notable changes, newest first.
 
+## Unreleased
+
+### Changes
+
+- `schema.duplicate_collection_path` is reported only when the `match` patterns of collections sharing a path cannot tell them apart (two pattern collections, or two claiming the same literal file name). One pattern collection beside single-document collections in the same directory is the documented layout and passes; the resolver prefers the literal name.
+
 ## 0.1.1 (2026-11-15)
 
 ### Changes
