@@ -2,6 +2,27 @@
 
 Notable changes, newest first.
 
+## 0.3.0 (2026-11-19)
+
+### New
+
+- **`resolve.TranslatableTexts(cfg, coll, frontmatter, body)`** lists the texts of a page that are translated when it gets a language version: path (`blocks[0].heading`), label, field type, format (`plain`, `markdown`, `html`) and value, in schema order, the body last. More than `resolve.MaxTranslatableTexts` (2000) texts is `resolve.ErrTooManyTexts`.
+- **`resolve.TranslatableIn(coll, ancestors, field)`** decides for a field anywhere in the schema, given the groups and lists around it; `resolve.Translatable` is the same question for a top-level field. `resolve.TranslatableType` says whether a field type is text at all. The rules are a table in the README.
+- **`schema.Walk`** visits every field of a document with its definition, path, depth, enclosing fields and condition scope: groups, list items of every shape, and each item of a list of primitives. Bounded by `schema.MaxWalkDepth` (32). `schema.JoinPath` and `schema.IndexPath` build the paths. The content and links validators now run on it instead of walkers of their own; their findings are unchanged.
+- One rule (56 in all): `schema.translatable_ignored`, a warning for `translatable: true` on a field whose type is never translated (a number, an image, a select…).
+- **`resolve.HasWords(value)`**: whether a value holds anything to translate. A value with no letter (a phone number, a price, a date) or one that is only an email or web address is left out of `TranslatableTexts`, whatever its field.
+- `resolve.BodyPath`, `resolve.FormatPlain`, `resolve.FormatMarkdown`, `resolve.FormatHTML`, `schema.RichTextFormatMarkdown`, `schema.RichTextFormatHTML`.
+
+### Behaviour changes
+
+`resolve.Translatable` answers differently for these fields:
+
+- **A `text` field with a `regex` is no longer translated by default.** A pattern marks an id, an icon name or a handle. Say `translatable: true` on the field where the text is for people.
+- **`translatable` on a group or a list covers everything inside it**, down to the next field that sets its own. Before, the key was read on the field itself only.
+- **`computed` and `hidden` fields are not translated** unless they say `translatable: true`; fields inside a hidden group or list neither.
+- **`translatable: true` no longer makes a field of another type translatable** (a select, a link, a number). Only text, paragraph and rich text are; the schema validator reports the key there.
+- The linking field is recognised at the top level only; a nested field that shares its key is ordinary text.
+
 ## 0.2.0 (2026-11-19)
 
 ### New
