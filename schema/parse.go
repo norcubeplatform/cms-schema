@@ -100,6 +100,7 @@ func Parse(doc map[string]any) (*Config, error) {
 			Preview:         parsePreview(m["preview"]),
 			PreviewPath:     str(m["previewPath"]),
 			LocaleFrom:      str(m["localeFrom"]),
+			Translations:    parseTranslations(m["translations"]),
 			Fields:          ParseFields(m["fields"]),
 			Raw:             m,
 		}
@@ -156,7 +157,18 @@ var commonKnobs = map[string]bool{
 	"key": true, "type": true, "label": true, "description": true, "name": true,
 	"required": true, "requiredMessage": true, "nullable": true, "hidden": true,
 	"visibleIf": true, "whenHidden": true, "computed": true, "customValidators": true,
-	"default": true, "_blockRef": true, "schemaVersion": true,
+	"default": true, "_blockRef": true, "schemaVersion": true, "translatable": true,
+}
+
+// parseTranslations reads a collection's `translations` block; nil when
+// there is none. A block that is present but malformed is kept (with an
+// empty By) so validation can report it.
+func parseTranslations(v any) *Translations {
+	if v == nil {
+		return nil
+	}
+	m, _ := v.(map[string]any)
+	return &Translations{By: strings.TrimSpace(str(m["by"]))}
 }
 
 var typeKnobs = map[string][]string{
@@ -203,6 +215,7 @@ func ParseField(m map[string]any) Field {
 		RequiredMessage:   str(m["requiredMessage"]),
 		Nullable:          boolOf(m["nullable"]),
 		Hidden:            boolOf(m["hidden"]),
+		Translatable:      boolPtr(m["translatable"]),
 		WhenHidden:        str(m["whenHidden"]),
 		Regex:             str(m["regex"]),
 		RegexMessage:      str(m["regexMessage"]),
@@ -560,4 +573,14 @@ func trimmedStrings(v any) []string {
 
 func cleanPath(p string) string {
 	return strings.Trim(strings.TrimSpace(p), "/")
+}
+
+// boolPtr is a boolean knob that may be absent: nil unless the value is a
+// boolean.
+func boolPtr(v any) *bool {
+	b, ok := v.(bool)
+	if !ok {
+		return nil
+	}
+	return &b
 }

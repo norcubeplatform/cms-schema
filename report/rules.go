@@ -86,6 +86,11 @@ const (
 	// RuleSchemaInvalidLocaleFrom: `localeFrom` is not `path`, `none` or
 	// `field:<key>`.
 	RuleSchemaInvalidLocaleFrom Rule = "schema.invalid_locale_from"
+	// RuleSchemaInvalidTranslations: a collection's `translations.by` is
+	// not `path` or `field:<key>`, names a field the collection does not
+	// have at its top level as a required text field, or is `path` in a
+	// collection whose locale does not come from the path.
+	RuleSchemaInvalidTranslations Rule = "schema.invalid_translations"
 	// RuleSchemaDefaultLocaleNotDeclared: `preview.defaultLocale` is not
 	// in `preview.locales`.
 	RuleSchemaDefaultLocaleNotDeclared Rule = "schema.default_locale_not_declared"
@@ -149,6 +154,10 @@ const (
 	// RuleLinksURLCollision: two files whose collections derive URLs from
 	// the file resolve to the same URL.
 	RuleLinksURLCollision Rule = "links.url_collision"
+	// RuleLinksTranslationCollision: two files of one collection and one
+	// locale share a translation key, so they claim to be the same page
+	// in the same language.
+	RuleLinksTranslationCollision Rule = "links.translation_collision"
 	// RuleLinksUnresolvedLink: a site link points at no file's URL, no
 	// asset and no known path.
 	RuleLinksUnresolvedLink Rule = "links.unresolved_link"
@@ -176,7 +185,7 @@ func Rules() []Rule {
 		RuleSchemaAmbiguousItemShapes, RuleSchemaAnonymousItemShapes,
 		RuleSchemaUnknownStorage, RuleSchemaUnknownDefaultStorage, RuleSchemaInvalidStorage,
 		RuleSchemaDuplicateCollectionPath, RuleSchemaMissingCollectionPath,
-		RuleSchemaUnknownPreviewToken, RuleSchemaInvalidLocaleFrom,
+		RuleSchemaUnknownPreviewToken, RuleSchemaInvalidLocaleFrom, RuleSchemaInvalidTranslations,
 		RuleSchemaDefaultLocaleNotDeclared, RuleSchemaUnknownRedirectsFormat,
 		RuleSchemaMissingVariablesFile,
 		RuleContentParseError, RuleContentNoCollection, RuleContentRequired,
@@ -185,7 +194,7 @@ func Rules() []Rule {
 		RuleContentMinLength, RuleContentMaxLength, RuleContentMin, RuleContentMax,
 		RuleContentUnique, RuleContentCustom, RuleContentExtraKeys,
 		RuleContentUnexpectedBody,
-		RuleLinksURLCollision, RuleLinksUnresolvedLink, RuleLinksMissingAsset,
+		RuleLinksURLCollision, RuleLinksTranslationCollision, RuleLinksUnresolvedLink, RuleLinksMissingAsset,
 		RuleLinksUnresolvedReference, RuleLinksOrphanSidecar,
 	}
 }

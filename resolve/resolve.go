@@ -209,6 +209,62 @@ func Locale(filePath string, coll schema.Collection, site schema.PreviewSite, fm
 	return locale
 }
 
+// TranslationKey is what a file shares with its other language versions,
+// per its collection's `translations.by`; "" when the collection declares
+// no translations or the file has no key. Files of one collection with
+// the same key are versions of each other, one per locale.
+//
+//   - `path`: the file's path under the collection, without its locale
+//     folder and its extension, so `cs/pricing.md` and `en/pricing.md`
+//     are one page. A file of the default locale that sits outside any
+//     locale folder has the same key as its versions inside one.
+//   - `field:<key>`: the value of that top-level field.
+func TranslationKey(filePath string, coll schema.Collection, site schema.PreviewSite, fm map[string]any) string {
+	if coll.Translations == nil {
+		return ""
+	}
+	if field, ok := coll.Translations.Field(); ok {
+		v, _ := fm[field].(string)
+		return strings.TrimSpace(v)
+	}
+	if coll.Translations.By != schema.TranslationsByPath {
+		return ""
+	}
+	f := strings.Trim(filePath, "/")
+	d := strings.Trim(coll.Path, "/")
+	if d == "" || !strings.HasPrefix(f, d+"/") {
+		return ""
+	}
+	rel := f[len(d)+1:]
+	if l := LocaleFromFolder(filePath, coll.Path, site.Locales); l != "" && len(site.Locales) > 0 {
+		rel = strings.TrimPrefix(rel, l+"/")
+	}
+	return strings.TrimSuffix(rel, path.Ext(rel))
+}
+
+// Translatable reports whether a top-level field's text is translated
+// when a page of the collection gets a language version. The field says
+// so itself with `translatable`; otherwise text is translated (text,
+// paragraph, rich text) and everything else is carried over as it is.
+// Two text fields are never translated unless they say so: the `slug`,
+// which is an address, and the field that links the versions.
+func Translatable(coll schema.Collection, f schema.Field) bool {
+	if f.Translatable != nil {
+		return *f.Translatable
+	}
+	if link, ok := coll.Translations.Field(); ok && f.Key == link {
+		return false
+	}
+	if f.Key == "slug" {
+		return false
+	}
+	switch schema.Canonical(f.Type) {
+	case schema.TypeText, schema.TypeParagraph, schema.TypeRichText:
+		return true
+	}
+	return false
+}
+
 // SlugFallback is the slug a file gets when its frontmatter declares
 // none: its path relative to the locale folder (or the collection
 // root), without the extension, an `index` file standing for its

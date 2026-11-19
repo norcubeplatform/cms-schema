@@ -102,16 +102,17 @@ func Site(fsys fs.FS, opts Options) (*Result, error) {
 				findings = append(findings, Page(cfg, coll, doc)...)
 			}
 			entries = append(entries, Entry{
-				Path:       p,
-				Collection: coll.Key,
-				URL:        resolve.URL(p, coll, cfg.Preview, doc.Frontmatter),
-				Locale:     resolve.Locale(p, coll, cfg.Preview, doc.Frontmatter),
-				Title:      resolve.EntryTitle(coll, doc.Frontmatter, p),
-				Keys:       resolve.EntryKeys(cfg, doc.Frontmatter),
-				Routes:     resolve.TemplateRoutes(coll),
-				doc:        doc,
-				coll:       coll,
-				hasCol:     true,
+				Path:           p,
+				Collection:     coll.Key,
+				URL:            resolve.URL(p, coll, cfg.Preview, doc.Frontmatter),
+				Locale:         resolve.Locale(p, coll, cfg.Preview, doc.Frontmatter),
+				Title:          resolve.EntryTitle(coll, doc.Frontmatter, p),
+				Keys:           resolve.EntryKeys(cfg, doc.Frontmatter),
+				TranslationKey: resolve.TranslationKey(p, coll, cfg.Preview, doc.Frontmatter),
+				Routes:         resolve.TemplateRoutes(coll),
+				doc:            doc,
+				coll:           coll,
+				hasCol:         true,
 			})
 		}
 		if want[ScopeLinks] {

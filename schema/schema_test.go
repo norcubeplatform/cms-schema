@@ -201,3 +201,33 @@ func TestKnownKnobs(t *testing.T) {
 		t.Fatal("canonical")
 	}
 }
+
+func TestParseTranslations(t *testing.T) {
+	doc := map[string]any{"collections": map[string]any{
+		"pages": map[string]any{"path": "content", "translations": map[string]any{"by": " field:translationKey "},
+			"fields": []any{map[string]any{"key": "sku", "type": "text", "translatable": false}, map[string]any{"key": "title", "type": "text"}}},
+		"posts":  map[string]any{"path": "posts"},
+		"broken": map[string]any{"path": "broken", "translations": "yes"},
+	}}
+	c, err := Parse(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages := c.Collections["pages"]
+	if key, ok := pages.Translations.Field(); pages.Translations == nil || pages.Translations.By != "field:translationKey" || !ok || key != "translationKey" {
+		t.Errorf("pages: %+v", pages.Translations)
+	}
+	if pages.Fields[0].Translatable == nil || *pages.Fields[0].Translatable || pages.Fields[1].Translatable != nil || len(pages.Fields[0].Extra) != 0 {
+		t.Errorf("translatable: %+v", pages.Fields)
+	}
+	if c.Collections["posts"].Translations != nil {
+		t.Error("a collection without the block has translations")
+	}
+	// Present but malformed: kept, so validation can say so.
+	if b := c.Collections["broken"].Translations; b == nil || b.By != "" {
+		t.Errorf("broken: %+v", b)
+	}
+	if _, ok := (*Translations)(nil).Field(); ok {
+		t.Error("no declaration has a linking field")
+	}
+}

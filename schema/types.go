@@ -10,6 +10,8 @@
 // Field.Extra so a validator can report it.
 package schema
 
+import "strings"
+
 // Field types the editor renders. The three legacy spellings are the
 // names fields carried before a rename and are still accepted in
 // content written against them.
@@ -106,6 +108,9 @@ const (
 
 	ReferenceByPath        = "path"
 	ReferenceByFieldPrefix = "field:"
+
+	TranslationsByPath        = "path"
+	TranslationsByFieldPrefix = "field:"
 
 	RedirectsFormatNetlify = "netlify"
 	RedirectsFormatVercel  = "vercel"
@@ -304,6 +309,11 @@ type Field struct {
 	// Components backs the legacy `blocks` type.
 	Components []string
 
+	// Translatable says whether the field's text is translated when a
+	// page gets a language version; nil when the field does not say, and
+	// the default for its type applies (resolve.Translatable).
+	Translatable *bool
+
 	// Extra holds keys the editor does not read for this field type.
 	Extra map[string]any
 	// Raw is the field as parsed, for consumers that need a knob this
@@ -324,9 +334,32 @@ type Collection struct {
 	Preview         *Preview
 	PreviewPath     string
 	LocaleFrom      string
-	SchemaVersion   *int
-	Fields          []Field
-	Raw             map[string]any
+	// Translations says how the collection's language versions are linked;
+	// nil when the collection declares none.
+	Translations  *Translations
+	SchemaVersion *int
+	Fields        []Field
+	Raw           map[string]any
+}
+
+// Translations is a collection's `translations` block: how the pages that
+// are versions of one another in different languages are told apart from
+// the rest. Nothing is inferred: a collection without it has no language
+// versions.
+type Translations struct {
+	// By is `path` (the same path under each locale folder) or
+	// `field:<key>` (pages with the same value of that field).
+	By string
+}
+
+// Field returns the key of the linking field for `by: field:<key>`, and
+// whether By has that form.
+func (t *Translations) Field() (string, bool) {
+	if t == nil || !strings.HasPrefix(t.By, TranslationsByFieldPrefix) {
+		return "", false
+	}
+	key := strings.TrimPrefix(t.By, TranslationsByFieldPrefix)
+	return key, key != ""
 }
 
 // Block is a reusable group of fields.

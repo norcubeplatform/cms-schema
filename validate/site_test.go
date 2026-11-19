@@ -150,7 +150,7 @@ func TestRuleListIsFrozen(t *testing.T) {
 		}
 		seen[r] = true
 	}
-	if len(seen) != 53 {
+	if len(seen) != 55 {
 		t.Errorf("rule count changed to %d; adding a rule is fine, renaming or removing one is not", len(seen))
 	}
 }

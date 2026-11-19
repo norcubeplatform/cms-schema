@@ -20,6 +20,9 @@ type Entry struct {
 	Locale     string
 	Title      string
 	Keys       map[string]string
+	// TranslationKey is what the file shares with its other language
+	// versions (resolve.TranslationKey); "" when it has none.
+	TranslationKey string
 	// Routes is true when the collection derives URLs from the file.
 	Routes bool
 	doc    content.Document
@@ -71,6 +74,21 @@ func Links(cfg *schema.Config, entries []Entry, exists func(string) bool, sideca
 			}
 		}
 		byURL[n] = e.Path
+	}
+
+	// One page per language: two files of a collection and a locale with
+	// one translation key both claim to be that page in that language.
+	versions := map[string]string{}
+	for _, e := range sorted {
+		if e.TranslationKey == "" {
+			continue
+		}
+		id := e.Collection + "\x00" + e.Locale + "\x00" + e.TranslationKey
+		if prev, taken := versions[id]; taken {
+			out = append(out, report.Finding{File: e.Path, Severity: report.SeverityError, Rule: report.RuleLinksTranslationCollision, Message: fmt.Sprintf("has the translation key %q in %q, the same as %s", e.TranslationKey, e.Locale, prev), Hint: "A page has one version per language. Give one of the two files its own key, or move it to the language it is written in."})
+			continue
+		}
+		versions[id] = e.Path
 	}
 
 	refKeys := cfg.ReferenceKeys()

@@ -72,6 +72,9 @@ func Schema(doc *load.Document, exists func(path string) bool) []report.Finding 
 		default:
 			f(file, "localeFrom", report.SeverityError, report.RuleSchemaInvalidLocaleFrom, fmt.Sprintf("localeFrom %q is not path, none or field:<key>", coll.LocaleFrom), "")
 		}
+		if reason, hint := translationsProblem(coll); reason != "" {
+			f(file, "translations.by", report.SeverityError, report.RuleSchemaInvalidTranslations, reason, hint)
+		}
 		switch coll.ExtraKeysPolicy {
 		case schema.ExtraKeysShow, schema.ExtraKeysHide, schema.ExtraKeysStrip:
 		default:
@@ -413,4 +416,40 @@ func ambiguousKeys(cfg *schema.Config, keys []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// translationsProblem says what is wrong with a collection's
+// `translations` block, with a hint, or "" when it is sound or absent.
+// The block decides which pages are one page in several languages, so
+// it has to be something every page can answer: a path that carries the
+// locale, or a field every page must have.
+func translationsProblem(coll schema.Collection) (reason, hint string) {
+	t := coll.Translations
+	if t == nil {
+		return "", ""
+	}
+	const forms = "Use `by: path` (the same path under each locale folder) or `by: field:<key>` (pages with the same value of that field)."
+	if t.By == schema.TranslationsByPath {
+		if coll.LocaleFrom != schema.LocaleFromPath {
+			return "translations.by is path, but the collection's locale does not come from the path", "Add `localeFrom: path`, or link the versions by a field: `by: field:<key>`."
+		}
+		return "", ""
+	}
+	key, ok := t.Field()
+	if !ok {
+		return fmt.Sprintf("translations.by %q is not path or field:<key>", t.By), forms
+	}
+	for _, f := range coll.Fields {
+		if f.Key != key {
+			continue
+		}
+		if schema.Canonical(f.Type) != schema.TypeText {
+			return fmt.Sprintf("translations.by names %q, which is a %s field; the linking field must be text", key, f.Type), "Link the versions by a text field whose value they share."
+		}
+		if !f.Required {
+			return fmt.Sprintf("translations.by names %q, which is not required, so a page could have no key", key), "Mark the field `required: true`."
+		}
+		return "", ""
+	}
+	return fmt.Sprintf("translations.by names %q, which is not a top-level field of the collection", key), "Add the field to the collection, or name one it has."
 }

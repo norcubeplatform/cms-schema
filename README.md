@@ -48,7 +48,9 @@ error    .norcube/cms/collections/pages.yml#fields.tier  schema.default_not_opti
 options, bounds are ordered, regexes compile, `visibleIf` and `computed`
 paths name fields, storages and `defaultStorage` agree, the preview,
 redirects and variables blocks are consistent, no two collections claim
-one directory without literal `match` names to tell them apart.
+one directory without literal `match` names to tell them apart, and a
+collection's `translations.by` is `path` (with `localeFrom: path`) or
+names a required top-level text field.
 
 **content** — every content file against its collection, with the
 editor's rules: required, value shape (including select options), item
@@ -58,7 +60,8 @@ bounds, uniqueness, custom validators, out-of-schema keys per
 by `hidden` or by a false `visibleIf` are skipped, as in the editor.
 
 **links** — the site as a whole: two files resolving to one URL, site
-links that no file produces and no `knownPaths` entry covers, images
+links that no file produces and no `knownPaths` entry covers, two files
+of one collection and one language sharing a translation key, images
 and files that do not exist, reference fields whose target is gone,
 orphaned identity sidecars.
 
