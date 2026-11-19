@@ -96,14 +96,13 @@ func Links(cfg *schema.Config, entries []Entry, exists func(string) bool, sideca
 	for _, e := range sorted {
 		if !e.hasCol {
 			for _, raw := range resolve.InternalLinks(e.doc.Body) {
-				out = append(out, resolveRef(cfg, e, rawRef{fieldPath: "body", raw: raw, kind: refLink}, byURL, byPath, exists)...)
+				out = append(out, resolveRef(cfg, e, rawRef{fieldPath: resolve.BodyPath, raw: raw, kind: refLink}, byURL, byPath, exists)...)
 			}
 			continue
 		}
-		var refs []rawRef
-		refs = walkRefs(cfg, e.coll.Fields, e.doc.Frontmatter, "", refs)
+		refs := collectRefs(cfg, e.coll.Fields, e.doc.Frontmatter)
 		for _, raw := range resolve.InternalLinks(e.doc.Body) {
-			refs = append(refs, rawRef{fieldPath: "body", raw: raw, kind: refLink})
+			refs = append(refs, rawRef{fieldPath: resolve.BodyPath, raw: raw, kind: refLink})
 		}
 		for _, r := range refs {
 			out = append(out, resolveRef(cfg, e, r, byURL, byPath, exists)...)
@@ -187,67 +186,46 @@ func lookupEntry(byPath map[string]Entry, f schema.Field, value string) bool {
 	return ok
 }
 
-// walkRefs extracts every candidate reference from the frontmatter
+// collectRefs extracts every candidate reference from the frontmatter
 // against the collection's fields, as the content index does.
-func walkRefs(cfg *schema.Config, fields []schema.Field, obj map[string]any, prefix string, out []rawRef) []rawRef {
-	for _, f := range fields {
-		if f.Key == "" {
-			continue
+func collectRefs(cfg *schema.Config, fields []schema.Field, fm map[string]any) []rawRef {
+	var out []rawRef
+	schema.Walk(cfg, fields, fm, func(v schema.Visit) bool {
+		// Items of a list of primitives are not indexed.
+		if v.Item || v.Value == nil {
+			return true
 		}
-		val, present := obj[f.Key]
-		if !present || val == nil {
-			continue
-		}
-		p := joinPath(prefix, f.Key)
+		f, p := v.Field, v.Path
 		switch schema.Canonical(f.Type) {
 		case schema.TypeLink:
-			if s, ok := val.(string); ok && resolve.IsInternalLink(s) {
+			if s, ok := v.Value.(string); ok && resolve.IsInternalLink(s) {
 				out = append(out, rawRef{fieldPath: p, raw: strings.TrimSpace(s), kind: refLink})
 			}
 		case schema.TypeImage, schema.TypeFile:
-			if s, ok := val.(string); ok && resolve.IsAssetValue(s) {
+			if s, ok := v.Value.(string); ok && resolve.IsAssetValue(s) {
 				out = append(out, rawRef{fieldPath: p, raw: strings.TrimSpace(s), kind: refAsset})
 			}
 		case schema.TypeReference:
-			switch v := val.(type) {
+			switch val := v.Value.(type) {
 			case string:
-				if strings.TrimSpace(v) != "" {
-					out = append(out, rawRef{fieldPath: p, raw: strings.TrimSpace(v), kind: refReference, field: f})
+				if strings.TrimSpace(val) != "" {
+					out = append(out, rawRef{fieldPath: p, raw: strings.TrimSpace(val), kind: refReference, field: f})
 				}
 			case []any:
-				for i, item := range v {
+				for i, item := range val {
 					if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
-						out = append(out, rawRef{fieldPath: fmt.Sprintf("%s[%d]", p, i), raw: strings.TrimSpace(s), kind: refReference, field: f})
+						out = append(out, rawRef{fieldPath: schema.IndexPath(p, i), raw: strings.TrimSpace(s), kind: refReference, field: f})
 					}
 				}
 			}
 		case schema.TypeRichText:
-			if s, ok := val.(string); ok {
+			if s, ok := v.Value.(string); ok {
 				for _, raw := range resolve.InternalLinks(s) {
 					out = append(out, rawRef{fieldPath: p, raw: raw, kind: refLink})
 				}
 			}
-		case schema.TypeGroup:
-			if m, ok := val.(map[string]any); ok {
-				out = walkRefs(cfg, f.Fields, m, p, out)
-			}
-		case schema.TypeArray:
-			items, ok := val.([]any)
-			if !ok {
-				continue
-			}
-			for i, item := range items {
-				m, ok := item.(map[string]any)
-				if !ok {
-					continue
-				}
-				sub := schema.ItemFields(cfg, f, m)
-				if sub == nil {
-					continue
-				}
-				out = walkRefs(cfg, sub, m, fmt.Sprintf("%s[%d]", p, i), out)
-			}
 		}
-	}
+		return true
+	})
 	return out
 }

@@ -258,36 +258,3 @@ func TestTranslationKey(t *testing.T) {
 		t.Errorf("no locales declared: %q", got)
 	}
 }
-
-func TestTranslatable(t *testing.T) {
-	yes, no := true, false
-	coll := schema.Collection{Translations: &schema.Translations{By: "field:translationKey"}}
-	cases := []struct {
-		field schema.Field
-		want  bool
-	}{
-		{schema.Field{Key: "title", Type: schema.TypeText}, true},
-		{schema.Field{Key: "intro", Type: schema.TypeParagraph}, true},
-		{schema.Field{Key: "body", Type: schema.TypeRichText}, true},
-		{schema.Field{Key: "body", Type: schema.TypeMarkdown}, true},
-		{schema.Field{Key: "order", Type: schema.TypeNumber}, false},
-		{schema.Field{Key: "hero", Type: schema.TypeImage}, false},
-		{schema.Field{Key: "related", Type: schema.TypeReference}, false},
-		{schema.Field{Key: "kind", Type: schema.TypeSelect}, false},
-		{schema.Field{Key: "published", Type: schema.TypeDate}, false},
-		{schema.Field{Key: "slug", Type: schema.TypeText}, false},
-		{schema.Field{Key: "translationKey", Type: schema.TypeText}, false},
-		{schema.Field{Key: "sku", Type: schema.TypeText, Translatable: &no}, false},
-		{schema.Field{Key: "slug", Type: schema.TypeText, Translatable: &yes}, true},
-		{schema.Field{Key: "kind", Type: schema.TypeSelect, Translatable: &yes}, true},
-	}
-	for _, c := range cases {
-		if got := Translatable(coll, c.field); got != c.want {
-			t.Errorf("%s (%s): %v, want %v", c.field.Key, c.field.Type, got, c.want)
-		}
-	}
-	// Without a linking field declared, a field of that name is ordinary text.
-	if !Translatable(schema.Collection{}, schema.Field{Key: "translationKey", Type: schema.TypeText}) {
-		t.Error("translationKey is text in a collection that links by nothing")
-	}
-}

@@ -91,6 +91,10 @@ const (
 	// have at its top level as a required text field, or is `path` in a
 	// collection whose locale does not come from the path.
 	RuleSchemaInvalidTranslations Rule = "schema.invalid_translations"
+	// RuleSchemaTranslatableIgnored: `translatable` is set on a field whose
+	// type is never translated (a number, an image, a select…), so it
+	// changes nothing.
+	RuleSchemaTranslatableIgnored Rule = "schema.translatable_ignored"
 	// RuleSchemaDefaultLocaleNotDeclared: `preview.defaultLocale` is not
 	// in `preview.locales`.
 	RuleSchemaDefaultLocaleNotDeclared Rule = "schema.default_locale_not_declared"
@@ -186,6 +190,7 @@ func Rules() []Rule {
 		RuleSchemaUnknownStorage, RuleSchemaUnknownDefaultStorage, RuleSchemaInvalidStorage,
 		RuleSchemaDuplicateCollectionPath, RuleSchemaMissingCollectionPath,
 		RuleSchemaUnknownPreviewToken, RuleSchemaInvalidLocaleFrom, RuleSchemaInvalidTranslations,
+		RuleSchemaTranslatableIgnored,
 		RuleSchemaDefaultLocaleNotDeclared, RuleSchemaUnknownRedirectsFormat,
 		RuleSchemaMissingVariablesFile,
 		RuleContentParseError, RuleContentNoCollection, RuleContentRequired,

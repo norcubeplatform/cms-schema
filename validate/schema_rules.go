@@ -188,6 +188,12 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 	}
 	t := schema.Canonical(fd.Type)
 
+	// `translatable: true` on a value that is never translated. Saying
+	// false there is harmless and is left alone.
+	if fd.Translatable != nil && *fd.Translatable && !resolve.TranslatableType(t) && t != schema.TypeGroup && t != schema.TypeArray {
+		f(file, p, report.SeverityWarning, report.RuleSchemaTranslatableIgnored, fmt.Sprintf("field %q has `translatable`, but a value of type %s is never translated", label, fd.Type), "Only text, paragraph and richtext are translated; on a group or an array the key covers the fields inside. Remove it here.")
+	}
+
 	// Options.
 	if t == schema.TypeSelect || t == schema.TypeMultiChoice {
 		if len(fd.Options) == 0 {
@@ -374,12 +380,7 @@ func contains(list []string, v string) bool {
 	return false
 }
 
-func joinPath(base, key string) string {
-	if base == "" {
-		return key
-	}
-	return base + "." + key
-}
+func joinPath(base, key string) string { return schema.JoinPath(base, key) }
 
 func strconvI(i int) string { return fmt.Sprintf("%d", i) }
 

@@ -122,6 +122,10 @@ const (
 	AreaContent = "content"
 	AreaSite    = "site"
 
+	// Storage formats of a rich text field; markdown when it does not say.
+	RichTextFormatMarkdown = "markdown"
+	RichTextFormatHTML     = "html"
+
 	WhenHiddenKeep = "keep"
 	WhenHiddenDrop = "drop"
 

@@ -27,8 +27,13 @@ func Page(cfg *schema.Config, coll schema.Collection, doc content.Document) []re
 	f := func(path string, sev report.Severity, rule report.Rule, msg, hint string) {
 		out = append(out, report.Finding{File: doc.Path, Path: path, Severity: sev, Rule: rule, Message: msg, Hint: hint})
 	}
-	walkValues(cfg, coll.Fields, fm, "", schema.RootScope(fm), func(v visit) {
-		checkValue(cfg, v, f)
+	schema.Walk(cfg, coll.Fields, fm, func(v schema.Visit) bool {
+		// The rules apply to declared fields; the items of a list of
+		// primitives have none of their own.
+		if !v.Item {
+			checkValue(cfg, v, f)
+		}
+		return true
 	})
 
 	// Out-of-schema keys.
@@ -71,52 +76,10 @@ func Page(cfg *schema.Config, coll schema.Collection, doc content.Document) []re
 	return kept
 }
 
-// visit is one field at one position in the content.
-type visit struct {
-	def   schema.Field
-	value any
-	has   bool
-	path  string
-	scope schema.Scope
-}
-
-func walkValues(cfg *schema.Config, fields []schema.Field, value map[string]any, base string, scope schema.Scope, fn func(visit)) {
-	for _, fd := range fields {
-		if fd.Key == "" {
-			continue
-		}
-		p := joinPath(base, fd.Key)
-		v, has := value[fd.Key]
-		fn(visit{def: fd, value: v, has: has, path: p, scope: scope})
-		switch {
-		case schema.IsGroup(fd.Type):
-			if m, ok := v.(map[string]any); ok {
-				walkValues(cfg, fd.Fields, m, p, scope.Child(m), fn)
-			}
-		case schema.IsArray(fd.Type):
-			items, ok := v.([]any)
-			if !ok {
-				continue
-			}
-			for i, item := range items {
-				m, ok := item.(map[string]any)
-				if !ok {
-					continue
-				}
-				sub := schema.ItemFields(cfg, fd, m)
-				if sub == nil {
-					continue
-				}
-				walkValues(cfg, sub, m, fmt.Sprintf("%s[%d]", p, i), scope.ItemScope(m), fn)
-			}
-		}
-	}
-}
-
 type pageEmit func(path string, sev report.Severity, rule report.Rule, msg, hint string)
 
-func checkValue(cfg *schema.Config, v visit, f pageEmit) {
-	fd := v.def
+func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
+	fd := v.Field
 	label := fd.Label
 	if label == "" {
 		label = fd.Key
@@ -124,12 +87,12 @@ func checkValue(cfg *schema.Config, v visit, f pageEmit) {
 	t := schema.Canonical(fd.Type)
 
 	// required
-	if fd.Required && isBlank(v.value) {
+	if fd.Required && isBlank(v.Value) {
 		msg := fd.RequiredMessage
 		if msg == "" {
 			msg = label + " is required."
 		}
-		f(v.path, report.SeverityError, report.RuleContentRequired, msg, "Add a value to clear this error.")
+		f(v.Path, report.SeverityError, report.RuleContentRequired, msg, "Add a value to clear this error.")
 	}
 
 	// customValidators run on absent values too (an expression may
@@ -138,7 +101,7 @@ func checkValue(cfg *schema.Config, v visit, f pageEmit) {
 		switch cv.Type {
 		case schema.CustomValidatorRegex:
 			pat, _ := cv.Params["pattern"].(string)
-			s, ok := v.value.(string)
+			s, ok := v.Value.(string)
 			if pat == "" || !ok || strings.TrimSpace(s) == "" {
 				continue
 			}
@@ -156,70 +119,70 @@ func checkValue(cfg *schema.Config, v visit, f pageEmit) {
 				if msg == "" {
 					msg = label + " doesn't match the expected pattern."
 				}
-				f(v.path, report.SeverityError, report.RuleContentRegex, msg, fmt.Sprintf("customValidators[%d]", i))
+				f(v.Path, report.SeverityError, report.RuleContentRegex, msg, fmt.Sprintf("customValidators[%d]", i))
 			}
 		case schema.CustomValidatorExpression:
 			cond, ok := cv.Params["condition"].(map[string]any)
 			if !ok {
 				continue
 			}
-			if !schema.Eval(parseCond(cond), v.scope) {
+			if !schema.Eval(parseCond(cond), v.Scope) {
 				msg := cv.Message
 				if msg == "" {
 					msg = label + " fails the configured rule."
 				}
-				f(v.path, report.SeverityError, report.RuleContentCustom, msg, fmt.Sprintf("customValidators[%d]", i))
+				f(v.Path, report.SeverityError, report.RuleContentCustom, msg, fmt.Sprintf("customValidators[%d]", i))
 			}
 		}
 	}
 
-	if v.value == nil {
+	if v.Value == nil {
 		return
 	}
 
 	// shape
-	actual := describe(v.value)
+	actual := describe(v.Value)
 	shape := func(expected string) {
-		f(v.path, report.SeverityError, report.RuleContentShape, fmt.Sprintf("%s should be a %s but is a %s.", label, expected, actual), "The schema's type was likely changed after this file was saved. Convert the value or clear it.")
+		f(v.Path, report.SeverityError, report.RuleContentShape, fmt.Sprintf("%s should be a %s but is a %s.", label, expected, actual), "The schema's type was likely changed after this file was saved. Convert the value or clear it.")
 	}
 	switch t {
 	case schema.TypeText, schema.TypeParagraph, schema.TypeRichText, schema.TypeLink, schema.TypeDate, schema.TypeImage, schema.TypeFile, schema.TypeColor:
-		if _, ok := v.value.(string); !ok {
+		if _, ok := v.Value.(string); !ok {
 			shape("text")
 			return
 		}
 	case schema.TypeReference:
 		if fd.Multiple {
-			list, ok := v.value.([]any)
+			list, ok := v.Value.([]any)
 			if !ok || !allStrings(list) {
 				shape("list of references")
 				return
 			}
-		} else if _, ok := v.value.(string); !ok {
+		} else if _, ok := v.Value.(string); !ok {
 			shape("reference")
 			return
 		}
 	case schema.TypeNumber, schema.TypeRange:
-		n, ok := numberOf(v.value)
+		n, ok := numberOf(v.Value)
 		if !ok {
 			shape("number")
 			return
 		}
 		if fd.Min != nil && n < *fd.Min {
-			f(v.path, report.SeverityError, report.RuleContentMin, fmt.Sprintf("%s must be at least %s (currently %s).", label, content.FormatNumber(*fd.Min), content.FormatNumber(n)), "")
+			f(v.Path, report.SeverityError, report.RuleContentMin, fmt.Sprintf("%s must be at least %s (currently %s).", label, content.FormatNumber(*fd.Min), content.FormatNumber(n)), "")
 		}
 		if fd.Max != nil && n > *fd.Max {
-			f(v.path, report.SeverityError, report.RuleContentMax, fmt.Sprintf("%s must be at most %s (currently %s).", label, content.FormatNumber(*fd.Max), content.FormatNumber(n)), "")
+			f(v.Path, report.SeverityError, report.RuleContentMax, fmt.Sprintf("%s must be at most %s (currently %s).", label, content.FormatNumber(*fd.Max), content.FormatNumber(n)), "")
 		}
 	case schema.TypeBoolean:
-		if _, ok := v.value.(bool); !ok {
+		if _, ok := v.Value.(bool); !ok {
 			shape("boolean")
 			return
 		}
 	case schema.TypeSelect:
-		s, ok := v.value.(string)
+		s, ok := v.Value.(string)
 		if !ok {
-			if sv := scalarText(v.value); sv != "" {
+			if sv := scalarText(v.Value); sv != "" {
 				s = sv
 			} else {
 				shape("selectable value")
@@ -227,10 +190,10 @@ func checkValue(cfg *schema.Config, v visit, f pageEmit) {
 			}
 		}
 		if s != "" && !contains(schema.OptionValues(fd.Options), s) {
-			f(v.path, report.SeverityError, report.RuleContentShape, fmt.Sprintf("%s has a value that's no longer one of the allowed options.", label), "Current value: "+truncate(s)+". Pick a valid option to clear this.")
+			f(v.Path, report.SeverityError, report.RuleContentShape, fmt.Sprintf("%s has a value that's no longer one of the allowed options.", label), "Current value: "+truncate(s)+". Pick a valid option to clear this.")
 		}
 	case schema.TypeMultiChoice:
-		list, ok := v.value.([]any)
+		list, ok := v.Value.([]any)
 		if !ok {
 			shape("list of selectable values")
 			return
@@ -244,37 +207,37 @@ func checkValue(cfg *schema.Config, v visit, f pageEmit) {
 			}
 		}
 		if len(stray) > 0 {
-			f(v.path, report.SeverityError, report.RuleContentShape, fmt.Sprintf("%s has %d value(s) no longer in the allowed options.", label, len(stray)), "Stray: "+strings.Join(stray, ", ")+". Re-pick from the available options.")
+			f(v.Path, report.SeverityError, report.RuleContentShape, fmt.Sprintf("%s has %d value(s) no longer in the allowed options.", label, len(stray)), "Stray: "+strings.Join(stray, ", ")+". Re-pick from the available options.")
 		}
 		if fd.Min != nil && float64(len(list)) < *fd.Min {
-			f(v.path, report.SeverityError, report.RuleContentMinItems, fmt.Sprintf("%s needs at least %s selected.", label, content.FormatNumber(*fd.Min)), "")
+			f(v.Path, report.SeverityError, report.RuleContentMinItems, fmt.Sprintf("%s needs at least %s selected.", label, content.FormatNumber(*fd.Min)), "")
 		}
 		if fd.Max != nil && float64(len(list)) > *fd.Max {
-			f(v.path, report.SeverityError, report.RuleContentMaxItems, fmt.Sprintf("%s accepts at most %s selected.", label, content.FormatNumber(*fd.Max)), "")
+			f(v.Path, report.SeverityError, report.RuleContentMaxItems, fmt.Sprintf("%s accepts at most %s selected.", label, content.FormatNumber(*fd.Max)), "")
 		}
 	case schema.TypeGroup:
-		if _, ok := v.value.(map[string]any); !ok {
+		if _, ok := v.Value.(map[string]any); !ok {
 			shape("group of fields")
 			return
 		}
 	case schema.TypeArray:
-		list, ok := v.value.([]any)
+		list, ok := v.Value.([]any)
 		if !ok {
 			shape("list")
 			return
 		}
-		checkArray(fd, label, list, v.path, f)
+		checkArray(fd, label, list, v.Path, f)
 	}
 
 	// regex, length
-	if s, ok := v.value.(string); ok {
+	if s, ok := v.Value.(string); ok {
 		if fd.Regex != "" && (t == schema.TypeText || t == schema.TypeParagraph || t == schema.TypeLink) && strings.TrimSpace(s) != "" {
 			if re, err := regexp.Compile(fd.Regex); err == nil && !re.MatchString(s) {
 				msg := fd.RegexMessage
 				if msg == "" {
 					msg = label + " doesn't match the expected format."
 				}
-				f(v.path, report.SeverityError, report.RuleContentRegex, msg, "")
+				f(v.Path, report.SeverityError, report.RuleContentRegex, msg, "")
 			}
 		}
 		if (t == schema.TypeText || t == schema.TypeParagraph || t == schema.TypeRichText) && s != "" {
@@ -284,14 +247,14 @@ func checkValue(cfg *schema.Config, v visit, f pageEmit) {
 				if msg == "" {
 					msg = fmt.Sprintf("%s must be at least %d characters (currently %d).", label, *fd.MinLength, n)
 				}
-				f(v.path, report.SeverityError, report.RuleContentMinLength, msg, "")
+				f(v.Path, report.SeverityError, report.RuleContentMinLength, msg, "")
 			}
 			if fd.MaxLength != nil && *fd.MaxLength > 0 && n > *fd.MaxLength {
 				msg := fd.MaxLengthMessage
 				if msg == "" {
 					msg = fmt.Sprintf("%s must be at most %d characters (currently %d).", label, *fd.MaxLength, n)
 				}
-				f(v.path, report.SeverityError, report.RuleContentMaxLength, msg, "")
+				f(v.Path, report.SeverityError, report.RuleContentMaxLength, msg, "")
 			}
 		}
 	}
@@ -334,7 +297,7 @@ func checkArray(fd schema.Field, label string, list []any, p string, f pageEmit)
 					continue
 				}
 				tag, _ := m[disc].(string)
-				itemPath := fmt.Sprintf("%s[%d]", p, i)
+				itemPath := schema.IndexPath(p, i)
 				if tag == "" {
 					first := "none"
 					if len(names) > 0 {
@@ -368,7 +331,7 @@ func checkArray(fd schema.Field, label string, list []any, p string, f pageEmit)
 				if msg == "" {
 					msg = fmt.Sprintf("%s: item %d has the same `%s` as item %d.", label, i+1, fd.UniqueOn, first+1)
 				}
-				f(fmt.Sprintf("%s[%d]", p, i), report.SeverityError, report.RuleContentUnique, msg, fmt.Sprintf("Each item under %s must have a unique `%s`.", label, fd.UniqueOn))
+				f(schema.IndexPath(p, i), report.SeverityError, report.RuleContentUnique, msg, fmt.Sprintf("Each item under %s must have a unique `%s`.", label, fd.UniqueOn))
 				continue
 			}
 			seen[key] = i
@@ -380,43 +343,16 @@ func checkArray(fd schema.Field, label string, list []any, p string, f pageEmit)
 // by a false `visibleIf`; children of a hidden container are hidden too.
 func hiddenPaths(cfg *schema.Config, fields []schema.Field, fm map[string]any) map[string]bool {
 	out := map[string]bool{}
-	var walk func(fields []schema.Field, value map[string]any, base string, scope schema.Scope)
-	walk = func(fields []schema.Field, value map[string]any, base string, scope schema.Scope) {
-		for _, fd := range fields {
-			if fd.Key == "" {
-				continue
-			}
-			p := joinPath(base, fd.Key)
-			v := value[fd.Key]
-			if fd.Hidden || (fd.VisibleIf != nil && !schema.Eval(*fd.VisibleIf, scope)) {
-				out[p] = true
-				continue
-			}
-			switch {
-			case schema.IsGroup(fd.Type):
-				if m, ok := v.(map[string]any); ok {
-					walk(fd.Fields, m, p, scope.Child(m))
-				}
-			case schema.IsArray(fd.Type):
-				items, ok := v.([]any)
-				if !ok {
-					continue
-				}
-				for i, item := range items {
-					m, ok := item.(map[string]any)
-					if !ok {
-						continue
-					}
-					sub := schema.ItemFields(cfg, fd, m)
-					if sub == nil {
-						continue
-					}
-					walk(sub, m, fmt.Sprintf("%s[%d]", p, i), scope.ItemScope(m))
-				}
-			}
+	schema.Walk(cfg, fields, fm, func(v schema.Visit) bool {
+		if v.Item {
+			return true
 		}
-	}
-	walk(fields, fm, "", schema.RootScope(fm))
+		if v.Field.Hidden || (v.Field.VisibleIf != nil && !schema.Eval(*v.Field.VisibleIf, v.Scope)) {
+			out[v.Path] = true
+			return false
+		}
+		return true
+	})
 	return out
 }
 

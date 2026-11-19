@@ -94,6 +94,12 @@
     "file": ".norcube/cms/collections/pages.yml",
     "path": "fields.photo",
     "severity": "warning",
+    "rule": "schema.translatable_ignored"
+  },
+  {
+    "file": ".norcube/cms/collections/pages.yml",
+    "path": "fields.photo",
+    "severity": "warning",
     "rule": "schema.unknown_storage"
   },
   {

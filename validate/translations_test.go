@@ -121,3 +121,59 @@ func TestTranslationCollision(t *testing.T) {
 		t.Errorf("by path: %d collisions for one page in two files, want 1", n)
 	}
 }
+
+// `translatable` means something on text and on the groups and lists
+// that hold it. Anywhere else it changes nothing, and the schema says so.
+func TestTranslatableOnAValueThatIsNeverTranslated(t *testing.T) {
+	const fields = `  - key: seo
+    type: group
+    label: SEO
+    translatable: false
+    fields:
+      - key: description
+        type: paragraph
+        label: Description
+        translatable: true
+      - key: priority
+        type: number
+        label: Priority
+        translatable: false
+  - key: tags
+    type: array
+    label: Tags
+    translatable: true
+    items:
+      - key: tag
+        type: text
+        label: Tag
+  - key: hero
+    type: image
+    label: Hero
+    translatable: true
+  - key: kind
+    type: select
+    label: Kind
+    options: [a, b]
+    translatable: true
+`
+	res, err := validate.Site(site(map[string]string{load.ConfigFile: twoLocales, load.CollectionsDir + "/pages.yml": pagesCollection("") + fields}), validate.Options{Only: []string{validate.ScopeSchema}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, f := range res.Findings {
+		if f.Rule != report.RuleSchemaTranslatableIgnored {
+			t.Errorf("unexpected finding: %v", f)
+			continue
+		}
+		if f.Severity != report.SeverityWarning || f.Hint == "" {
+			t.Errorf("want a warning with a hint: %v", f)
+		}
+		got = append(got, f.Path)
+	}
+	// Saying false on such a field is harmless and is not reported.
+	want := []string{"fields.hero", "fields.kind"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Errorf("reported at %v, want %v", got, want)
+	}
+}

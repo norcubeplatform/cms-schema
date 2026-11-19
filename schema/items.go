@@ -115,18 +115,25 @@ func primitiveAcceptor(v any) func(string) bool {
 // for a primitive shape or an item no shape fits. Legacy `blocks`
 // fields look the component up in the config's blocks.
 func ItemFields(c *Config, f Field, item map[string]any) []Field {
+	fields, _ := itemShape(c, f, item)
+	return fields
+}
+
+// itemShape is ItemFields plus the shape itself when it is declared as
+// a field (a block of a legacy `blocks` list is not).
+func itemShape(c *Config, f Field, item map[string]any) ([]Field, *Field) {
 	if f.Type == TypeBlocks || len(f.Components) > 0 {
 		name, _ := item[BlockComponentKey].(string)
 		if c != nil {
 			if b, ok := c.Blocks[name]; ok {
-				return b.Fields
+				return b.Fields, nil
 			}
 		}
-		return nil
+		return nil, nil
 	}
 	e := ResolveItemEntry(f, item)
 	if e == nil || !IsGroup(e.Field.Type) {
-		return nil
+		return nil, nil
 	}
-	return e.Field.Fields
+	return e.Field.Fields, &e.Field
 }

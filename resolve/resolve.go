@@ -242,29 +242,6 @@ func TranslationKey(filePath string, coll schema.Collection, site schema.Preview
 	return strings.TrimSuffix(rel, path.Ext(rel))
 }
 
-// Translatable reports whether a top-level field's text is translated
-// when a page of the collection gets a language version. The field says
-// so itself with `translatable`; otherwise text is translated (text,
-// paragraph, rich text) and everything else is carried over as it is.
-// Two text fields are never translated unless they say so: the `slug`,
-// which is an address, and the field that links the versions.
-func Translatable(coll schema.Collection, f schema.Field) bool {
-	if f.Translatable != nil {
-		return *f.Translatable
-	}
-	if link, ok := coll.Translations.Field(); ok && f.Key == link {
-		return false
-	}
-	if f.Key == "slug" {
-		return false
-	}
-	switch schema.Canonical(f.Type) {
-	case schema.TypeText, schema.TypeParagraph, schema.TypeRichText:
-		return true
-	}
-	return false
-}
-
 // SlugFallback is the slug a file gets when its frontmatter declares
 // none: its path relative to the locale folder (or the collection
 // root), without the extension, an `index` file standing for its
