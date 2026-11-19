@@ -2,6 +2,24 @@
 
 Notable changes, newest first.
 
+## 0.2.0 (2026-11-19)
+
+### New
+
+- **Language versions, declared by the site.** A collection says how the pages that are one page in several languages are linked:
+
+  ```yaml
+  translations:
+    by: field:translationKey   # pages with the same value are versions of each other
+    # or:  by: path            # the same path under each locale folder
+  ```
+
+  Nothing is inferred: a collection without the block has no language versions. `schema.Collection.Translations` holds it, and `resolve.TranslationKey` gives a file's key (for `path`: its path under the collection without the locale folder and the extension).
+- **`translatable` on a field** says whether its text is translated when a page gets a language version. `resolve.Translatable` applies the default when a field does not say: text, paragraph and rich text are translated, everything else is carried over, and neither the `slug` nor the linking field is translated.
+- Two rules (55 in all):
+  - `schema.invalid_translations`: `translations.by` is not `path` or `field:<key>`, is `path` in a collection whose locale does not come from the path, or names a field that is not a required top-level text field.
+  - `links.translation_collision`: two files of one collection and one language share a translation key.
+
 ## 0.1.2 (2026-11-15)
 
 ### Changes
