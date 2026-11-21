@@ -2,7 +2,7 @@
 
 Notable changes, newest first.
 
-## Unreleased
+## 0.3.1 (2026-11-21)
 
 ### Fixed
 
