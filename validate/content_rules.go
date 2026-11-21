@@ -20,8 +20,14 @@ var reservedKeys = map[string]bool{schema.CollectionKey: true, schema.IDKey: tru
 // validators (required, shape, item type, array bounds, regex, length,
 // number bounds, unique, custom) plus out-of-schema keys and an
 // unexpected body. Findings for fields hidden by `hidden` or
-// `visibleIf` are dropped, as the editor drops them.
-func Page(cfg *schema.Config, coll schema.Collection, doc content.Document) []report.Finding {
+// `visibleIf` are dropped, as the editor drops them. It never panics: a
+// bug in a check comes back as one `content.internal_error` finding.
+func Page(cfg *schema.Config, coll schema.Collection, doc content.Document) (out []report.Finding) {
+	defer recoverAs(&out, doc.Path, report.RuleContentInternalError)
+	return checkPage(cfg, coll, doc)
+}
+
+func checkPage(cfg *schema.Config, coll schema.Collection, doc content.Document) []report.Finding {
 	var out []report.Finding
 	fm := doc.Frontmatter
 	f := func(path string, sev report.Severity, rule report.Rule, msg, hint string) {

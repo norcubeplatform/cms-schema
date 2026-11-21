@@ -2,6 +2,7 @@ package schema
 
 import (
 	"encoding/json"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -209,8 +210,27 @@ func IsEmptyValue(v any) bool {
 	return false
 }
 
-// looseEqual treats nil and absent alike and compares numbers by value.
+// MaxCompareDepth bounds how deep `eq`, `neq`, `in` and `notIn` descend
+// into lists and maps. Values nested deeper compare unequal, so a
+// cyclic or absurdly deep value costs bounded work and never overflows
+// the stack.
+const MaxCompareDepth = 32
+
+// looseEqual is the equality of `eq`, `neq`, `in` and `notIn`. It
+// never panics, whatever the two values are.
+//
+//   - nil and absent are alike; nil equals nothing else (not an empty
+//     string, not an empty list: use `empty` for "no value").
+//   - Numbers compare by value across int and float kinds.
+//   - Lists compare element by element, in order, with these same
+//     rules; maps by key set, each value with these same rules.
+//   - Anything else compares with Go's `==` when its type allows it
+//     and structurally (reflect.DeepEqual) when it does not.
 func looseEqual(a, b any) bool {
+	return looseEqualAt(a, b, 0)
+}
+
+func looseEqualAt(a, b any, depth int) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -220,6 +240,58 @@ func looseEqual(a, b any) bool {
 		}
 		return false
 	}
+	if al, ok := listOf(a); ok {
+		bl, ok := listOf(b)
+		if !ok || len(al) != len(bl) || depth >= MaxCompareDepth {
+			return false
+		}
+		for i := range al {
+			if !looseEqualAt(al[i], bl[i], depth+1) {
+				return false
+			}
+		}
+		return true
+	}
+	if am, ok := a.(map[string]any); ok {
+		bm, ok := b.(map[string]any)
+		if !ok || len(am) != len(bm) || depth >= MaxCompareDepth {
+			return false
+		}
+		for k, av := range am {
+			bv, ok := bm[k]
+			if !ok || !looseEqualAt(av, bv, depth+1) {
+				return false
+			}
+		}
+		return true
+	}
+	return safeEqual(a, b)
+}
+
+// listOf reads the list shapes a condition value can take.
+func listOf(v any) ([]any, bool) {
+	switch x := v.(type) {
+	case []any:
+		return x, true
+	case []string:
+		out := make([]any, len(x))
+		for i, s := range x {
+			out[i] = s
+		}
+		return out, true
+	}
+	return nil, false
+}
+
+// safeEqual is `a == b` for the values Go can compare, and a structural
+// comparison for the ones it cannot (a == b on two values of one
+// uncomparable dynamic type panics; this never does).
+func safeEqual(a, b any) (eq bool) {
+	defer func() {
+		if recover() != nil {
+			eq = reflect.DeepEqual(a, b)
+		}
+	}()
 	return a == b
 }
 

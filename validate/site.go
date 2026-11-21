@@ -50,23 +50,35 @@ type Result struct {
 
 // Site validates the site rooted at fsys. load.ErrNotASite is returned
 // when the directory holds no CMS configuration; other errors are I/O.
-func Site(fsys fs.FS, opts Options) (*Result, error) {
-	doc, findings, err := load.Load(fsys)
+//
+// Site never panics. A bug in this module surfaces as an
+// `*.internal_error` finding: while loading the schema the run stops
+// there, in one content file that file is skipped and the run goes on.
+func Site(fsys fs.FS, opts Options) (res *Result, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			res, err = internalResult(nil, internalError("", report.RuleSchemaInternalError, r)), nil
+		}
+	}()
+	doc, findings, err := safeLoad(fsys)
 	if err != nil {
 		return nil, err
 	}
+	if doc == nil {
+		// Loading panicked; findings holds the one internal error.
+		return internalResult(nil, findings[0]), nil
+	}
 	cfg := doc.Config
-	res := &Result{Config: cfg, SchemaFiles: len(doc.Files)}
+	res = &Result{Config: cfg, SchemaFiles: len(doc.Files)}
 	want := scopes(opts.Only)
 	exists := func(p string) bool {
 		info, err := fs.Stat(fsys, p)
 		return err == nil && !info.IsDir()
 	}
 
+	// Load problems are always reported; they make the rest unreliable.
 	if want[ScopeSchema] {
 		findings = append(findings, Schema(doc, exists)...)
-	} else {
-		// Load problems are always reported; they make the rest unreliable.
 	}
 
 	if want[ScopeContent] || want[ScopeLinks] {
@@ -80,40 +92,14 @@ func Site(fsys fs.FS, opts Options) (*Result, error) {
 			if err != nil {
 				return nil, err
 			}
-			doc, perr := content.Parse(p, raw)
-			explicit, _ := doc.Frontmatter[schema.CollectionKey].(string)
-			coll, hasColl := resolve.CollectionFor(cfg, p, explicit)
-			if opts.Collection != "" && (!hasColl || coll.Key != opts.Collection) {
-				continue
+			counted, entry, fileFindings := checkFile(cfg, p, raw, opts, want)
+			if counted {
+				res.Files++
 			}
-			res.Files++
-			if perr != nil {
-				findings = append(findings, report.Finding{File: p, Severity: report.SeverityError, Rule: report.RuleContentParseError, Message: "not valid YAML: " + strings.TrimPrefix(perr.Error(), "yaml: ")})
-				continue
+			findings = append(findings, fileFindings...)
+			if entry != nil {
+				entries = append(entries, *entry)
 			}
-			if !hasColl {
-				if want[ScopeContent] && cfg.PagesDir != "" && resolve.IsUnder(p, cfg.PagesDir) {
-					findings = append(findings, report.Finding{File: p, Severity: report.SeverityWarning, Rule: report.RuleContentNoCollection, Message: "the file is under the pages directory but no collection claims it", Hint: "Add a collection whose `path` covers it, or stamp the file with `_collection`."})
-				}
-				entries = append(entries, Entry{Path: p, Title: resolve.FileID(p), doc: doc})
-				continue
-			}
-			if want[ScopeContent] && doc.HasFrontmatter {
-				findings = append(findings, Page(cfg, coll, doc)...)
-			}
-			entries = append(entries, Entry{
-				Path:           p,
-				Collection:     coll.Key,
-				URL:            resolve.URL(p, coll, cfg.Preview, doc.Frontmatter),
-				Locale:         resolve.Locale(p, coll, cfg.Preview, doc.Frontmatter),
-				Title:          resolve.EntryTitle(coll, doc.Frontmatter, p),
-				Keys:           resolve.EntryKeys(cfg, doc.Frontmatter),
-				TranslationKey: resolve.TranslationKey(p, coll, cfg.Preview, doc.Frontmatter),
-				Routes:         resolve.TemplateRoutes(coll),
-				doc:            doc,
-				coll:           coll,
-				hasCol:         true,
-			})
 		}
 		if want[ScopeLinks] {
 			sidecars, err := sidecarFiles(fsys)
@@ -124,7 +110,74 @@ func Site(fsys fs.FS, opts Options) (*Result, error) {
 		}
 	}
 
-	if opts.Strict {
+	finish(res, findings, opts.Strict)
+	return res, nil
+}
+
+// safeLoad is load.Load with a panic turned into a nil document and one
+// `schema.internal_error` finding.
+func safeLoad(fsys fs.FS) (doc *load.Document, findings []report.Finding, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			doc, err = nil, nil
+			findings = []report.Finding{internalError(load.ConfigDir, report.RuleSchemaInternalError, r)}
+		}
+	}()
+	return load.Load(fsys)
+}
+
+// checkFile reads one content file into its findings and its entry for
+// the links checks. counted is false for a file outside opts.Collection;
+// entry is nil when the file is skipped. A panic in it is the file's
+// one `content.internal_error` finding, and the file has no entry.
+func checkFile(cfg *schema.Config, p string, raw []byte, opts Options, want map[string]bool) (counted bool, entry *Entry, out []report.Finding) {
+	defer func() {
+		if r := recover(); r != nil {
+			counted, entry, out = true, nil, []report.Finding{internalError(p, report.RuleContentInternalError, r)}
+		}
+	}()
+	doc, perr := content.Parse(p, raw)
+	explicit, _ := doc.Frontmatter[schema.CollectionKey].(string)
+	coll, hasColl := resolve.CollectionFor(cfg, p, explicit)
+	if opts.Collection != "" && (!hasColl || coll.Key != opts.Collection) {
+		return false, nil, nil
+	}
+	if perr != nil {
+		return true, nil, []report.Finding{{File: p, Severity: report.SeverityError, Rule: report.RuleContentParseError, Message: "not valid YAML: " + strings.TrimPrefix(perr.Error(), "yaml: ")}}
+	}
+	if !hasColl {
+		if want[ScopeContent] && cfg.PagesDir != "" && resolve.IsUnder(p, cfg.PagesDir) {
+			out = append(out, report.Finding{File: p, Severity: report.SeverityWarning, Rule: report.RuleContentNoCollection, Message: "the file is under the pages directory but no collection claims it", Hint: "Add a collection whose `path` covers it, or stamp the file with `_collection`."})
+		}
+		return true, &Entry{Path: p, Title: resolve.FileID(p), doc: doc}, out
+	}
+	if want[ScopeContent] && doc.HasFrontmatter {
+		out = append(out, Page(cfg, coll, doc)...)
+	}
+	return true, &Entry{
+		Path:           p,
+		Collection:     coll.Key,
+		URL:            resolve.URL(p, coll, cfg.Preview, doc.Frontmatter),
+		Locale:         resolve.Locale(p, coll, cfg.Preview, doc.Frontmatter),
+		Title:          resolve.EntryTitle(coll, doc.Frontmatter, p),
+		Keys:           resolve.EntryKeys(cfg, doc.Frontmatter),
+		TranslationKey: resolve.TranslationKey(p, coll, cfg.Preview, doc.Frontmatter),
+		Routes:         resolve.TemplateRoutes(coll),
+		doc:            doc,
+		coll:           coll,
+		hasCol:         true,
+	}, out
+}
+
+// internalResult is the result of a run that stopped on f.
+func internalResult(cfg *schema.Config, f report.Finding) *Result {
+	res := &Result{Config: cfg}
+	finish(res, []report.Finding{f}, false)
+	return res
+}
+
+func finish(res *Result, findings []report.Finding, strict bool) {
+	if strict {
 		for i := range findings {
 			findings[i].Severity = report.SeverityError
 		}
@@ -132,7 +185,6 @@ func Site(fsys fs.FS, opts Options) (*Result, error) {
 	report.Sort(findings)
 	res.Findings = findings
 	res.Errors, res.Warnings = report.Count(findings)
-	return res, nil
 }
 
 func scopes(only []string) map[string]bool {

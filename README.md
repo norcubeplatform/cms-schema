@@ -69,6 +69,14 @@ orphaned identity sidecars.
 The rule ids are listed in [`report/rules.go`](report/rules.go) and are
 frozen: a released id is never renamed or reused.
 
+A bug in the module itself does not crash the caller: `validate.Site`,
+`Schema`, `Page` and `Links` recover a panic into one error finding,
+`schema.internal_error`, `content.internal_error` or
+`links.internal_error` by the check it stopped, quoting the cause. The
+other findings of that check are missing; in `Site` a panic in one
+content file skips that file and the run goes on. Seeing one of these
+is worth a bug report.
+
 ## As a library
 
 ```go
@@ -92,6 +100,42 @@ visits every field with its definition and its path (`a.b[2].c`),
 entering groups, list items of every shape and lists of primitives, at
 most `schema.MaxWalkDepth` levels deep. The validators and
 `resolve.TranslatableTexts` are built on it.
+
+## Conditions
+
+`visibleIf` (and the older `equals:` spelling, which means `op: eq`)
+compares the value at `field` with `value`. `field` is a path: `key`,
+`a.b`, `items.0.kind`, `$parent.key`, `$root.a.b`, `$item.key`; a path
+that reaches nothing reads as `null`. `all`, `any` and `not` combine
+conditions. `schema.Eval` evaluates one; it never panics, whatever the
+two values are.
+
+| `op`               | True when                                                                                       |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| `eq`               | the field's value equals `value` (equality below).                                              |
+| `neq`              | not `eq`.                                                                                       |
+| `in`               | the field's value equals one entry of the list `value`. A string `value` is read as a JSON list (`'["a","b"]'`) or a comma-separated one (`a, b`). Any other `value` (a map, a number) is false. |
+| `notIn`            | `value` is a list (as for `in`) and the field's value equals none of its entries.               |
+| `truthy`, `falsy`  | JavaScript truthiness: `null`, `false`, `0`, `""` are falsy; any list or map is truthy.          |
+| `empty`, `nonEmpty`| empty is `null`, absent, `""` or `[]`; whitespace and `{}` are not empty.                         |
+| `gt`, `lt`         | both sides are numbers and compare so.                                                          |
+| `matches`          | both sides are strings and the value matches the regular expression (an invalid one is false).  |
+
+Equality, for `eq`, `neq`, `in` and `notIn`:
+
+- `null` and absent are equal, and equal nothing else: not `""`, not
+  `[]`, not `{}`. Test for "no value" with `empty`.
+- Numbers compare by value (`1` equals `1.0`); a number never equals a
+  string (`1` is not `"1"`).
+- Strings and booleans compare exactly.
+- A list compares as a whole: the same length and equal entries in the
+  same order, by these same rules (`value: []` matches an empty list
+  only). A map compares by its key set and each key's value.
+- `in` on a list field asks whether the whole list is one of the
+  entries (`value: [[a.jpg], [b.jpg]]`), not whether the lists share an
+  item.
+- Values nested deeper than `schema.MaxCompareDepth` (32) levels compare
+  unequal.
 
 ## Translatable texts
 

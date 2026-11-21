@@ -16,7 +16,18 @@ import (
 // formed, every reference resolvable, every knob in range, storages and
 // the preview block consistent. exists answers whether a repository
 // path is present, for the checks that look at files; nil skips them.
-func Schema(doc *load.Document, exists func(path string) bool) []report.Finding {
+// It never panics: a bug in a check comes back as one
+// `schema.internal_error` finding.
+func Schema(doc *load.Document, exists func(path string) bool) (out []report.Finding) {
+	file := load.ConfigFile
+	if doc != nil && doc.Legacy {
+		file = load.LegacyConfigFile
+	}
+	defer recoverAs(&out, file, report.RuleSchemaInternalError)
+	return checkSchema(doc, exists)
+}
+
+func checkSchema(doc *load.Document, exists func(path string) bool) []report.Finding {
 	cfg := doc.Config
 	var out []report.Finding
 	f := func(file, path string, sev report.Severity, rule report.Rule, msg, hint string) {

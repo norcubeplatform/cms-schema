@@ -47,8 +47,14 @@ type rawRef struct {
 // Links checks the references between files: URL collisions, site links,
 // assets, reference fields and orphaned sidecars. exists reports
 // whether a repository path is a file; sidecars lists the sidecar files
-// under `.norcube/cms/meta`.
-func Links(cfg *schema.Config, entries []Entry, exists func(string) bool, sidecars []string) []report.Finding {
+// under `.norcube/cms/meta`. It never panics: a bug in a check comes
+// back as one `links.internal_error` finding.
+func Links(cfg *schema.Config, entries []Entry, exists func(string) bool, sidecars []string) (out []report.Finding) {
+	defer recoverAs(&out, "", report.RuleLinksInternalError)
+	return checkLinks(cfg, entries, exists, sidecars)
+}
+
+func checkLinks(cfg *schema.Config, entries []Entry, exists func(string) bool, sidecars []string) []report.Finding {
 	var out []report.Finding
 	byPath := map[string]Entry{}
 	byURL := map[string]string{}

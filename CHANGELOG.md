@@ -2,6 +2,18 @@
 
 Notable changes, newest first.
 
+## Unreleased
+
+### Fixed
+
+- **A condition comparing two lists or two maps no longer panics.** `visibleIf: {field: gallery, op: eq, value: []}` (or `equals: []`, or `{}`) on a page whose `gallery` is a list made `schema.Eval`, and with it `validate.Page` and `validate.Site`, panic with "comparing uncomparable type []interface {}", ending a caller that ran the validator in a goroutine of its own. `eq`, `neq`, `in` and `notIn` now compare lists element by element in order and maps by key set and values, with the same loose rules as scalars (numbers by value across int and float kinds), bounded by `schema.MaxCompareDepth` (32). `null` and absent still equal only each other, so `value: []` matches an empty list, not a missing field (use `empty` for that). `in` on a list field asks whether the whole list is one of the entries. Scalars compare exactly as before. The semantics are a table in the README.
+- No other value can make the evaluator panic: any type Go cannot compare with `==` is compared structurally.
+
+### New
+
+- **`validate.Site`, `Schema`, `Page` and `Links` never panic.** A panic in a check (a bug in this module) is recovered into one error finding quoting the cause; in `Site` a panic in one content file skips that file and the run goes on. Three rules (59 in all): `schema.internal_error`, `content.internal_error`, `links.internal_error`.
+- `schema.MaxCompareDepth`.
+
 ## 0.3.0 (2026-11-19)
 
 ### New

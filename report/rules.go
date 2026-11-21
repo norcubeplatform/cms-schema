@@ -104,6 +104,11 @@ const (
 	// RuleSchemaMissingVariablesFile: `variables.file` names a file the
 	// site does not have.
 	RuleSchemaMissingVariablesFile Rule = "schema.missing_variables_file"
+	// RuleSchemaInternalError: loading or checking the schema stopped on
+	// a bug in this module (a recovered panic). The checks after it did
+	// not run; the finding carries the cause for a bug report. Also the
+	// rule of a run that stopped outside any one check.
+	RuleSchemaInternalError Rule = "schema.internal_error"
 )
 
 // Content rules: one file against its collection.
@@ -151,6 +156,10 @@ const (
 	// RuleContentUnexpectedBody: a file in a collection without a body
 	// has one.
 	RuleContentUnexpectedBody Rule = "content.unexpected_body"
+	// RuleContentInternalError: checking one content file stopped on a
+	// bug in this module (a recovered panic). The file's other checks
+	// did not run.
+	RuleContentInternalError Rule = "content.internal_error"
 )
 
 // Links rules: the whole site.
@@ -174,6 +183,10 @@ const (
 	// RuleLinksOrphanSidecar: a `.norcube/cms/meta` sidecar belongs to a
 	// content file that no longer exists.
 	RuleLinksOrphanSidecar Rule = "links.orphan_sidecar"
+	// RuleLinksInternalError: checking the links stopped on a bug in
+	// this module (a recovered panic). The links checks after it did not
+	// run.
+	RuleLinksInternalError Rule = "links.internal_error"
 )
 
 // Rules lists every rule id this version knows, in a stable order.
@@ -192,14 +205,14 @@ func Rules() []Rule {
 		RuleSchemaUnknownPreviewToken, RuleSchemaInvalidLocaleFrom, RuleSchemaInvalidTranslations,
 		RuleSchemaTranslatableIgnored,
 		RuleSchemaDefaultLocaleNotDeclared, RuleSchemaUnknownRedirectsFormat,
-		RuleSchemaMissingVariablesFile,
+		RuleSchemaMissingVariablesFile, RuleSchemaInternalError,
 		RuleContentParseError, RuleContentNoCollection, RuleContentRequired,
 		RuleContentShape, RuleContentItemTypeMissing, RuleContentItemTypeUnknown,
 		RuleContentMinItems, RuleContentMaxItems, RuleContentRegex,
 		RuleContentMinLength, RuleContentMaxLength, RuleContentMin, RuleContentMax,
 		RuleContentUnique, RuleContentCustom, RuleContentExtraKeys,
-		RuleContentUnexpectedBody,
+		RuleContentUnexpectedBody, RuleContentInternalError,
 		RuleLinksURLCollision, RuleLinksTranslationCollision, RuleLinksUnresolvedLink, RuleLinksMissingAsset,
-		RuleLinksUnresolvedReference, RuleLinksOrphanSidecar,
+		RuleLinksUnresolvedReference, RuleLinksOrphanSidecar, RuleLinksInternalError,
 	}
 }
