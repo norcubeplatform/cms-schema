@@ -545,3 +545,84 @@ func TestWords(t *testing.T) {
 		}
 	}
 }
+
+// whenEmptySchema is the pages schema with each SEO field saying what
+// the site does when it is empty.
+func whenEmptySchema() string {
+	s := strings.Replace(pagesSchema, "role: seoTitle}", "role: seoTitle, whenEmpty: generated}", 1)
+	s = strings.Replace(s, "role: seoDescription,", "role: seoDescription, whenEmpty: siteDefault,", 1)
+	return strings.Replace(s, "role: shareImage,", "role: shareImage, whenEmpty: generated,", 1)
+}
+
+// An empty role field the site fills in code is not missing: the page
+// passes the rule and is counted as filled in code. A value the content
+// holds is still measured.
+func TestWhenEmpty(t *testing.T) {
+	missing := []report.Rule{report.RuleQualityTitleMissing, report.RuleQualityDescriptionMissing, report.RuleQualityShareImageMissing}
+	empty := page("title: A page title that is long enough ok")
+	without := run(t, site(map[string]string{"src/content/pages/cs/a.md": empty}), quality.Options{})
+	if got := keys(without, missing...); len(got) != 2 {
+		t.Fatalf("without whenEmpty: %v", got)
+	}
+	if without.Quality.FilledInCode != nil {
+		t.Fatalf("filled in code without whenEmpty: %v", without.Quality.FilledInCode)
+	}
+
+	fsys := site(map[string]string{
+		"src/content/pages/cs/a.md": empty,
+		"src/content/pages/cs/b.md": page("seo: {}"),
+		// Filled values are checked as before.
+		"src/content/pages/cs/c.md": page("seo: {page_title: Short, page_description: '" + strings.Repeat("y", 50) + "', image: /images/a.jpg}"),
+		// A page hidden from search is not counted.
+		"src/content/pages/en/a.md": page("seo: {no_index: true}"),
+	})
+	fsys[pagesFile] = &fstest.MapFile{Data: []byte(whenEmptySchema())}
+	res := run(t, fsys, quality.Options{})
+	if got := keys(res, missing...); len(got) != 0 {
+		t.Errorf("missing reported for fields the site fills: %v", got)
+	}
+	want := []string{
+		"src/content/pages/cs/c.md#seo.page_description quality.description_length low",
+		"src/content/pages/cs/c.md#seo.page_title quality.title_length low",
+	}
+	if got := keys(res, report.RuleQualityTitleLength, report.RuleQualityDescriptionLength); !slices.Equal(got, want) {
+		t.Errorf("lengths: got %v, want %v", got, want)
+	}
+	// The page title is not what the site shows for an empty SEO title
+	// it fills, so a.md's page title is not measured.
+	if n := res.Quality.Checked[report.RuleQualityTitleLength]; n != 1 {
+		t.Errorf("title_length checked %d, want 1", n)
+	}
+	// Passing, not left out: every indexable page counts.
+	for _, r := range missing {
+		if n := res.Quality.Checked[r]; n != 3 {
+			t.Errorf("%s checked %d, want 3", r, n)
+		}
+	}
+	wantFilled := []quality.FilledInCode{
+		{Role: "seoTitle", WhenEmpty: "generated", Pages: 2},
+		{Role: "seoDescription", WhenEmpty: "siteDefault", Pages: 2},
+		{Role: "shareImage", WhenEmpty: "generated", Pages: 2},
+	}
+	if !slices.Equal(res.Quality.FilledInCode, wantFilled) {
+		t.Errorf("filled in code %+v, want %+v", res.Quality.FilledInCode, wantFilled)
+	}
+}
+
+// The count is a fact about the pages: it stays when the missing rule is
+// turned off.
+func TestWhenEmptyCountedWhenRuleIgnored(t *testing.T) {
+	fsys := site(map[string]string{"src/content/pages/cs/a.md": page("title: T")})
+	fsys[pagesFile] = &fstest.MapFile{Data: []byte(whenEmptySchema())}
+	fsys[configFile] = &fstest.MapFile{Data: []byte(baseConfig + "quality:\n  ignore: [quality.share_image_missing]\n")}
+	res := run(t, fsys, quality.Options{})
+	found := false
+	for _, f := range res.Quality.FilledInCode {
+		if f.Role == "shareImage" && f.Pages == 1 {
+			found = true
+		}
+	}
+	if !found || slices.Contains(keys(res), "src/content/pages/cs/a.md#seo.image quality.share_image_missing low") {
+		t.Errorf("filled %+v, findings %v", res.Quality.FilledInCode, keys(res))
+	}
+}

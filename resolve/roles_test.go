@@ -186,6 +186,9 @@ func TestDeclaredRolesWin(t *testing.T) {
 	if d, _ := got.Field(schema.RoleSEODescription); d.Path != "seo.page_description" || d.Declared {
 		t.Fatalf("seoDescription: %+v", d)
 	}
+	if title.WhenEmpty != "" {
+		t.Fatalf("whenEmpty nobody declared: %+v", title)
+	}
 	byImage := map[string]resolve.ImageAlt{}
 	for _, img := range got.Images {
 		byImage[img.Image] = img
@@ -458,5 +461,26 @@ func TestExpectedLocales(t *testing.T) {
 	}
 	if got := resolve.ExpectedLocales(nil, schema.Collection{}); len(got) != 0 {
 		t.Errorf("no config: %v", got)
+	}
+}
+
+// whenEmpty travels with a declared role; a value the module does not
+// know, or one on a role that cannot take it, is left out.
+func TestWhenEmptyOnRoles(t *testing.T) {
+	cfg, err := schema.Parse(map[string]any{"collections": map[string]any{"pages": map[string]any{"fields": []any{
+		map[string]any{"key": "og", "type": "image", "label": "OG", "role": "shareImage", "whenEmpty": "generated"},
+		map[string]any{"key": "desc", "type": "paragraph", "label": "D", "role": "seoDescription", "whenEmpty": "fallback"},
+		map[string]any{"key": "canonical", "type": "link", "label": "C", "role": "canonical", "whenEmpty": "siteDefault"},
+		map[string]any{"key": "meta_title", "type": "text", "label": "T", "whenEmpty": "generated"},
+	}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := resolve.CollectionRoles(cfg, cfg.Collections["pages"])
+	for role, want := range map[string]string{schema.RoleShareImage: schema.WhenEmptyGenerated, schema.RoleSEODescription: "", schema.RoleCanonical: "", schema.RoleSEOTitle: ""} {
+		f, ok := got.Field(role)
+		if !ok || f.WhenEmpty != want {
+			t.Errorf("%s: %+v, want whenEmpty %q", role, f, want)
+		}
 	}
 }

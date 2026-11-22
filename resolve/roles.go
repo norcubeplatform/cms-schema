@@ -22,6 +22,11 @@ type RoleField struct {
 	// Declared is true for a `role:` in the schema, false for a guess
 	// from the field's key or label.
 	Declared bool
+	// WhenEmpty is what the site does when the field is empty
+	// (schema.WhenEmptyGenerated, schema.WhenEmptySiteDefault), as the
+	// schema declares it; empty when it says nothing, says something
+	// invalid, or the role was guessed.
+	WhenEmpty string
 }
 
 // ImageAlt is one image field and where its alt text comes from.
@@ -117,7 +122,11 @@ func collectPageFields(fields []schema.Field, base string, seoGroup bool, depth 
 func declaredRole(fields []pageField, role string) (RoleField, bool) {
 	for _, pf := range fields {
 		if pf.field.Role == role && schema.RoleAccepts(role, pf.field.Type) {
-			return RoleField{Role: role, Path: pf.path, Label: pf.field.Label, Declared: true}, true
+			f := RoleField{Role: role, Path: pf.path, Label: pf.field.Label, Declared: true}
+			if schema.RoleAllowsWhenEmpty(role) && schema.KnownWhenEmpty(pf.field.WhenEmpty) {
+				f.WhenEmpty = pf.field.WhenEmpty
+			}
+			return f, true
 		}
 	}
 	return RoleField{}, false

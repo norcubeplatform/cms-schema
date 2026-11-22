@@ -15,7 +15,7 @@ var roleRules = map[report.Rule]bool{
 	report.RuleSchemaUnknownRole: true, report.RuleSchemaDuplicateRole: true,
 	report.RuleSchemaRoleTypeMismatch: true, report.RuleSchemaMisplacedRole: true,
 	report.RuleSchemaInvalidAlt: true, report.RuleSchemaUnknownKnob: true,
-	report.RuleSchemaInvalidTranslationLocales: true,
+	report.RuleSchemaInvalidTranslationLocales: true, report.RuleSchemaInvalidWhenEmpty: true,
 }
 
 func schemaFindings(t *testing.T, files map[string]string) []report.Finding {
@@ -49,10 +49,12 @@ fields:
     type: paragraph
     label: Meta description
     role: seoDescription
+    whenEmpty: siteDefault
   - key: featured_image
     type: image
     label: Share image
     role: shareImage
+    whenEmpty: generated
     alt: featured_image_alt
   - key: featured_image_alt
     type: text
@@ -220,6 +222,36 @@ func TestRoleMisuse(t *testing.T) {
 			"decorative that is not a boolean",
 			"  - key: img\n    type: image\n    label: Img\n    decorative: yes please\n",
 			report.RuleSchemaInvalidAlt, "fields.img", "true or false",
+		},
+		{
+			"whenEmpty with a value it does not take",
+			"  - key: og\n    type: image\n    label: OG\n    role: shareImage\n    whenEmpty: fallback\n",
+			report.RuleSchemaInvalidWhenEmpty, "fields.og", "not a value it takes",
+		},
+		{
+			"whenEmpty that is not a string",
+			"  - key: og\n    type: image\n    label: OG\n    role: shareImage\n    whenEmpty: true\n",
+			report.RuleSchemaInvalidWhenEmpty, "fields.og", "not a value it takes",
+		},
+		{
+			"whenEmpty without a role",
+			"  - key: og\n    type: image\n    label: OG\n    whenEmpty: generated\n",
+			report.RuleSchemaInvalidWhenEmpty, "fields.og", "no role",
+		},
+		{
+			"whenEmpty on alt text",
+			"  - key: img\n    type: image\n    label: Img\n  - key: a\n    type: text\n    label: A\n    role: alt\n    whenEmpty: generated\n",
+			report.RuleSchemaInvalidWhenEmpty, "fields.a", "role alt",
+		},
+		{
+			"whenEmpty on noindex",
+			"  - key: hide\n    type: boolean\n    label: Hide\n    role: noindex\n    whenEmpty: siteDefault\n",
+			report.RuleSchemaInvalidWhenEmpty, "fields.hide", "role noindex",
+		},
+		{
+			"whenEmpty beside an unknown role is the role's problem",
+			"  - key: og\n    type: image\n    label: OG\n    role: ogImage\n    whenEmpty: generated\n",
+			report.RuleSchemaUnknownRole, "fields.og", "not a role",
 		},
 		{
 			"alt on a field that is not an image",

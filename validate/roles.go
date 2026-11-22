@@ -12,8 +12,8 @@ import (
 // Roles checks the field roles and image alt relations of a parsed
 // configuration on their own: the same findings Schema reports under
 // schema.unknown_role, duplicate_role, role_type_mismatch,
-// misplaced_role and invalid_alt, with the files of the directory
-// layout. For callers that hold a config but no site, such as a schema
+// misplaced_role, invalid_alt and invalid_when_empty, with the files of
+// the directory layout. For callers that hold a config but no site, such as a schema
 // proposed before it is written.
 func Roles(cfg *schema.Config) (out []report.Finding) {
 	defer recoverAs(&out, load.ConfigFile, report.RuleSchemaInternalError)
@@ -87,6 +87,9 @@ func (rc *roleCheck) field(p string, fd schema.Field, siblings, images []schema.
 	if raw, has := fd.Raw["role"]; has {
 		rc.role(p, label, fd, raw, images, inList, altRole)
 	}
+	if raw, has := fd.Raw["whenEmpty"]; has {
+		rc.whenEmpty(p, label, fd, raw)
+	}
 	if schema.Canonical(fd.Type) == schema.TypeImage {
 		rc.alt(p, label, fd, siblings)
 	}
@@ -132,6 +135,30 @@ func (rc *roleCheck) role(p, label string, fd schema.Field, raw any, images []sc
 	}
 	*altRole = p
 }
+
+// whenEmpty checks a field's `whenEmpty`: a known value, on a field
+// whose role a site can fill in code. An unknown role is reported as
+// such and not again here.
+func (rc *roleCheck) whenEmpty(p, label string, fd schema.Field, raw any) {
+	v, ok := raw.(string)
+	v = strings.TrimSpace(v)
+	rawRole, hasRole := fd.Raw["role"]
+	role, _ := rawRole.(string)
+	role = strings.TrimSpace(role)
+	allowed := strings.Join(schema.WhenEmptyRoles(), ", ")
+	switch {
+	case !ok || !schema.KnownWhenEmpty(v):
+		rc.f(rc.file, p, report.SeverityError, report.RuleSchemaInvalidWhenEmpty, fmt.Sprintf("field %q has whenEmpty %v, which is not a value it takes", label, raw), whenEmptyHint)
+	case !hasRole:
+		rc.f(rc.file, p, report.SeverityError, report.RuleSchemaInvalidWhenEmpty, fmt.Sprintf("field %q has whenEmpty but no role", label), "whenEmpty says what the site does when a role field is empty; give the field its role ("+allowed+") or remove whenEmpty.")
+	case !schema.KnownRole(role):
+		// schema.unknown_role says it.
+	case !schema.RoleAllowsWhenEmpty(role):
+		rc.f(rc.file, p, report.SeverityError, report.RuleSchemaInvalidWhenEmpty, fmt.Sprintf("field %q has whenEmpty on role %s, whose empty value a site does not fill in code", label, role), "whenEmpty goes on a field with role "+allowed+".")
+	}
+}
+
+const whenEmptyHint = "whenEmpty is generated (the site makes the value per page in code, such as a share card rendered at build time) or siteDefault (the site falls back to one site-wide value)."
 
 func (rc *roleCheck) alt(p, label string, fd schema.Field, siblings []schema.Field) {
 	if raw, has := fd.Raw["decorative"]; has {

@@ -54,10 +54,16 @@ func (r *run) search(p Page, hidden map[string]bool) {
 		canonicalElsewhere = true
 	}
 
-	// Title: the SEO title, else the page title.
+	// Title: the SEO title, else the page title. An empty SEO title the
+	// site fills in code (whenEmpty) is the site's, not the page title.
 	seoTitle, seoPath, seoField, hasSEO := read(schema.RoleSEOTitle)
 	fallback, fallbackPath, hasFallback := pageTitle(coll, p.Frontmatter, seoPath)
-	if hasSEO || hasFallback {
+	if hasSEO && seoTitle == "" && seoField.WhenEmpty != "" {
+		r.fillInCode(schema.RoleSEOTitle, seoField.WhenEmpty)
+		if r.on(report.RuleQualityTitleMissing, coll) {
+			r.count(report.RuleQualityTitleMissing)
+		}
+	} else if hasSEO || hasFallback {
 		title, titlePath, guessed := seoTitle, seoPath, hasSEO && !seoField.Declared
 		if title == "" {
 			title, titlePath, guessed = fallback, fallbackPath, false
@@ -90,11 +96,15 @@ func (r *run) search(p Page, hidden map[string]bool) {
 	// Description: the SEO description field, when the collection has one.
 	if desc, path, field, ok := read(schema.RoleSEODescription); ok {
 		guessed := !field.Declared
+		fromCode := desc == "" && field.WhenEmpty != ""
+		if fromCode {
+			r.fillInCode(schema.RoleSEODescription, field.WhenEmpty)
+		}
 		if r.on(report.RuleQualityDescriptionMissing, coll) {
 			r.count(report.RuleQualityDescriptionMissing)
-			if desc == "" {
+			if desc == "" && !fromCode {
 				r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityDescriptionMissing,
-					Message: "The page has no meta description.", Hint: "Search engines then pick a snippet from the page. Write one or two sentences that make someone want to open it."},
+					Message: "The page has no meta description.", Hint: "Search engines then pick a snippet from the page. Write one or two sentences that make someone want to open it. If the site writes descriptions in code, say so in the schema with `whenEmpty` on the field."},
 					lowered(report.ImpactMedium, guessed))
 			}
 		}
@@ -109,15 +119,25 @@ func (r *run) search(p Page, hidden map[string]bool) {
 	}
 
 	// Share image.
-	if img, path, field, ok := read(schema.RoleShareImage); ok && r.on(report.RuleQualityShareImageMissing, coll) {
-		r.count(report.RuleQualityShareImageMissing)
-		if img == "" {
-			r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityShareImageMissing,
-				Message: "The page has no share image.", Hint: "A link to it shared on social networks or in chat shows no picture, unless the site adds one in code. Pick an image of at least 1200 x 630 pixels."},
-				lowered(report.ImpactLow, !field.Declared))
+	if img, path, field, ok := read(schema.RoleShareImage); ok {
+		fromCode := img == "" && field.WhenEmpty != ""
+		if fromCode {
+			r.fillInCode(schema.RoleShareImage, field.WhenEmpty)
+		}
+		if r.on(report.RuleQualityShareImageMissing, coll) {
+			r.count(report.RuleQualityShareImageMissing)
+			if img == "" && !fromCode {
+				r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityShareImageMissing,
+					Message: "The page has no share image.", Hint: "A link to it shared on social networks or in chat shows no picture, unless the site adds one in code. Pick an image of at least 1200 x 630 pixels, or, if the site makes these images itself, say so in the schema with `whenEmpty: generated` on the field."},
+					lowered(report.ImpactLow, !field.Declared))
+			}
 		}
 	}
 }
+
+// fillInCode counts a page whose role field is empty for the site to
+// fill in code.
+func (r *run) fillInCode(role, whenEmpty string) { r.filled[[2]string{role, whenEmpty}]++ }
 
 // length checks a title or a description against its window. A value
 // with a `{{placeholder}}` is not measured: its length on the page is not

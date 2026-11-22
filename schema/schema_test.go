@@ -242,6 +242,13 @@ func TestParseRolesAndLocales(t *testing.T) {
 	if txt.Alt != "" || txt.Decorative || txt.Role != RoleSEOTitle || txt.Extra["alt"] == nil || txt.Extra["decorative"] == nil || txt.Extra["role"] != nil {
 		t.Fatalf("text: %+v", txt)
 	}
+	og := ParseField(map[string]any{"key": "og", "type": "image", "label": "OG", "role": "shareImage", "whenEmpty": " generated "})
+	if og.WhenEmpty != WhenEmptyGenerated || len(og.Extra) != 0 {
+		t.Fatalf("whenEmpty: %+v", og)
+	}
+	if f := ParseField(map[string]any{"key": "t", "type": "text", "role": "seoTitle", "whenEmpty": true}); f.WhenEmpty != "" {
+		t.Fatalf("a whenEmpty that is not a string: %q", f.WhenEmpty)
+	}
 	if f := ParseField(map[string]any{"key": "t", "type": "text", "role": []any{"x"}}); f.Role != "" {
 		t.Fatalf("a role that is not a string: %q", f.Role)
 	}
@@ -262,6 +269,17 @@ func TestRoleSet(t *testing.T) {
 	}
 	if !RoleAccepts(RoleShareImage, TypeImage) || RoleAccepts(RoleShareImage, TypeText) || !RoleAccepts(RoleCanonical, TypeURL) || RoleAccepts(RoleNoindex, TypeSelect) {
 		t.Fatal("role types")
+	}
+	if !KnownWhenEmpty(WhenEmptyGenerated) || !KnownWhenEmpty(WhenEmptySiteDefault) || KnownWhenEmpty("fallback") || len(WhenEmptyValues()) != 2 {
+		t.Fatal("whenEmpty values")
+	}
+	// Alt text is never filled in code; noindex and canonical mean
+	// something when empty.
+	for _, r := range Roles() {
+		want := r == RoleSEOTitle || r == RoleSEODescription || r == RoleShareImage
+		if RoleAllowsWhenEmpty(r) != want {
+			t.Errorf("RoleAllowsWhenEmpty(%s) = %v", r, !want)
+		}
 	}
 	// The lists handed out are copies.
 	PageRoles()[0] = "x"

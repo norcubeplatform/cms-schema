@@ -71,6 +71,21 @@ type Summary struct {
 	Ignored   []report.Rule            `json:"ignored,omitempty"`
 	IgnoredIn map[string][]report.Rule `json:"ignoredIn,omitempty"`
 	Skipped   []Skipped                `json:"skipped,omitempty"`
+	// FilledInCode counts the pages whose role field is empty because the
+	// site fills it in code, as the schema says (`whenEmpty`), per role
+	// and value in schema.PageRoles order. Those pages pass the role's
+	// missing rule.
+	FilledInCode []FilledInCode `json:"filledInCode,omitempty"`
+}
+
+// FilledInCode is how many pages, checked by the search rules, leave one
+// role field empty for the site to fill.
+type FilledInCode struct {
+	// Role is schema.RoleSEOTitle, RoleSEODescription or RoleShareImage.
+	Role string `json:"role"`
+	// WhenEmpty is schema.WhenEmptyGenerated or WhenEmptySiteDefault.
+	WhenEmpty string `json:"whenEmpty"`
+	Pages     int    `json:"pages"`
 }
 
 // Check runs every quality rule over the pages. It reads nothing but its
@@ -100,13 +115,15 @@ type run struct {
 	roles   map[string]resolve.Roles
 	// titles and descriptions of indexable pages, for duplicates.
 	titles, descriptions []dupCandidate
+	// filled counts pages per role and whenEmpty value.
+	filled map[[2]string]int
 }
 
 func newRun(cfg *schema.Config, opts Options) *run {
 	if cfg == nil {
 		cfg = &schema.Config{}
 	}
-	r := &run{cfg: cfg, opts: opts, checked: map[report.Rule]int{}, off: map[report.Rule]bool{}, roles: map[string]resolve.Roles{}}
+	r := &run{cfg: cfg, opts: opts, checked: map[report.Rule]int{}, off: map[report.Rule]bool{}, roles: map[string]resolve.Roles{}, filled: map[[2]string]int{}}
 	for _, id := range cfg.Quality.Ignore {
 		if _, ok := Spec(report.Rule(id)); ok {
 			r.off[report.Rule(id)] = true
@@ -165,6 +182,13 @@ func (r *run) summary() Summary {
 			continue
 		}
 		s.Checked[spec.Rule] = r.checked[spec.Rule]
+	}
+	for _, role := range schema.PageRoles() {
+		for _, v := range schema.WhenEmptyValues() {
+			if n := r.filled[[2]string{role, v}]; n > 0 {
+				s.FilledInCode = append(s.FilledInCode, FilledInCode{Role: role, WhenEmpty: v, Pages: n})
+			}
+		}
 	}
 	for _, key := range r.cfg.CollectionKeys {
 		var rules []report.Rule

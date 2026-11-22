@@ -1,5 +1,7 @@
 package schema
 
+import "slices"
+
 // Field roles say what a field means to the site rather than how it is
 // edited: which one is the page's title in search results, its share
 // image, its alt text. Checks, the editor and Norcube AI read the same
@@ -63,6 +65,38 @@ func RoleAccepts(r, t string) bool {
 	}
 	return false
 }
+
+// What the site does when a role field is empty (`whenEmpty:`). Saying
+// so is the owner's statement about the site's code; it is never
+// guessed.
+const (
+	// WhenEmptyGenerated: the site makes the value per page in code (a
+	// share card rendered at build time, a title from the page heading).
+	WhenEmptyGenerated = "generated"
+	// WhenEmptySiteDefault: the site falls back to one site-wide value.
+	WhenEmptySiteDefault = "siteDefault"
+)
+
+var whenEmptyValues = []string{WhenEmptyGenerated, WhenEmptySiteDefault}
+
+// whenEmptyRoles are the roles whose empty value a site can fill in
+// code. Not alt: alt text describes one image and code cannot write it
+// reliably. Not noindex or canonical: empty already means indexable
+// and canonical to itself.
+var whenEmptyRoles = []string{RoleSEOTitle, RoleSEODescription, RoleShareImage}
+
+// WhenEmptyValues lists the values of `whenEmpty`.
+func WhenEmptyValues() []string { return append([]string(nil), whenEmptyValues...) }
+
+// KnownWhenEmpty reports whether v is a value of `whenEmpty`.
+func KnownWhenEmpty(v string) bool { return slices.Contains(whenEmptyValues, v) }
+
+// WhenEmptyRoles lists the roles that may declare `whenEmpty`.
+func WhenEmptyRoles() []string { return append([]string(nil), whenEmptyRoles...) }
+
+// RoleAllowsWhenEmpty reports whether a field of the role may declare
+// `whenEmpty`.
+func RoleAllowsWhenEmpty(r string) bool { return slices.Contains(whenEmptyRoles, r) }
 
 // SiteArea reports whether the collection holds site settings
 // (navigation, footer, globals) rather than pages. Counts of pages leave

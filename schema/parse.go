@@ -160,7 +160,7 @@ var commonKnobs = map[string]bool{
 	"required": true, "requiredMessage": true, "nullable": true, "hidden": true,
 	"visibleIf": true, "whenHidden": true, "computed": true, "customValidators": true,
 	"default": true, "_blockRef": true, "schemaVersion": true, "translatable": true,
-	"role": true,
+	"role": true, "whenEmpty": true,
 }
 
 // parseQuality reads a `quality` block; the zero value when there is
@@ -243,6 +243,7 @@ func ParseField(m map[string]any) Field {
 		Dir:               str(m["dir"]),
 		LockDir:           boolOf(m["lockDir"]),
 		Role:              strings.TrimSpace(str(m["role"])),
+		WhenEmpty:         strings.TrimSpace(str(m["whenEmpty"])),
 		Collection:        str(m["collection"]),
 		By:                str(m["by"]),
 		Multiple:          boolOf(m["multiple"]),

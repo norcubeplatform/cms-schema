@@ -2,6 +2,20 @@
 
 Notable changes, newest first.
 
+## Unreleased
+
+### New
+
+- **`whenEmpty:`** next to `role:` says what the site does when the field is empty: `generated` (the site makes the value per page in code, such as a share card rendered at build time) or `siteDefault` (it falls back to one site-wide value). Allowed on `seoTitle`, `seoDescription` and `shareImage` only; not on `alt`, since code cannot write an image's alt text reliably, and not on `noindex` or `canonical`, whose empty value already means something. Never guessed. `schema.Field.WhenEmpty`, `schema.WhenEmptyGenerated`, `schema.WhenEmptySiteDefault`, `schema.WhenEmptyValues`, `schema.KnownWhenEmpty`, `schema.WhenEmptyRoles`, `schema.RoleAllowsWhenEmpty`; `resolve.RoleField.WhenEmpty` for a declared role.
+- One rule (84 in all): `schema.invalid_when_empty`, an error for an unknown value, a `whenEmpty` without a role, or one on a role that does not take it. `validate.Roles` reports it too.
+- **`quality.Summary.FilledInCode`** (`filledInCode` in JSON): per role and `whenEmpty` value, how many pages leave the field empty for the site to fill (`quality.FilledInCode`).
+
+### Behaviour changes
+
+- An empty role field that declares `whenEmpty` is no longer reported by `quality.title_missing`, `quality.description_missing` or `quality.share_image_missing`. The page still counts as checked, so it passes in a score. Filled values are checked as before. For an empty SEO title with `whenEmpty`, the page title is not measured in its place.
+- `whenEmpty` is a key every field may carry, so it is not reported as `schema.unknown_knob`.
+- The hints of `quality.share_image_missing` and `quality.description_missing` mention `whenEmpty`.
+
 ## 0.5.0 (2026-11-22)
 
 ### New

@@ -325,6 +325,10 @@ type Field struct {
 	// Role is what the field means to the site (schema.RoleSEOTitle…);
 	// empty when it declares none or the value is not a string.
 	Role string
+	// WhenEmpty is what the site does when the role field is empty
+	// (WhenEmptyGenerated, WhenEmptySiteDefault); empty when it does not
+	// say or the value is not a string.
+	WhenEmpty string
 
 	// Extra holds keys the editor does not read for this field type.
 	Extra map[string]any

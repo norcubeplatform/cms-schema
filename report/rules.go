@@ -123,6 +123,11 @@ const (
 	// `decorative` is not a boolean, or `role: alt` cannot tell which of
 	// several images it describes.
 	RuleSchemaInvalidAlt Rule = "schema.invalid_alt"
+	// RuleSchemaInvalidWhenEmpty: a field's `whenEmpty` is not generated
+	// or siteDefault, sits on a field without a role, or on a role whose
+	// empty value a site does not fill in code (only seoTitle,
+	// seoDescription and shareImage may say it).
+	RuleSchemaInvalidWhenEmpty Rule = "schema.invalid_when_empty"
 	// RuleSchemaInvalidQuality: a `quality` block in config.yml or a
 	// collection is not a mapping, its `ignore` is not a list, or the list
 	// names something that is not a quality rule.
@@ -303,7 +308,7 @@ func Rules() []Rule {
 		RuleSchemaUnknownPreviewToken, RuleSchemaInvalidLocaleFrom, RuleSchemaInvalidTranslations,
 		RuleSchemaTranslatableIgnored, RuleSchemaInvalidTranslationLocales,
 		RuleSchemaUnknownRole, RuleSchemaDuplicateRole, RuleSchemaRoleTypeMismatch,
-		RuleSchemaMisplacedRole, RuleSchemaInvalidAlt, RuleSchemaInvalidQuality,
+		RuleSchemaMisplacedRole, RuleSchemaInvalidAlt, RuleSchemaInvalidWhenEmpty, RuleSchemaInvalidQuality,
 		RuleSchemaDefaultLocaleNotDeclared, RuleSchemaUnknownRedirectsFormat,
 		RuleSchemaMissingVariablesFile, RuleSchemaInternalError,
 		RuleContentParseError, RuleContentNoCollection, RuleContentRequired,

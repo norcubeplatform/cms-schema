@@ -53,8 +53,8 @@ one directory without literal `match` names to tell them apart, and a
 collection's `translations.by` is `path` (with `localeFrom: path`) or
 names a required top-level text field, `translations.locales` names
 only site languages, `translatable` sits only on fields it can mean
-something for, and field roles, `alt:` and `decorative:` are used as
-described under [Field roles](#field-roles).
+something for, and field roles, `whenEmpty:`, `alt:` and `decorative:`
+are used as described under [Field roles](#field-roles).
 
 **content** — every content file against its collection, with the
 editor's rules: required, value shape (including select options), item
@@ -230,10 +230,54 @@ reported as `schema.unknown_knob`. The rules:
 | `schema.duplicate_role`      | A second field of the collection or block has the same page role, or a second `role: alt` sits in one fields list. |
 | `schema.misplaced_role`      | A page role inside a list, or `role: alt` in a fields list without an image.                    |
 | `schema.invalid_alt`         | `alt` names no text or paragraph sibling (or the image itself), `decorative` is not a boolean or comes with alt text, or `role: alt` sits beside several images, a decorative one, or one that names another field. |
+| `schema.invalid_when_empty`  | `whenEmpty` is not `generated` or `siteDefault`, sits on a field without a role, or on a role other than `seoTitle`, `seoDescription` and `shareImage`. |
 
-All five are errors. A block is checked in its own file and again where
+All six are errors. A block is checked in its own file and again where
 it is used, so a block whose role is fine alone but lands inside a list
 is reported at the collection.
+
+### Values the site fills in code
+
+Some sites fill an empty role field themselves: a share card rendered
+per page at build time, a title composed from the page heading, one
+site-wide description. `whenEmpty:` next to `role:` says so, and the
+quality checks stop reporting those empty fields as missing:
+
+```yaml
+# The site renders a 1200 x 630 card per page (src/pages/og/[...path].png.ts)
+# when the editor picks no image.
+- key: og_image
+  type: image
+  label: Share image
+  role: shareImage
+  whenEmpty: generated
+
+# The layout falls back to one site-wide description.
+- key: description
+  type: paragraph
+  label: Meta description
+  role: seoDescription
+  whenEmpty: siteDefault
+```
+
+| Value         | Means                                                                 |
+| ------------- | --------------------------------------------------------------------- |
+| `generated`   | The site makes the value per page in code.                            |
+| `siteDefault` | The site falls back to one value for the whole site.                  |
+
+`whenEmpty` goes on a field with role `seoTitle`, `seoDescription` or
+`shareImage`, and on no other. Not on `alt`: alt text describes one
+particular image, and code cannot write it reliably (a copied title or
+file name is worse for a screen reader than an honest gap); an image
+that needs none says `decorative: true`. Not on `noindex` or
+`canonical`: their empty value already means something (indexable,
+canonical to itself), and no check reports it.
+
+It is the owner's statement about the site's code, so it is never
+guessed: a role guessed from a field name never has one, and
+`resolve.RoleField.WhenEmpty` is set only for a declared role with a
+valid value. What it changes in the checks is under [Content
+quality](#content-quality).
 
 ### Reading roles, and guessing them
 
@@ -396,6 +440,32 @@ is skipped; HTML `alt=""` is a decorative image on purpose), and the
 label beside a link field. Fields a page hides (`hidden`, `visibleIf`)
 are skipped. Word lists for generic text exist for English, Czech and
 German, and every list is checked on every page.
+
+**Fields the site fills in code.** When a role field declares
+`whenEmpty` (see [Values the site fills in code](#values-the-site-fills-in-code))
+and a page leaves it empty, the role's missing rule
+(`title_missing`, `description_missing`, `share_image_missing`) does
+not report the page. The page still counts as checked, so in a score it
+passes: the site does show a value there, and leaving the page out would
+make the share of passing pages look smaller than it is. A value the
+page does hold is checked as before (length, duplicates). The module
+cannot read what the code makes, so nothing is measured for those pages,
+and for `seoTitle` the page title is not used in its place: the site
+said it shows something else. `res.Quality.FilledInCode` counts the
+pages per role and value, in role order, so a report can say "share
+images: made by the site for 69 pages":
+
+```json
+"filledInCode": [{"role": "shareImage", "whenEmpty": "generated", "pages": 69}]
+```
+
+The count is a fact about the content and stays when the rule is turned
+off. Since the module already reads an empty SEO title as the page
+title, declare `whenEmpty` on `seoTitle` only when the site shows
+something else (a title it composes, or one for the whole site). A
+`siteDefault` description is the same text on every page that uses it;
+search engines may then pick their own snippet, so writing one per page
+is still worth it where it matters.
 
 **What the caller supplies.** The module never reads git or the
 network. `quality.Options` carries what only the caller knows:
