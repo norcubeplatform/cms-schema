@@ -231,3 +231,42 @@ func TestParseTranslations(t *testing.T) {
 		t.Error("no declaration has a linking field")
 	}
 }
+
+func TestParseRolesAndLocales(t *testing.T) {
+	img := ParseField(map[string]any{"key": "img", "type": "image", "label": "I", "alt": " img_alt ", "decorative": true, "role": "shareImage"})
+	if img.Alt != "img_alt" || !img.Decorative || img.Role != RoleShareImage || len(img.Extra) != 0 {
+		t.Fatalf("image: %+v", img)
+	}
+	// alt and decorative are image knobs; role is every field's.
+	txt := ParseField(map[string]any{"key": "t", "type": "text", "label": "T", "alt": "x", "decorative": true, "role": "seoTitle"})
+	if txt.Alt != "" || txt.Decorative || txt.Role != RoleSEOTitle || txt.Extra["alt"] == nil || txt.Extra["decorative"] == nil || txt.Extra["role"] != nil {
+		t.Fatalf("text: %+v", txt)
+	}
+	if f := ParseField(map[string]any{"key": "t", "type": "text", "role": []any{"x"}}); f.Role != "" {
+		t.Fatalf("a role that is not a string: %q", f.Role)
+	}
+	cfg, _ := Parse(map[string]any{"collections": map[string]any{"pages": map[string]any{
+		"translations": map[string]any{"by": "path", "locales": []any{"cs", " en ", ""}},
+	}}})
+	if got := cfg.Collections["pages"].Translations.Locales; len(got) != 2 || got[1] != "en" {
+		t.Fatalf("locales: %v", got)
+	}
+}
+
+func TestRoleSet(t *testing.T) {
+	if got := PageRoles(); len(got) != 5 || got[0] != RoleSEOTitle || got[4] != RoleCanonical {
+		t.Fatalf("page roles: %v", got)
+	}
+	if !KnownRole(RoleAlt) || IsPageRole(RoleAlt) || KnownRole("seo.title") || len(Roles()) != 6 {
+		t.Fatal("role set")
+	}
+	if !RoleAccepts(RoleShareImage, TypeImage) || RoleAccepts(RoleShareImage, TypeText) || !RoleAccepts(RoleCanonical, TypeURL) || RoleAccepts(RoleNoindex, TypeSelect) {
+		t.Fatal("role types")
+	}
+	// The lists handed out are copies.
+	PageRoles()[0] = "x"
+	RoleTypes(RoleAlt)[0] = "x"
+	if PageRoles()[0] != RoleSEOTitle || RoleTypes(RoleAlt)[0] != TypeText {
+		t.Fatal("shared slices")
+	}
+}

@@ -158,6 +158,7 @@ var commonKnobs = map[string]bool{
 	"required": true, "requiredMessage": true, "nullable": true, "hidden": true,
 	"visibleIf": true, "whenHidden": true, "computed": true, "customValidators": true,
 	"default": true, "_blockRef": true, "schemaVersion": true, "translatable": true,
+	"role": true,
 }
 
 // parseTranslations reads a collection's `translations` block; nil when
@@ -168,7 +169,7 @@ func parseTranslations(v any) *Translations {
 		return nil
 	}
 	m, _ := v.(map[string]any)
-	return &Translations{By: strings.TrimSpace(str(m["by"]))}
+	return &Translations{By: strings.TrimSpace(str(m["by"])), Locales: trimmedStrings(m["locales"])}
 }
 
 var typeKnobs = map[string][]string{
@@ -182,7 +183,7 @@ var typeKnobs = map[string][]string{
 	TypeRange:       {"min", "max", "step"},
 	TypeMultiChoice: {"options", "min", "max", "widget"},
 	TypeLink:        {"variables", "regex", "regexMessage", "minLength", "minLengthMessage", "maxLength", "maxLengthMessage"},
-	TypeImage:       {"accept", "maxSize", "storage", "dir", "lockDir"},
+	TypeImage:       {"accept", "maxSize", "storage", "dir", "lockDir", "alt", "decorative"},
 	TypeFile:        {"accept", "maxSize", "storage", "dir", "lockDir"},
 	TypeReference:   {"collection", "by", "multiple"},
 	TypeSelect:      {"options", "widget", "searchable", "searchPlaceholder"},
@@ -229,6 +230,7 @@ func ParseField(m map[string]any) Field {
 		Storage:           str(m["storage"]),
 		Dir:               str(m["dir"]),
 		LockDir:           boolOf(m["lockDir"]),
+		Role:              strings.TrimSpace(str(m["role"])),
 		Collection:        str(m["collection"]),
 		By:                str(m["by"]),
 		Multiple:          boolOf(m["multiple"]),
@@ -285,6 +287,10 @@ func ParseField(m map[string]any) Field {
 			}
 			f.Custom = append(f.Custom, cv)
 		}
+	}
+	if Canonical(f.Type) == TypeImage {
+		f.Alt = strings.TrimSpace(str(m["alt"]))
+		f.Decorative = boolOf(m["decorative"])
 	}
 	f.Fields = ParseFields(m["fields"])
 	f.Items = ParseFields(m["items"])

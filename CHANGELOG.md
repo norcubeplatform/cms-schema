@@ -2,6 +2,22 @@
 
 Notable changes, newest first.
 
+## Unreleased
+
+### New
+
+- **Field roles.** `role:` on a field says what it means to the site: `seoTitle`, `seoDescription`, `shareImage`, `noindex` (a boolean, true hides the page from search engines), `canonical`, and `alt` (the alt text of the one image in its fields list). Page roles appear at most once per collection, outside lists. `schema.Field.Role`, `schema.PageRoles`, `schema.Roles`, `schema.KnownRole`, `schema.IsPageRole`, `schema.RoleTypes`, `schema.RoleAccepts` and the `schema.Role*` constants.
+- **Image alt text.** On an image field, `alt: <key>` names the sibling that holds its alt text and `decorative: true` says it needs none (`schema.Field.Alt`, `schema.Field.Decorative`).
+- **`resolve.CollectionRoles(cfg, coll)`**: the field of each page role and every image with the field holding its alt text, each marked declared or guessed. Undeclared roles are guessed from keys and labels by a small table (README, "Field roles"); two candidates guess nothing. **`resolve.AltOf(siblings, image)`** is the decision for one image. `resolve.MaxRoleImages` bounds the list.
+- **`translations.locales`**: the languages a collection's pages are expected in, each a site language; every site language by default. `schema.Translations.Locales`, `resolve.ExpectedLocales(cfg, coll)`.
+- **`schema.Collection.SiteArea()`**: whether a collection holds site settings rather than pages, for counts of pages.
+- **`validate.Roles(cfg)`** checks roles and alt relations of a config that was never written to a site (a proposed schema).
+- Six rules (65 in all), all errors: `schema.unknown_role`, `schema.duplicate_role`, `schema.role_type_mismatch`, `schema.misplaced_role`, `schema.invalid_alt`, `schema.invalid_translation_locales`.
+
+### Behaviour changes
+
+- `role` is a key every field may carry, and `alt` and `decorative` are image knobs, so none of them is reported as `schema.unknown_knob` there any more. `alt` or `decorative` on another field type still is, with a hint.
+
 ## 0.3.1 (2026-11-21)
 
 ### Fixed

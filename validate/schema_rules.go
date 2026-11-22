@@ -86,12 +86,16 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 		if reason, hint := translationsProblem(coll); reason != "" {
 			f(file, "translations.by", report.SeverityError, report.RuleSchemaInvalidTranslations, reason, hint)
 		}
+		for _, problem := range translationLocalesProblems(cfg, coll) {
+			f(file, "translations.locales", report.SeverityError, report.RuleSchemaInvalidTranslationLocales, problem, "List the languages this collection's pages are expected in, each one of preview.locales, or leave `locales` out to expect all of them.")
+		}
 		switch coll.ExtraKeysPolicy {
 		case schema.ExtraKeysShow, schema.ExtraKeysHide, schema.ExtraKeysStrip:
 		default:
 			f(file, "extraKeysPolicy", report.SeverityWarning, report.RuleSchemaUnknownKnob, fmt.Sprintf("extraKeysPolicy %q is not show, hide or strip; show is assumed", coll.ExtraKeysPolicy), "")
 		}
 		checkFields(cfg, file, "fields", coll.Fields, rootSchemaScope(coll.Fields), f)
+		checkRoles(cfg, file, "fields", coll.Fields, f)
 	}
 	paths := make([]string, 0, len(byPath))
 	for p := range byPath {
@@ -125,6 +129,7 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 			f(file, "label", report.SeverityError, report.RuleSchemaMissingLabel, "the block has no `label`", "")
 		}
 		checkFields(cfg, file, "fields", b.Fields, rootSchemaScope(b.Fields), f)
+		checkRoles(cfg, file, "fields", b.Fields, f)
 	}
 	for _, key := range cfg.InputKeys {
 		file := load.InputFile(key)
@@ -132,6 +137,7 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 			file = configFile
 		}
 		checkFields(cfg, file, "", []schema.Field{cfg.Inputs[key]}, rootSchemaScope([]schema.Field{cfg.Inputs[key]}), f)
+		checkRoles(cfg, file, "", []schema.Field{cfg.Inputs[key]}, f)
 	}
 	return out
 }
@@ -193,6 +199,9 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 			hint := ""
 			if k == "toolbar" && schema.Canonical(fd.Type) == schema.TypeRichText {
 				hint = "richtext takes `options:` (a map of flags such as bold: true, headings: [2, 3]), not a `toolbar:` list."
+			}
+			if k == "alt" || k == "decorative" {
+				hint = "`" + k + "` belongs on an image field. To mark a text field as an image's alt text, give it `role: alt` or name it from the image with `alt: <key>`."
 			}
 			f(file, p, report.SeverityWarning, report.RuleSchemaUnknownKnob, fmt.Sprintf("field %q has key %q, which a %s field does not read", label, k, fd.Type), hint)
 		}

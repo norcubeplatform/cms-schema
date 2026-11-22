@@ -95,6 +95,30 @@ const (
 	// type is never translated (a number, an image, a select…), so it
 	// changes nothing.
 	RuleSchemaTranslatableIgnored Rule = "schema.translatable_ignored"
+	// RuleSchemaInvalidTranslationLocales: a collection's
+	// `translations.locales` is not a list of languages, is empty, repeats
+	// a language, or names one the site does not declare in
+	// `preview.locales`.
+	RuleSchemaInvalidTranslationLocales Rule = "schema.invalid_translation_locales"
+	// RuleSchemaUnknownRole: a field's `role` is not one of the roles
+	// (seoTitle, seoDescription, shareImage, noindex, canonical, alt).
+	RuleSchemaUnknownRole Rule = "schema.unknown_role"
+	// RuleSchemaDuplicateRole: two fields of one collection or block
+	// declare the same page role, or two fields of one fields list declare
+	// `role: alt`.
+	RuleSchemaDuplicateRole Rule = "schema.duplicate_role"
+	// RuleSchemaRoleTypeMismatch: a field's type cannot hold its role
+	// (`shareImage` on a text field, `noindex` on a select).
+	RuleSchemaRoleTypeMismatch Rule = "schema.role_type_mismatch"
+	// RuleSchemaMisplacedRole: a page role sits inside a list, where it
+	// would repeat per item, or `role: alt` sits in a fields list that
+	// holds no image.
+	RuleSchemaMisplacedRole Rule = "schema.misplaced_role"
+	// RuleSchemaInvalidAlt: an image's `alt` names no text field in the
+	// same fields list, an image is both `decorative` and given alt text,
+	// `decorative` is not a boolean, or `role: alt` cannot tell which of
+	// several images it describes.
+	RuleSchemaInvalidAlt Rule = "schema.invalid_alt"
 	// RuleSchemaDefaultLocaleNotDeclared: `preview.defaultLocale` is not
 	// in `preview.locales`.
 	RuleSchemaDefaultLocaleNotDeclared Rule = "schema.default_locale_not_declared"
@@ -203,7 +227,9 @@ func Rules() []Rule {
 		RuleSchemaUnknownStorage, RuleSchemaUnknownDefaultStorage, RuleSchemaInvalidStorage,
 		RuleSchemaDuplicateCollectionPath, RuleSchemaMissingCollectionPath,
 		RuleSchemaUnknownPreviewToken, RuleSchemaInvalidLocaleFrom, RuleSchemaInvalidTranslations,
-		RuleSchemaTranslatableIgnored,
+		RuleSchemaTranslatableIgnored, RuleSchemaInvalidTranslationLocales,
+		RuleSchemaUnknownRole, RuleSchemaDuplicateRole, RuleSchemaRoleTypeMismatch,
+		RuleSchemaMisplacedRole, RuleSchemaInvalidAlt,
 		RuleSchemaDefaultLocaleNotDeclared, RuleSchemaUnknownRedirectsFormat,
 		RuleSchemaMissingVariablesFile, RuleSchemaInternalError,
 		RuleContentParseError, RuleContentNoCollection, RuleContentRequired,

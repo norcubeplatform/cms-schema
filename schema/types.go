@@ -290,6 +290,10 @@ type Field struct {
 	Storage string
 	Dir     string
 	LockDir bool
+	// image: Alt names the sibling field that holds the image's alt text;
+	// Decorative says the image needs none.
+	Alt        string
+	Decorative bool
 
 	// reference
 	Collection string
@@ -317,6 +321,10 @@ type Field struct {
 	// page gets a language version; nil when the field does not say, and
 	// the default for its type applies (resolve.Translatable).
 	Translatable *bool
+
+	// Role is what the field means to the site (schema.RoleSEOTitle…);
+	// empty when it declares none or the value is not a string.
+	Role string
 
 	// Extra holds keys the editor does not read for this field type.
 	Extra map[string]any
@@ -354,6 +362,9 @@ type Translations struct {
 	// By is `path` (the same path under each locale folder) or
 	// `field:<key>` (pages with the same value of that field).
 	By string
+	// Locales are the languages the collection's pages are expected in;
+	// empty means every site language (resolve.ExpectedLocales).
+	Locales []string
 }
 
 // Field returns the key of the linking field for `by: field:<key>`, and
