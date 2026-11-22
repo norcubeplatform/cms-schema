@@ -30,20 +30,6 @@ type Entry struct {
 	hasCol bool
 }
 
-// Reference kinds.
-const (
-	refLink      = "link"
-	refAsset     = "asset"
-	refReference = "reference"
-)
-
-type rawRef struct {
-	fieldPath string
-	raw       string
-	kind      string
-	field     schema.Field
-}
-
 // Links checks the references between files: URL collisions, site links,
 // assets, reference fields and orphaned sidecars. exists reports
 // whether a repository path is a file; sidecars lists the sidecar files
@@ -97,20 +83,12 @@ func checkLinks(cfg *schema.Config, entries []Entry, exists func(string) bool, s
 		versions[id] = e.Path
 	}
 
-	refKeys := cfg.ReferenceKeys()
-	_ = refKeys
 	for _, e := range sorted {
-		if !e.hasCol {
-			for _, raw := range resolve.InternalLinks(e.doc.Body) {
-				out = append(out, resolveRef(cfg, e, rawRef{fieldPath: resolve.BodyPath, raw: raw, kind: refLink}, byURL, byPath, exists)...)
-			}
-			continue
+		var fields []schema.Field
+		if e.hasCol {
+			fields = e.coll.Fields
 		}
-		refs := collectRefs(cfg, e.coll.Fields, e.doc.Frontmatter)
-		for _, raw := range resolve.InternalLinks(e.doc.Body) {
-			refs = append(refs, rawRef{fieldPath: resolve.BodyPath, raw: raw, kind: refLink})
-		}
-		for _, r := range refs {
+		for _, r := range resolve.References(cfg, fields, e.doc.Frontmatter, e.doc.Body) {
 			out = append(out, resolveRef(cfg, e, r, byURL, byPath, exists)...)
 		}
 	}
@@ -130,11 +108,11 @@ func checkLinks(cfg *schema.Config, entries []Entry, exists func(string) bool, s
 	return out
 }
 
-func resolveRef(cfg *schema.Config, from Entry, r rawRef, byURL map[string]string, byPath map[string]Entry, exists func(string) bool) []report.Finding {
+func resolveRef(cfg *schema.Config, from Entry, r resolve.Reference, byURL map[string]string, byPath map[string]Entry, exists func(string) bool) []report.Finding {
 	has := func(p string) bool { return p != "" && exists != nil && exists(p) }
-	switch r.kind {
-	case refLink:
-		n := resolve.NormalizeURLPath(r.raw)
+	switch r.Kind {
+	case resolve.RefKindLink:
+		n := resolve.NormalizeURLPath(r.Value)
 		if _, ok := byURL[n]; ok {
 			return nil
 		}
@@ -143,24 +121,24 @@ func resolveRef(cfg *schema.Config, from Entry, r rawRef, byURL map[string]strin
 				return nil
 			}
 		}
-		if has(resolve.AssetRepoPath(cfg, r.raw)) {
+		if has(resolve.AssetRepoPath(cfg, r.Value)) {
 			return nil
 		}
 		if resolve.IsKnownPath(cfg, n) {
 			return nil
 		}
-		return []report.Finding{{File: from.Path, Path: r.fieldPath, Severity: report.SeverityWarning, Rule: report.RuleLinksUnresolvedLink, Message: fmt.Sprintf("links to %s, which no content file produces", r.raw), Hint: "If the site serves this route from code, add it to knownPaths in config.yml; otherwise fix the link."}}
-	case refAsset:
-		p := resolve.AssetRepoPath(cfg, r.raw)
+		return []report.Finding{{File: from.Path, Path: r.Path, Severity: report.SeverityWarning, Rule: report.RuleLinksUnresolvedLink, Message: fmt.Sprintf("links to %s, which no content file produces", r.Value), Hint: "If the site serves this route from code, add it to knownPaths in config.yml; otherwise fix the link."}}
+	case resolve.RefKindAsset:
+		p := resolve.AssetRepoPath(cfg, r.Value)
 		if has(p) {
 			return nil
 		}
-		return []report.Finding{{File: from.Path, Path: r.fieldPath, Severity: report.SeverityError, Rule: report.RuleLinksMissingAsset, Message: fmt.Sprintf("points at %s, which the repository does not have (looked for %s)", r.raw, p), Hint: "Pick the file again in the media library, or add the file."}}
-	case refReference:
-		if lookupEntry(byPath, r.field, r.raw) {
+		return []report.Finding{{File: from.Path, Path: r.Path, Severity: report.SeverityError, Rule: report.RuleLinksMissingAsset, Message: fmt.Sprintf("points at %s, which the repository does not have (looked for %s)", r.Value, p), Hint: "Pick the file again in the media library, or add the file."}}
+	case resolve.RefKindReference:
+		if lookupEntry(byPath, r.Field, r.Value) {
 			return nil
 		}
-		return []report.Finding{{File: from.Path, Path: r.fieldPath, Severity: report.SeverityError, Rule: report.RuleLinksUnresolvedReference, Message: fmt.Sprintf("references %q, which names no entry", r.raw) + byHint(r.field), Hint: "Pick the entry again, or fix the value."}}
+		return []report.Finding{{File: from.Path, Path: r.Path, Severity: report.SeverityError, Rule: report.RuleLinksUnresolvedReference, Message: fmt.Sprintf("references %q, which names no entry", r.Value) + byHint(r.Field), Hint: "Pick the entry again, or fix the value."}}
 	}
 	return nil
 }
@@ -190,48 +168,4 @@ func lookupEntry(byPath map[string]Entry, f schema.Field, value string) bool {
 	}
 	_, ok := byPath[resolve.CleanPath(value)]
 	return ok
-}
-
-// collectRefs extracts every candidate reference from the frontmatter
-// against the collection's fields, as the content index does.
-func collectRefs(cfg *schema.Config, fields []schema.Field, fm map[string]any) []rawRef {
-	var out []rawRef
-	schema.Walk(cfg, fields, fm, func(v schema.Visit) bool {
-		// Items of a list of primitives are not indexed.
-		if v.Item || v.Value == nil {
-			return true
-		}
-		f, p := v.Field, v.Path
-		switch schema.Canonical(f.Type) {
-		case schema.TypeLink:
-			if s, ok := v.Value.(string); ok && resolve.IsInternalLink(s) {
-				out = append(out, rawRef{fieldPath: p, raw: strings.TrimSpace(s), kind: refLink})
-			}
-		case schema.TypeImage, schema.TypeFile:
-			if s, ok := v.Value.(string); ok && resolve.IsAssetValue(s) {
-				out = append(out, rawRef{fieldPath: p, raw: strings.TrimSpace(s), kind: refAsset})
-			}
-		case schema.TypeReference:
-			switch val := v.Value.(type) {
-			case string:
-				if strings.TrimSpace(val) != "" {
-					out = append(out, rawRef{fieldPath: p, raw: strings.TrimSpace(val), kind: refReference, field: f})
-				}
-			case []any:
-				for i, item := range val {
-					if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
-						out = append(out, rawRef{fieldPath: schema.IndexPath(p, i), raw: strings.TrimSpace(s), kind: refReference, field: f})
-					}
-				}
-			}
-		case schema.TypeRichText:
-			if s, ok := v.Value.(string); ok {
-				for _, raw := range resolve.InternalLinks(s) {
-					out = append(out, rawRef{fieldPath: p, raw: raw, kind: refLink})
-				}
-			}
-		}
-		return true
-	})
-	return out
 }

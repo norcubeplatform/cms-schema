@@ -4,8 +4,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/norcubeplatform/cms-schema/content"
 	"github.com/norcubeplatform/cms-schema/report"
 )
+
+// TestLinksRecovers: a panic in the links checks (here a nil config, which
+// no loader produces, met by a page that links somewhere) is the one
+// links.internal_error finding.
+func TestLinksRecovers(t *testing.T) {
+	got := Links(nil, []Entry{{Path: "a.md", doc: content.Document{Body: "[x](/a/)"}}}, nil, nil)
+	if len(got) != 1 || got[0].Rule != report.RuleLinksInternalError || got[0].File != "" || !strings.Contains(got[0].Message, "internal error") {
+		t.Fatalf("got %v, want one links.internal_error finding", got)
+	}
+}
 
 // TestRecoverAs pins what an entry point returns when a check panics:
 // one error finding with the check's rule, on the file, quoting a

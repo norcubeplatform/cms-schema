@@ -1,10 +1,14 @@
 package report
 
-// Rule is the frozen identifier of one check. The three prefixes group
-// the checks by what they read: `schema.` the `.norcube/cms` directory
+// Rule is the frozen identifier of one check. The prefixes group the
+// checks by what they read: `schema.` the `.norcube/cms` directory
 // alone, `content.` one content file against its collection, `links.`
-// the whole site (URLs, assets, references between files).
+// the whole site (URLs, assets, references between files). `quality.`
+// is the other family: the site works, but a page could serve its
+// readers better (package quality). Quality findings are never errors.
 type Rule string
+
+const qualityPrefix = "quality."
 
 // Schema rules: the directory loads and makes sense on its own.
 const (
@@ -119,6 +123,10 @@ const (
 	// `decorative` is not a boolean, or `role: alt` cannot tell which of
 	// several images it describes.
 	RuleSchemaInvalidAlt Rule = "schema.invalid_alt"
+	// RuleSchemaInvalidQuality: a `quality` block in config.yml or a
+	// collection is not a mapping, its `ignore` is not a list, or the list
+	// names something that is not a quality rule.
+	RuleSchemaInvalidQuality Rule = "schema.invalid_quality"
 	// RuleSchemaDefaultLocaleNotDeclared: `preview.defaultLocale` is not
 	// in `preview.locales`.
 	RuleSchemaDefaultLocaleNotDeclared Rule = "schema.default_locale_not_declared"
@@ -213,9 +221,75 @@ const (
 	RuleLinksInternalError Rule = "links.internal_error"
 )
 
+// Quality rules: what a site owner can improve. Package quality holds
+// each one's area, impact and threshold.
+const (
+	// RuleQualityTitleMissing: an indexable page has no title for search
+	// results (its SEO title and the page title are both empty).
+	RuleQualityTitleMissing Rule = "quality.title_missing"
+	// RuleQualityTitleLength: the page's title for search results is
+	// shorter or longer than the recommended window.
+	RuleQualityTitleLength Rule = "quality.title_length"
+	// RuleQualityTitleDuplicate: two or more indexable pages of one
+	// language share a title.
+	RuleQualityTitleDuplicate Rule = "quality.title_duplicate"
+	// RuleQualityDescriptionMissing: an indexable page has no meta
+	// description.
+	RuleQualityDescriptionMissing Rule = "quality.description_missing"
+	// RuleQualityDescriptionLength: the meta description is shorter or
+	// longer than the recommended window.
+	RuleQualityDescriptionLength Rule = "quality.description_length"
+	// RuleQualityDescriptionDuplicate: two or more indexable pages of one
+	// language share a meta description.
+	RuleQualityDescriptionDuplicate Rule = "quality.description_duplicate"
+	// RuleQualityShareImageMissing: an indexable page has no share image.
+	RuleQualityShareImageMissing Rule = "quality.share_image_missing"
+	// RuleQualityNoindex: the page is hidden from search engines. Listed,
+	// not a problem.
+	RuleQualityNoindex Rule = "quality.noindex"
+	// RuleQualityImageAltMissing: an image that is not decorative has no
+	// alt text.
+	RuleQualityImageAltMissing Rule = "quality.image_alt_missing"
+	// RuleQualityImageAltPoor: an image's alt text is its file name or a
+	// generic word ("image", "foto").
+	RuleQualityImageAltPoor Rule = "quality.image_alt_poor"
+	// RuleQualityHeadingSkip: a text skips a heading level (h2 to h4).
+	RuleQualityHeadingSkip Rule = "quality.heading_skip"
+	// RuleQualityLinkTextEmpty: a link in a text has no text a screen
+	// reader could announce.
+	RuleQualityLinkTextEmpty Rule = "quality.link_text_empty"
+	// RuleQualityLinkTextGeneric: a link's text says nothing about where
+	// it leads ("click here", "zde", "mehr").
+	RuleQualityLinkTextGeneric Rule = "quality.link_text_generic"
+	// RuleQualityTranslationMissing: a page has no version in a language
+	// its collection expects.
+	RuleQualityTranslationMissing Rule = "quality.translation_missing"
+	// RuleQualityTranslationOutdated: a language version last changed
+	// well before the newest version of the same page.
+	RuleQualityTranslationOutdated Rule = "quality.translation_outdated"
+	// RuleQualityImageHeavy: an image that content uses is a large file.
+	RuleQualityImageHeavy Rule = "quality.image_heavy"
+	// RuleQualityMediaUnused: a file in a media storage that no content
+	// refers to. Listed, not a problem.
+	RuleQualityMediaUnused Rule = "quality.media_unused"
+)
+
+// QualityRules lists the quality rules in a stable order.
+func QualityRules() []Rule {
+	return []Rule{
+		RuleQualityTitleMissing, RuleQualityTitleLength, RuleQualityTitleDuplicate,
+		RuleQualityDescriptionMissing, RuleQualityDescriptionLength, RuleQualityDescriptionDuplicate,
+		RuleQualityShareImageMissing, RuleQualityNoindex,
+		RuleQualityImageAltMissing, RuleQualityImageAltPoor, RuleQualityHeadingSkip,
+		RuleQualityLinkTextEmpty, RuleQualityLinkTextGeneric,
+		RuleQualityTranslationMissing, RuleQualityTranslationOutdated,
+		RuleQualityImageHeavy, RuleQualityMediaUnused,
+	}
+}
+
 // Rules lists every rule id this version knows, in a stable order.
 func Rules() []Rule {
-	return []Rule{
+	return append([]Rule{
 		RuleSchemaParseError, RuleSchemaNotMapping, RuleSchemaUnsupportedVersion,
 		RuleSchemaUnresolvedRef, RuleSchemaRefCycle, RuleSchemaInputsGlobUnsupported,
 		RuleSchemaMissingKey, RuleSchemaMissingType, RuleSchemaMissingLabel,
@@ -229,7 +303,7 @@ func Rules() []Rule {
 		RuleSchemaUnknownPreviewToken, RuleSchemaInvalidLocaleFrom, RuleSchemaInvalidTranslations,
 		RuleSchemaTranslatableIgnored, RuleSchemaInvalidTranslationLocales,
 		RuleSchemaUnknownRole, RuleSchemaDuplicateRole, RuleSchemaRoleTypeMismatch,
-		RuleSchemaMisplacedRole, RuleSchemaInvalidAlt,
+		RuleSchemaMisplacedRole, RuleSchemaInvalidAlt, RuleSchemaInvalidQuality,
 		RuleSchemaDefaultLocaleNotDeclared, RuleSchemaUnknownRedirectsFormat,
 		RuleSchemaMissingVariablesFile, RuleSchemaInternalError,
 		RuleContentParseError, RuleContentNoCollection, RuleContentRequired,
@@ -240,5 +314,5 @@ func Rules() []Rule {
 		RuleContentUnexpectedBody, RuleContentInternalError,
 		RuleLinksURLCollision, RuleLinksTranslationCollision, RuleLinksUnresolvedLink, RuleLinksMissingAsset,
 		RuleLinksUnresolvedReference, RuleLinksOrphanSidecar, RuleLinksInternalError,
-	}
+	}, QualityRules()...)
 }

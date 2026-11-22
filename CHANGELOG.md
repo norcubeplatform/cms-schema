@@ -2,6 +2,25 @@
 
 Notable changes, newest first.
 
+## Unreleased
+
+### New
+
+- **Content quality**, a family of rules apart from correctness: package `quality` and 17 `quality.*` rules (83 in all) in four areas. Search: `title_missing`, `title_length`, `title_duplicate`, `description_missing`, `description_length`, `description_duplicate`, `share_image_missing`, `noindex`. Accessibility: `image_alt_missing`, `image_alt_poor`, `heading_skip`, `link_text_empty`, `link_text_generic`. Languages: `translation_missing`, `translation_outdated`. Media: `image_heavy`, `media_unused`. Thresholds, impacts and sources are a table in the README; a field's `recommendedLength` wins over the defaults.
+- Quality runs only when asked for: `validate.ScopeQuality` in `Options.Only`, or `cms-schema-validate --quality`. `validate.Scopes()` lists the four scopes.
+- **Quality findings are never errors**: warnings (high and medium impact) or notices (low impact and information). `report.SeverityNotice`, `report.Impact` (`high`, `medium`, `low`, `info`), `report.SeverityOf`, `report.CountNotices`, `Rule.IsQuality`. `Options.StrictQuality` (`--strict-quality`) turns quality warnings into errors; `--strict` leaves them alone.
+- `report.Finding` gains `impact`, `value` (what the finding is about; when it changes, the finding is a new one) and `measure` (`report.Measure`: the number measured, its unit and window). All three are empty on other findings.
+- **`quality.Options`** carries what only the caller knows: `LastChanged` (when each file last changed, for `translation_outdated`), `ListMedia` (the files under `quality.MediaRoots(cfg)` with sizes, for the media rules; `quality.FSMedia` lists them from a checkout) and `Limits`. A rule without its data is skipped and named in the summary.
+- `validate.Result.Quality` (`quality.Summary`): per rule how many instances were checked, the rules turned off, and the rules skipped with the reason. `Result.Notices` counts notices.
+- **`quality: { ignore: [rule ids] }`** in `config.yml` (whole site) or in a collection turns quality rules off (`schema.Config.Quality`, `schema.Collection.Quality`). One rule: `schema.invalid_quality`, a warning for a block that is not a mapping, an `ignore` that is not a list, or an entry that is not a quality rule.
+- `resolve.References(cfg, fields, frontmatter, body)` lists what a page points at (links, assets, references), the reading the links checks and the content index share. `schema.HiddenPaths` and `schema.PathHidden` say which fields a document hides.
+- `quality.GenericLinkText` and `quality.PoorAlt` with word lists for English, Czech and German.
+
+### Behaviour changes
+
+- `report.Sort` orders notices after warnings.
+- The links checks read references through `resolve.References`; their findings are unchanged.
+
 ## 0.4.0 (2026-11-22)
 
 ### New

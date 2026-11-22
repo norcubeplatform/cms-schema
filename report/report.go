@@ -25,7 +25,54 @@ const (
 	// SeverityWarning marks a finding worth a look that does not break
 	// anything by itself.
 	SeverityWarning Severity = "warning"
+	// SeverityNotice marks a content quality finding of low impact, or
+	// one that is information only. Notices never fail a run.
+	SeverityNotice Severity = "notice"
 )
+
+// Impact says how much a content quality finding matters, for the
+// order a site owner works in and for a score. Only `quality.` findings
+// carry one.
+type Impact string
+
+const (
+	ImpactHigh   Impact = "high"
+	ImpactMedium Impact = "medium"
+	ImpactLow    Impact = "low"
+	// ImpactInfo is a fact worth listing that is not a problem (a page
+	// hidden from search engines, a file nothing uses).
+	ImpactInfo Impact = "info"
+)
+
+// SeverityOf is the severity of a quality finding of the impact: high
+// and medium are warnings, low and info notices. Quality findings are
+// never errors.
+func SeverityOf(i Impact) Severity {
+	switch i {
+	case ImpactHigh, ImpactMedium:
+		return SeverityWarning
+	}
+	return SeverityNotice
+}
+
+// Units of a Measure.
+const (
+	UnitCharacters = "characters"
+	UnitBytes      = "bytes"
+	UnitDays       = "days"
+	UnitPages      = "pages"
+	UnitLevel      = "level"
+)
+
+// Measure is the number a quality check measured, with the window it
+// was held against when there is one: a title of 72 characters against
+// 30 to 60, an image of 1.4 MB against 200 KB.
+type Measure struct {
+	Value int64  `json:"value"`
+	Unit  string `json:"unit"`
+	Min   *int64 `json:"min,omitempty"`
+	Max   *int64 `json:"max,omitempty"`
+}
 
 // Finding is one problem found in a schema file, a content file or the
 // links between them.
@@ -44,6 +91,15 @@ type Finding struct {
 	Message string `json:"message"`
 	// Hint says how to fix it, when the check knows.
 	Hint string `json:"hint,omitempty"`
+
+	// Impact, Value and Measure are set on `quality.` findings only.
+	Impact Impact `json:"impact,omitempty"`
+	// Value is what the finding is about as the site holds it: the
+	// title, the alt text, the link text, the missing language, the
+	// file. When it changes, the finding is a different one.
+	Value string `json:"value,omitempty"`
+	// Measure is the number the check measured, when it measured one.
+	Measure *Measure `json:"measure,omitempty"`
 }
 
 // String renders the finding the way a compiler would: file, path,
@@ -62,6 +118,17 @@ func (f Finding) String() string {
 	return b.String()
 }
 
+// severityRank orders severities, the most severe first.
+func severityRank(s Severity) int {
+	switch s {
+	case SeverityError:
+		return 0
+	case SeverityWarning:
+		return 1
+	}
+	return 2
+}
+
 // Sort orders findings by file, path, severity (errors first), rule and
 // message, so two runs over the same site print the same list.
 func Sort(findings []Finding) {
@@ -74,7 +141,7 @@ func Sort(findings []Finding) {
 			return a.Path < b.Path
 		}
 		if a.Severity != b.Severity {
-			return a.Severity == SeverityError
+			return severityRank(a.Severity) < severityRank(b.Severity)
 		}
 		if a.Rule != b.Rule {
 			return a.Rule < b.Rule
@@ -84,6 +151,7 @@ func Sort(findings []Finding) {
 }
 
 // Count returns how many findings are errors and how many are warnings.
+// Notices are in neither; CountNotices counts them.
 func Count(findings []Finding) (errors, warnings int) {
 	for _, f := range findings {
 		switch f.Severity {
@@ -95,3 +163,17 @@ func Count(findings []Finding) (errors, warnings int) {
 	}
 	return errors, warnings
 }
+
+// CountNotices returns how many findings are notices.
+func CountNotices(findings []Finding) int {
+	n := 0
+	for _, f := range findings {
+		if f.Severity == SeverityNotice {
+			n++
+		}
+	}
+	return n
+}
+
+// IsQuality reports whether a rule is a content quality check.
+func (r Rule) IsQuality() bool { return strings.HasPrefix(string(r), qualityPrefix) }

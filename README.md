@@ -26,6 +26,7 @@ cms-schema-validate                       # the site in the current directory
 cms-schema-validate path/to/site --strict # warnings fail the run
 cms-schema-validate --only schema         # schema files alone, no content
 cms-schema-validate --json > report.json  # for CI
+cms-schema-validate --quality             # also content quality (see below)
 ```
 
 Exit codes: `0` clean, `1` findings at error severity, `2` usage or I/O
@@ -68,6 +69,10 @@ of one collection and one language sharing a translation key, images
 and files that do not exist, reference fields whose target is gone,
 orphaned identity sidecars.
 
+**quality** (only when asked for: `--quality`, or `quality` in `Only`)
+is a separate family: the site works, but a page could serve its
+readers better. See [Content quality](#content-quality).
+
 The rule ids are listed in [`report/rules.go`](report/rules.go) and are
 frozen: a released id is never renamed or reused.
 
@@ -90,12 +95,13 @@ for _, f := range res.Findings {
 
 | Package    | What it holds                                                                                     |
 | ---------- | ------------------------------------------------------------------------------------------------- |
-| `report`   | `Finding`, severities, the frozen rule ids.                                                       |
+| `report`   | `Finding`, severities, impacts and measures, the frozen rule ids.                                 |
 | `schema`   | The typed model (`Config`, `Collection`, `Field`, `Storage`…), `Parse`, array item shapes, conditions, `Walk`. |
 | `load`     | `Load(fs.FS)`: directory or legacy single file, merge, `$ref`, schema version.                     |
 | `content`  | Markdown-with-frontmatter and YAML data files to plain values; identity sidecars.                 |
 | `resolve`  | Collection for a path, locale, URL and slug fallback, storage values, links in text, translatable texts, field roles and expected languages. |
-| `validate` | `Schema`, `Page`, `Links` and the `Site` runner.                                                  |
+| `quality`  | The content quality rules, their specs and `Check`.                                               |
+| `validate` | `Schema`, `Page`, `Links`, `Quality` and the `Site` runner.                                       |
 
 `schema.Walk` is the one reading of a document against its schema: it
 visits every field with its definition and its path (`a.b[2].c`),
@@ -332,6 +338,115 @@ order with list items by index, and the Markdown body last (path
 `body`, `Body: true`) when the collection has one. A page with more than
 `resolve.MaxTranslatableTexts` (2000) texts returns
 `resolve.ErrTooManyTexts`.
+
+## Content quality
+
+`quality.*` rules check what a site owner can improve: titles and
+descriptions for search results, alt text and link text for people who
+use a screen reader, language versions, heavy and unused media. They run
+only when asked for (`cms-schema-validate --quality`,
+`validate.Options{Only: []string{..., validate.ScopeQuality}}`), so an
+existing CI run sees no change.
+
+A quality finding is never an error. High and medium impact findings are
+warnings, low impact and information are notices, and `--strict` leaves
+them alone; `--strict-quality` (`Options.StrictQuality`) turns quality
+warnings into errors for a site that wants to gate on them. Each finding
+carries, besides file, path, rule, message and hint:
+
+- `impact`: `high`, `medium`, `low` or `info` (listed, not a problem);
+- `value`: what the finding is about as the site holds it (the title,
+  the alt text, the link text, the missing language, the file). When it
+  changes, the finding is a different one, so a dismissal tied to it
+  lapses;
+- `measure`: the number measured, with its unit and window, when there
+  is one (`{"value": 72, "unit": "characters", "min": 30, "max": 60}`).
+
+| Rule | Area | Impact | Threshold | Source |
+| ---- | ---- | ------ | --------- | ------ |
+| `quality.title_missing` | search | high | No SEO title and no page title to fall back to | Lighthouse `document-title` |
+| `quality.title_length` | search | low | Outside 30 to 60 characters, or the field's `recommendedLength` | Google sets no limit and cuts titles to the device width [1]; 30 to 60 is the display convention tools use |
+| `quality.title_duplicate` | search | medium | The same title on two or more indexable pages of one language, after trimming and ignoring case | Google, title links [1] |
+| `quality.description_missing` | search | medium | An empty meta description | Lighthouse `meta-description` |
+| `quality.description_length` | search | low | Outside 70 to 160 characters, or the field's `recommendedLength` | Google sets no limit and cuts snippets to fit [2]; a display convention |
+| `quality.description_duplicate` | search | medium | The same meta description on two or more indexable pages of one language | Google, snippets [2] |
+| `quality.share_image_missing` | search | low | No share image, on a collection with a share image field | Meta, sharing images [3] |
+| `quality.noindex` | search | info | The page's noindex field is true (listed, not scored) |  |
+| `quality.image_alt_missing` | accessibility | high | An image that is not decorative with empty alt text | WCAG 2.2 1.1.1, level A [4]; Lighthouse `image-alt` |
+| `quality.image_alt_poor` | accessibility | low | Alt text that is the file name, a camera's file name or a generic word (image, photo, obrázek, Bild…) | Google, image SEO [5] |
+| `quality.heading_skip` | accessibility | low | A heading more than one level below the heading before it, in one text | axe `heading-order`, a best practice, not a WCAG requirement [6] |
+| `quality.link_text_empty` | accessibility | medium | A link in a text with no text, no `aria-label` and no image alt text inside | WCAG 2.2 2.4.4, level A [7] |
+| `quality.link_text_generic` | accessibility | low | Link text that is only a generic phrase (click here, read more, zde, více, hier, mehr…), in a text or a button label beside a link field | WCAG 2.2 2.4.4 [7]; Lighthouse `link-text` |
+| `quality.translation_missing` | languages | medium | A page with no version in a language its collection expects (`translations.locales`, else every site language) |  |
+| `quality.translation_outdated` | languages | medium | A version last changed more than 7 days before the newest version of the same page | A convention |
+| `quality.image_heavy` | media | medium | A raster image content uses over 200 KB (low impact) or over 1 MB (medium) | Lighthouse flags any image that could be smaller [8]; crawlers flag 100 KB, a number Sitebulb calls relatively arbitrary [9], so 200 KB flags only clear cases |
+| `quality.media_unused` | media | info | A file in a read-write repository storage that no content and no schema refers to (listed, not scored) |  |
+
+**Where the checks look.** Search rules read the fields that hold each
+role (see [Field roles](#field-roles)), on pages of their own (a
+collection with `previewPath`, not `area: site`) that are not hidden
+from search engines; a page whose canonical address points elsewhere is
+left out of the duplicate rules. The title is the SEO title, else the
+first preview title slot with a value, else a top-level `title`. A
+finding that stands on a role guessed from field names weighs `low`. A
+value with a `{{placeholder}}` is not measured. Accessibility rules read
+every image value (its alt text through `resolve.AltOf`), every rich
+text field and the Markdown body (headings, links, images; fenced code
+is skipped; HTML `alt=""` is a decorative image on purpose), and the
+label beside a link field. Fields a page hides (`hidden`, `visibleIf`)
+are skipped. Word lists for generic text exist for English, Czech and
+German, and every list is checked on every page.
+
+**What the caller supplies.** The module never reads git or the
+network. `quality.Options` carries what only the caller knows:
+
+```go
+res, err := validate.Site(fsys, validate.Options{
+    Only: []string{validate.ScopeSchema, validate.ScopeContent, validate.ScopeLinks, validate.ScopeQuality},
+    Quality: quality.Options{
+        LastChanged: lastChanged,            // path → when it last changed; nil skips translation_outdated
+        ListMedia:   quality.FSMedia(fsys),  // lists files under quality.MediaRoots(cfg) with sizes; nil skips the media rules
+        Limits:      quality.Limits{},       // zero keeps the defaults
+    },
+})
+```
+
+A rule whose data is missing is skipped and named in
+`res.Quality.Skipped` with the reason. `res.Quality.Checked` counts, per
+rule, the instances it looked at (each indexable page for a title rule,
+each image for alt text, each expected language version, each raster
+image in use): what a score divides by. `quality.Specs()` gives each
+rule's area, impact and threshold; `quality.Check` runs the rules on
+pages a caller already holds.
+
+**Turning a rule off.** A site that does not want a check says so in
+the schema, reviewable in a pull request:
+
+```yaml
+# config.yml: for the whole site
+quality:
+  ignore: [quality.share_image_missing]
+
+# collections/legal.yml: for one collection's pages
+quality:
+  ignore: [quality.description_missing]
+```
+
+A rule turned off checks nothing and is listed in `res.Quality.Ignored`
+(site) or `res.Quality.IgnoredIn` (per collection). An entry that is not
+a quality rule is the warning `schema.invalid_quality`. Thresholds come
+from the schema too: `recommendedLength` on the title or description
+field, `translations.locales` on a collection.
+
+Sources: [1] https://developers.google.com/search/docs/appearance/title-link
+[2] https://developers.google.com/search/docs/appearance/snippet
+[3] https://developers.facebook.com/docs/sharing/webmasters/images/
+[4] https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html
+[5] https://developers.google.com/search/docs/appearance/google-images
+[6] https://dequeuniversity.com/rules/axe/4.7/heading-order
+[7] https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html
+[8] https://developer.chrome.com/docs/lighthouse/performance/uses-optimized-images
+[9] https://sitebulb.com/hints/performance/transferred-image-size-is-over-100kb/
 
 ## Fixtures
 

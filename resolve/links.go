@@ -3,6 +3,8 @@ package resolve
 import (
 	"regexp"
 	"strings"
+
+	"github.com/norcubeplatform/cms-schema/schema"
 )
 
 var (
@@ -54,6 +56,78 @@ func InternalLinks(text string) []string {
 	}
 	for _, m := range htmlHrefRe.FindAllStringSubmatch(text, -1) {
 		add(m[1])
+	}
+	return out
+}
+
+// Kinds of Reference.
+const (
+	// RefKindLink is a root-relative link: a link field, or a link or
+	// image in a rich text field or the body.
+	RefKindLink = "link"
+	// RefKindAsset is an image or file field's value that the repository
+	// can hold.
+	RefKindAsset = "asset"
+	// RefKindReference is a reference field's value.
+	RefKindReference = "reference"
+)
+
+// Reference is one value of a page that points at something else in
+// the site, as the content index stores it.
+type Reference struct {
+	// Path is where the value sits (`blocks[0].image`), or BodyPath.
+	Path  string
+	Value string
+	Kind  string
+	// Field is the field holding the value; zero for the body.
+	Field schema.Field
+}
+
+// References lists what a page points at: link, image and file fields,
+// reference fields (each value of a multiple one), links in rich text,
+// then links in the body. Items of a list of primitives are not read,
+// as the content index does not read them. fields may be nil for a file
+// no collection claims; its body is still read.
+func References(cfg *schema.Config, fields []schema.Field, frontmatter map[string]any, body string) []Reference {
+	var out []Reference
+	schema.Walk(cfg, fields, frontmatter, func(v schema.Visit) bool {
+		if v.Item || v.Value == nil {
+			return true
+		}
+		f, p := v.Field, v.Path
+		switch schema.Canonical(f.Type) {
+		case schema.TypeLink:
+			if s, ok := v.Value.(string); ok && IsInternalLink(s) {
+				out = append(out, Reference{Path: p, Value: strings.TrimSpace(s), Kind: RefKindLink, Field: f})
+			}
+		case schema.TypeImage, schema.TypeFile:
+			if s, ok := v.Value.(string); ok && IsAssetValue(s) {
+				out = append(out, Reference{Path: p, Value: strings.TrimSpace(s), Kind: RefKindAsset, Field: f})
+			}
+		case schema.TypeReference:
+			switch val := v.Value.(type) {
+			case string:
+				if strings.TrimSpace(val) != "" {
+					out = append(out, Reference{Path: p, Value: strings.TrimSpace(val), Kind: RefKindReference, Field: f})
+				}
+			case []any:
+				for i, item := range val {
+					if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+						out = append(out, Reference{Path: schema.IndexPath(p, i), Value: strings.TrimSpace(s), Kind: RefKindReference, Field: f})
+					}
+				}
+			}
+		case schema.TypeRichText:
+			if s, ok := v.Value.(string); ok {
+				for _, raw := range InternalLinks(s) {
+					out = append(out, Reference{Path: p, Value: raw, Kind: RefKindLink, Field: f})
+				}
+			}
+		}
+		return true
+	})
+	for _, raw := range InternalLinks(body) {
+		out = append(out, Reference{Path: BodyPath, Value: raw, Kind: RefKindLink})
 	}
 	return out
 }

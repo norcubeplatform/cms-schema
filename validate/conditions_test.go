@@ -125,7 +125,7 @@ func TestPageWithListAndMapConditions(t *testing.T) {
 // TestEntryPointsDoNotPanic: a bug in a check (here provoked by inputs
 // no loader produces) comes back as the check's internal-error finding.
 // Page's recovery is pinned in recover_test.go, as no input is known to
-// make it panic.
+// make it panic, and Links' there too, as its input needs a parsed page.
 func TestEntryPointsDoNotPanic(t *testing.T) {
 	assertInternal := func(t *testing.T, fs []report.Finding, file string, rule report.Rule) {
 		t.Helper()
@@ -135,8 +135,5 @@ func TestEntryPointsDoNotPanic(t *testing.T) {
 	}
 	t.Run("Schema", func(t *testing.T) {
 		assertInternal(t, validate.Schema(nil, nil), load.ConfigFile, report.RuleSchemaInternalError)
-	})
-	t.Run("Links", func(t *testing.T) {
-		assertInternal(t, validate.Links(nil, []validate.Entry{{Path: "a.md"}}, nil, nil), "", report.RuleLinksInternalError)
 	})
 }

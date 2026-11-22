@@ -1,7 +1,8 @@
 // Package validate runs the checks: the schema on its own, every content
 // file against its collection, and the links between files. Site runs
 // all of them over a file system; Schema, Page and Links are the pieces
-// for callers that already hold the parts.
+// for callers that already hold the parts. Content quality (package
+// quality) runs only when asked for.
 package validate
 
 import (
@@ -12,6 +13,7 @@ import (
 
 	"github.com/norcubeplatform/cms-schema/content"
 	"github.com/norcubeplatform/cms-schema/load"
+	"github.com/norcubeplatform/cms-schema/quality"
 	"github.com/norcubeplatform/cms-schema/report"
 	"github.com/norcubeplatform/cms-schema/resolve"
 	"github.com/norcubeplatform/cms-schema/schema"
@@ -22,17 +24,29 @@ const (
 	ScopeSchema  = "schema"
 	ScopeContent = "content"
 	ScopeLinks   = "links"
+	// ScopeQuality is content quality (package quality). It runs only
+	// when Only names it.
+	ScopeQuality = "quality"
 )
+
+// Scopes lists every scope, the default three first.
+func Scopes() []string { return []string{ScopeSchema, ScopeContent, ScopeLinks, ScopeQuality} }
 
 // Options limit a run.
 type Options struct {
-	// Only lists the scopes to run; empty means all three.
+	// Only lists the scopes to run; empty means schema, content and
+	// links. Content quality runs only when listed.
 	Only []string
-	// Collection limits content and links checks to one collection's
-	// files.
+	// Collection limits content, links and quality checks to one
+	// collection's files.
 	Collection string
-	// Strict promotes every warning to an error.
+	// Strict promotes every warning to an error, quality findings aside.
 	Strict bool
+	// StrictQuality promotes quality warnings to errors. Notices stay
+	// notices.
+	StrictQuality bool
+	// Quality is the data the quality checks need from the caller.
+	Quality quality.Options
 }
 
 // Result is what a run found.
@@ -44,6 +58,10 @@ type Result struct {
 	SchemaFiles int `json:"schemaFiles"`
 	Errors      int `json:"errors"`
 	Warnings    int `json:"warnings"`
+	Notices     int `json:"notices"`
+	// Quality says what the quality checks looked at; nil when they did
+	// not run.
+	Quality *quality.Summary `json:"quality,omitempty"`
 	// Config is the loaded configuration, for callers that want it.
 	Config *schema.Config `json:"-"`
 }
@@ -81,7 +99,7 @@ func Site(fsys fs.FS, opts Options) (res *Result, err error) {
 		findings = append(findings, Schema(doc, exists)...)
 	}
 
-	if want[ScopeContent] || want[ScopeLinks] {
+	if want[ScopeContent] || want[ScopeLinks] || want[ScopeQuality] {
 		files, err := contentFiles(fsys, cfg)
 		if err != nil {
 			return nil, err
@@ -108,10 +126,37 @@ func Site(fsys fs.FS, opts Options) (res *Result, err error) {
 			}
 			findings = append(findings, Links(cfg, entries, exists, sidecars)...)
 		}
+		if want[ScopeQuality] {
+			qf, summary := Quality(cfg, entries, opts.Quality)
+			findings = append(findings, qf...)
+			res.Quality = &summary
+		}
 	}
 
-	finish(res, findings, opts.Strict)
+	finish(res, findings, opts)
 	return res, nil
+}
+
+// Quality runs the content quality checks over the entries of a run. It
+// never panics: a bug in a check comes back as one
+// `content.internal_error` finding and an empty summary.
+func Quality(cfg *schema.Config, entries []Entry, opts quality.Options) (out []report.Finding, summary quality.Summary) {
+	defer func() {
+		if r := recover(); r != nil {
+			out, summary = []report.Finding{internalError("", report.RuleContentInternalError, r)}, quality.Summary{Checked: map[report.Rule]int{}}
+		}
+	}()
+	// Every file is passed: one no collection claims has no fields to
+	// check, but what it refers to keeps a media file in use.
+	pages := make([]quality.Page, 0, len(entries))
+	for _, e := range entries {
+		pages = append(pages, quality.Page{
+			Path: e.Path, Collection: e.coll, URL: e.URL, Locale: e.Locale, TranslationKey: e.TranslationKey,
+			Frontmatter: e.doc.Frontmatter, Body: e.doc.Body, IsData: e.doc.IsData,
+		})
+	}
+	out, summary = quality.Check(cfg, pages, opts)
+	return out, summary
 }
 
 // safeLoad is load.Load with a panic turned into a nil document and one
@@ -172,19 +217,21 @@ func checkFile(cfg *schema.Config, p string, raw []byte, opts Options, want map[
 // internalResult is the result of a run that stopped on f.
 func internalResult(cfg *schema.Config, f report.Finding) *Result {
 	res := &Result{Config: cfg}
-	finish(res, []report.Finding{f}, false)
+	finish(res, []report.Finding{f}, Options{})
 	return res
 }
 
-func finish(res *Result, findings []report.Finding, strict bool) {
-	if strict {
-		for i := range findings {
+func finish(res *Result, findings []report.Finding, opts Options) {
+	for i := range findings {
+		q := findings[i].Rule.IsQuality()
+		if (opts.Strict && !q) || (opts.StrictQuality && q && findings[i].Severity == report.SeverityWarning) {
 			findings[i].Severity = report.SeverityError
 		}
 	}
 	report.Sort(findings)
 	res.Findings = findings
 	res.Errors, res.Warnings = report.Count(findings)
+	res.Notices = report.CountNotices(findings)
 }
 
 func scopes(only []string) map[string]bool {

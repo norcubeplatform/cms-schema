@@ -69,13 +69,13 @@ func checkPage(cfg *schema.Config, coll schema.Collection, doc content.Document)
 		f("", report.SeverityWarning, report.RuleContentUnexpectedBody, "the file has a Markdown body but the collection has `hasBody: false`", "The editor does not show the body; set `hasBody: true` or move the text into a field.")
 	}
 
-	hidden := hiddenPaths(cfg, coll.Fields, fm)
+	hidden := schema.HiddenPaths(cfg, coll.Fields, fm)
 	if len(hidden) == 0 {
 		return out
 	}
 	kept := out[:0]
 	for _, fi := range out {
-		if !pathHidden(fi.Path, hidden) {
+		if !schema.PathHidden(fi.Path, hidden) {
 			kept = append(kept, fi)
 		}
 	}
@@ -343,35 +343,6 @@ func checkArray(fd schema.Field, label string, list []any, p string, f pageEmit)
 			seen[key] = i
 		}
 	}
-}
-
-// hiddenPaths collects the content paths of fields hidden statically or
-// by a false `visibleIf`; children of a hidden container are hidden too.
-func hiddenPaths(cfg *schema.Config, fields []schema.Field, fm map[string]any) map[string]bool {
-	out := map[string]bool{}
-	schema.Walk(cfg, fields, fm, func(v schema.Visit) bool {
-		if v.Item {
-			return true
-		}
-		if v.Field.Hidden || (v.Field.VisibleIf != nil && !schema.Eval(*v.Field.VisibleIf, v.Scope)) {
-			out[v.Path] = true
-			return false
-		}
-		return true
-	})
-	return out
-}
-
-func pathHidden(p string, hidden map[string]bool) bool {
-	if p == "" {
-		return false
-	}
-	for h := range hidden {
-		if p == h || strings.HasPrefix(p, h+".") || strings.HasPrefix(p, h+"[") {
-			return true
-		}
-	}
-	return false
 }
 
 // --- value helpers -------------------------------------------------------

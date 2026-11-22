@@ -6,7 +6,8 @@
 //	cms-schema-validate [flags] [path]
 //
 // Exit codes: 0 clean, 1 findings at error severity, 2 usage or I/O
-// error, 3 not a CMS site.
+// error, 3 not a CMS site. Content quality findings (--quality) are
+// warnings and notices and never fail the run unless --strict-quality.
 package main
 
 import (
@@ -19,6 +20,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/norcubeplatform/cms-schema/load"
+	"github.com/norcubeplatform/cms-schema/quality"
 	"github.com/norcubeplatform/cms-schema/report"
 	"github.com/norcubeplatform/cms-schema/validate"
 )
@@ -31,7 +33,9 @@ func run(args []string) int {
 	fs := flag.NewFlagSet("cms-schema-validate", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	var only multiFlag
-	fs.Var(&only, "only", "scope to run: schema, content or links (repeatable; default all)")
+	fs.Var(&only, "only", "scope to run: schema, content, links or quality (repeatable; default the first three)")
+	withQuality := fs.Bool("quality", false, "also run the content quality checks (titles, descriptions, alt text, languages, media)")
+	strictQuality := fs.Bool("strict-quality", false, "treat content quality warnings as errors")
 	collection := fs.String("collection", "", "limit content and links checks to one collection")
 	strict := fs.Bool("strict", false, "treat warnings as errors")
 	asJSON := fs.Bool("json", false, "print the result as JSON")
@@ -52,7 +56,17 @@ func run(args []string) int {
 		return 2
 	}
 
-	res, err := validate.Site(os.DirFS(path), validate.Options{Only: only, Collection: *collection, Strict: *strict})
+	if *withQuality {
+		if len(only) == 0 {
+			only = append(only, validate.ScopeSchema, validate.ScopeContent, validate.ScopeLinks)
+		}
+		only = append(only, validate.ScopeQuality)
+	}
+	site := os.DirFS(path)
+	res, err := validate.Site(site, validate.Options{
+		Only: only, Collection: *collection, Strict: *strict, StrictQuality: *strictQuality,
+		Quality: quality.Options{ListMedia: quality.FSMedia(site)},
+	})
 	if err != nil {
 		if errors.Is(err, load.ErrNotASite) {
 			fmt.Fprintf(os.Stderr, "%s is not a Norcube CMS site: %v\n", path, err)
@@ -70,7 +84,8 @@ func run(args []string) int {
 			Path          string           `json:"path"`
 			Findings      []report.Finding `json:"findings"`
 			Summary       map[string]int   `json:"summary"`
-		}{1, path, nonNil(res.Findings), map[string]int{"files": res.Files, "schemaFiles": res.SchemaFiles, "errors": res.Errors, "warnings": res.Warnings}}); err != nil {
+			Quality       *quality.Summary `json:"quality,omitempty"`
+		}{1, path, nonNil(res.Findings), map[string]int{"files": res.Files, "schemaFiles": res.SchemaFiles, "errors": res.Errors, "warnings": res.Warnings, "notices": res.Notices}, res.Quality}); err != nil {
 			return 2
 		}
 	} else if !*quiet {
@@ -84,7 +99,11 @@ func run(args []string) int {
 		}
 		w.Flush()
 	}
-	fmt.Fprintf(os.Stderr, "%d content files, %d schema files: %d errors, %d warnings\n", res.Files, res.SchemaFiles, res.Errors, res.Warnings)
+	if res.Notices > 0 {
+		fmt.Fprintf(os.Stderr, "%d content files, %d schema files: %d errors, %d warnings, %d notices\n", res.Files, res.SchemaFiles, res.Errors, res.Warnings, res.Notices)
+	} else {
+		fmt.Fprintf(os.Stderr, "%d content files, %d schema files: %d errors, %d warnings\n", res.Files, res.SchemaFiles, res.Errors, res.Warnings)
+	}
 	if res.Errors > 0 {
 		return 1
 	}

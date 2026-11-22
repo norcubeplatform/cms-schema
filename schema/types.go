@@ -351,7 +351,18 @@ type Collection struct {
 	Translations  *Translations
 	SchemaVersion *int
 	Fields        []Field
-	Raw           map[string]any
+	// Quality is the collection's `quality` block.
+	Quality Quality
+	Raw     map[string]any
+}
+
+// Quality is a `quality` block, in config.yml for the whole site or in a
+// collection for its pages: which content quality checks are turned off.
+type Quality struct {
+	// Ignore lists quality rule ids (`quality.share_image_missing`) that
+	// are not run. Entries that are not strings are dropped here; the
+	// validator reports them.
+	Ignore []string
 }
 
 // Translations is a collection's `translations` block: how the pages that
@@ -460,6 +471,8 @@ type Config struct {
 	Redirects  Redirects
 	KnownPaths []string
 	Variables  Variables
+	// Quality is the site's `quality` block.
+	Quality Quality
 	// Collections keyed by name; CollectionKeys keeps the declared order.
 	Collections    map[string]Collection
 	CollectionKeys []string

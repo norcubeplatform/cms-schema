@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/norcubeplatform/cms-schema/load"
+	"github.com/norcubeplatform/cms-schema/quality"
 	"github.com/norcubeplatform/cms-schema/report"
 	"github.com/norcubeplatform/cms-schema/resolve"
 	"github.com/norcubeplatform/cms-schema/schema"
@@ -61,6 +62,10 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 		f(configFile, "variables.file", report.SeverityError, report.RuleSchemaMissingVariablesFile, fmt.Sprintf("variables.file %q does not exist", cfg.Variables.File), "Create the variables document, or point `variables.file` at the file that holds the {key, value} list.")
 	}
 
+	for _, problem := range qualityProblems(cfg.Raw) {
+		f(configFile, "quality", report.SeverityWarning, report.RuleSchemaInvalidQuality, problem, qualityHint)
+	}
+
 	// Collections.
 	byPath := map[string][]string{}
 	for _, key := range cfg.CollectionKeys {
@@ -88,6 +93,9 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 		}
 		for _, problem := range translationLocalesProblems(cfg, coll) {
 			f(file, "translations.locales", report.SeverityError, report.RuleSchemaInvalidTranslationLocales, problem, "List the languages this collection's pages are expected in, each one of preview.locales, or leave `locales` out to expect all of them.")
+		}
+		for _, problem := range qualityProblems(coll.Raw) {
+			f(file, "quality", report.SeverityWarning, report.RuleSchemaInvalidQuality, problem, qualityHint)
 		}
 		switch coll.ExtraKeysPolicy {
 		case schema.ExtraKeysShow, schema.ExtraKeysHide, schema.ExtraKeysStrip:
@@ -473,4 +481,53 @@ func translationsProblem(coll schema.Collection) (reason, hint string) {
 		return "", ""
 	}
 	return fmt.Sprintf("translations.by names %q, which is not a top-level field of the collection", key), "Add the field to the collection, or name one it has."
+}
+
+const qualityHint = "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off; the rule ids are listed in the module's README."
+
+// qualityProblems says what is wrong with the `quality` block of a
+// config or collection mapping.
+func qualityProblems(raw map[string]any) []string {
+	v, has := raw["quality"]
+	if !has || v == nil {
+		return nil
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		return []string{fmt.Sprintf("quality is %v, not a mapping", v)}
+	}
+	var out []string
+	for _, k := range sortedMapKeys(m) {
+		if k != "ignore" {
+			out = append(out, fmt.Sprintf("quality has the key %q; only `ignore` is read", k))
+		}
+	}
+	ignore, has := m["ignore"]
+	if !has || ignore == nil {
+		return out
+	}
+	list, ok := ignore.([]any)
+	if !ok {
+		return append(out, fmt.Sprintf("quality.ignore is %v, not a list of rule ids", ignore))
+	}
+	for _, item := range list {
+		id, ok := item.(string)
+		if !ok {
+			out = append(out, fmt.Sprintf("quality.ignore has %v, which is not a rule id", item))
+			continue
+		}
+		if _, known := quality.Spec(report.Rule(strings.TrimSpace(id))); !known {
+			out = append(out, fmt.Sprintf("quality.ignore lists %q, which is not a content quality rule", id))
+		}
+	}
+	return out
+}
+
+func sortedMapKeys(m map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

@@ -37,6 +37,7 @@ func Parse(doc map[string]any) (*Config, error) {
 	c.DefaultStorage = str(doc["defaultStorage"])
 	c.InputsFromGlob = stringList(doc["inputsFromGlob"])
 	c.KnownPaths = trimmedStrings(doc["knownPaths"])
+	c.Quality = parseQuality(doc["quality"])
 
 	if p, ok := doc["preview"].(map[string]any); ok {
 		c.Preview = PreviewSite{
@@ -102,6 +103,7 @@ func Parse(doc map[string]any) (*Config, error) {
 			LocaleFrom:      str(m["localeFrom"]),
 			Translations:    parseTranslations(m["translations"]),
 			Fields:          ParseFields(m["fields"]),
+			Quality:         parseQuality(m["quality"]),
 			Raw:             m,
 		}
 		if v, ok := intOf(m["schemaVersion"]); ok {
@@ -159,6 +161,16 @@ var commonKnobs = map[string]bool{
 	"visibleIf": true, "whenHidden": true, "computed": true, "customValidators": true,
 	"default": true, "_blockRef": true, "schemaVersion": true, "translatable": true,
 	"role": true,
+}
+
+// parseQuality reads a `quality` block; the zero value when there is
+// none or it is not a mapping.
+func parseQuality(v any) Quality {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return Quality{}
+	}
+	return Quality{Ignore: trimmedStrings(m["ignore"])}
 }
 
 // parseTranslations reads a collection's `translations` block; nil when
