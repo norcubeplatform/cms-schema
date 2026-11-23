@@ -1,0 +1,8 @@
+storages:
+  images:
+    type: repo
+    path: public/images
+    # Files the layout imports.
+    usedByCode:
+      - a.png
+      - logo.svg

@@ -34,11 +34,14 @@ const (
 	KindTranslationLocales = "translationLocales"
 	// KindOptimizedAtBuild sets a storage's `optimizedAtBuild`.
 	KindOptimizedAtBuild = "optimizedAtBuild"
+	// KindUsedByCode adds paths to a storage's `usedByCode`: files the
+	// site's code uses though no content refers to them.
+	KindUsedByCode = "usedByCode"
 )
 
 // Kinds lists every kind of fact.
 func Kinds() []string {
-	return []string{KindRole, KindTranslationLocales, KindOptimizedAtBuild}
+	return []string{KindRole, KindTranslationLocales, KindOptimizedAtBuild, KindUsedByCode}
 }
 
 // Bounds of one fact.
@@ -49,6 +52,8 @@ const (
 	MaxLocales = 50
 	// MaxFacts bounds the facts of one Plan.
 	MaxFacts = 50
+	// MaxPaths bounds the paths of one usedByCode fact.
+	MaxPaths = 100
 )
 
 // Fact is one statement about the site to write into its schema.
@@ -73,6 +78,10 @@ type Fact struct {
 	Locales []string `json:"locales,omitempty"`
 	// OptimizedAtBuild is the value of an optimizedAtBuild fact.
 	OptimizedAtBuild *bool `json:"optimizedAtBuild,omitempty"`
+	// Paths are the entries a usedByCode fact adds, relative to the
+	// storage's path (schema.CheckCodePattern). A path without a wildcard
+	// must name a file.
+	Paths []string `json:"paths,omitempty"`
 }
 
 // ErrInvalid marks a fact that says something the schema cannot hold.
@@ -132,6 +141,18 @@ func (f Fact) Check() error {
 		if f.Storage == "" || f.OptimizedAtBuild == nil {
 			return bad("an optimizedAtBuild fact names a storage and a value")
 		}
+	case KindUsedByCode:
+		if f.Storage == "" || len(f.Paths) == 0 || len(f.Paths) > MaxPaths {
+			return bad("a usedByCode fact names a storage and 1 to %d paths", MaxPaths)
+		}
+		for i, p := range f.Paths {
+			if err := schema.CheckCodePattern(p); err != nil {
+				return bad("%s", strings.TrimPrefix(err.Error(), schema.ErrCodePattern.Error()+": "))
+			}
+			if slices.Contains(f.Paths[:i], p) {
+				return bad("%q is listed twice", p)
+			}
+		}
 	default:
 		return bad("kind %q is not one of %s", f.Kind, strings.Join(Kinds(), ", "))
 	}
@@ -164,6 +185,8 @@ func (f Fact) String() string {
 			v = *f.OptimizedAtBuild
 		}
 		return fmt.Sprintf("storage %s: optimizedAtBuild %t", f.Storage, v)
+	case KindUsedByCode:
+		return fmt.Sprintf("storage %s: usedByCode + %s", f.Storage, strings.Join(f.Paths, ", "))
 	}
 	return f.Kind
 }

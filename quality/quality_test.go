@@ -3,6 +3,7 @@ package quality_test
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -12,7 +13,9 @@ import (
 
 	"github.com/norcubeplatform/cms-schema/quality"
 	"github.com/norcubeplatform/cms-schema/report"
+	"github.com/norcubeplatform/cms-schema/schema"
 	"github.com/norcubeplatform/cms-schema/validate"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -405,6 +408,22 @@ func TestMedia(t *testing.T) {
 			t.Errorf("got %v", got)
 		}
 	})
+	t.Run("used by code", func(t *testing.T) {
+		fsys := site(map[string]string{"src/content/pages/cs/a.md": page("title: A page title that is long enough ok")})
+		cfg := strings.Replace(baseConfig, "    publicUrl: /images\n", "    publicUrl: /images\n    usedByCode: [logo.svg, 'og/**']\n", 1)
+		fsys[configFile] = &fstest.MapFile{Data: []byte(cfg)}
+		files := []quality.MediaFile{
+			{Path: "public/images/logo.svg", Size: 10},
+			{Path: "public/images/og/cs/home.jpg", Size: 2 * 1024 * 1024},
+			{Path: "public/images/unused.jpg", Size: 10},
+		}
+		res := run(t, fsys, quality.Options{ListMedia: func([]string) ([]quality.MediaFile, error) { return files, nil }})
+		// A file the code uses is in use: weighed, never listed unused.
+		want := []string{"public/images/og/cs/home.jpg# quality.image_heavy medium", "public/images/unused.jpg# quality.media_unused info"}
+		if got := keys(res, report.RuleQualityImageHeavy, report.RuleQualityMediaUnused); !slices.Equal(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	})
 	t.Run("from a file system", func(t *testing.T) {
 		fsys := fstest.MapFS{"public/images/a.jpg": {Data: make([]byte, 7)}, "public/images/.hidden/b.jpg": {Data: []byte("x")}, "public/images/sub/c.png": {Data: []byte("xx")}}
 		got, err := quality.FSMedia(fsys)([]string{"public/images", "public/missing"})
@@ -413,6 +432,30 @@ func TestMedia(t *testing.T) {
 			t.Errorf("got %v %v", got, err)
 		}
 	})
+}
+
+func TestUsedMediaAndKeptByCode(t *testing.T) {
+	cfg := strings.Replace(baseConfig, "    publicUrl: /images\n", "    publicUrl: /images\n    usedByCode: ['icons/*.svg']\n", 1)
+	var raw map[string]any
+	if err := yaml.Unmarshal([]byte(cfg), &raw); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := schema.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	used := quality.UsedMedia(doc, map[string]any{"hero": "/images/a.jpg", "list": []any{map[string]any{"src": "/images/b.png"}}}, "Text ![x](/images/c.webp) and /shared/d.png")
+	want := []string{"public/images/a.jpg", "public/images/b.png", "public/images/c.webp"}
+	got := slices.Sorted(maps.Keys(used))
+	if !slices.Equal(got, want) {
+		t.Errorf("used %v, want %v (a read-only storage is not a media root)", got, want)
+	}
+	if !quality.KeptByCode(doc, "public/images/icons/x.svg") || quality.KeptByCode(doc, "public/images/icons/sub/x.svg") || quality.KeptByCode(doc, "public/images/x.svg") {
+		t.Error("KeptByCode")
+	}
+	if len(quality.UsedMedia(nil, "x")) != 0 || quality.KeptByCode(nil, "a") {
+		t.Error("nil config")
+	}
 }
 
 func TestIgnore(t *testing.T) {
@@ -858,6 +901,20 @@ func TestImageLimit(t *testing.T) {
 			t.Errorf("got %v", got)
 		}
 		fsys[configFile] = &fstest.MapFile{Data: []byte(buildConfig("    optimizedAtBuild: true\n"))}
+		if got := schemaFindings(t, fsys, report.RuleSchemaInvalidStorage); len(got) != 0 {
+			t.Errorf("got %v", got)
+		}
+	})
+	t.Run("usedByCode is a list of relative paths", func(t *testing.T) {
+		fsys := mk("")
+		for _, bad := range []string{"usedByCode: logo.svg", "usedByCode: [/logo.svg]", "usedByCode: ['../x.png']", "usedByCode: [a.png, a.png]", "usedByCode: [1]"} {
+			fsys[configFile] = &fstest.MapFile{Data: []byte(buildConfig("    " + bad + "\n"))}
+			got := schemaFindings(t, fsys, report.RuleSchemaInvalidStorage)
+			if len(got) != 1 || !strings.Contains(got[0].Message, "usedByCode") || got[0].Severity != report.SeverityError {
+				t.Errorf("%s: got %v", bad, got)
+			}
+		}
+		fsys[configFile] = &fstest.MapFile{Data: []byte(buildConfig("    usedByCode: [logo.svg, 'og/**/*.png']\n"))}
 		if got := schemaFindings(t, fsys, report.RuleSchemaInvalidStorage); len(got) != 0 {
 			t.Errorf("got %v", got)
 		}

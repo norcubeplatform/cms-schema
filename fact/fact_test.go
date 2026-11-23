@@ -58,6 +58,12 @@ func TestApplyGolden(t *testing.T) {
 		{"storage-insert-block", "config", []fact.Edit{{Fact: fact.Fact{Kind: fact.KindOptimizedAtBuild, Storage: "images", OptimizedAtBuild: no()}, In: []string{"storages", "images"}}}},
 		{"storage-insert-flow", "config", []fact.Edit{{Fact: fact.Fact{Kind: fact.KindOptimizedAtBuild, Storage: "assets", OptimizedAtBuild: yes()}, In: []string{"storages", "assets"}}}},
 		{"storage-replace", "config", []fact.Edit{{Fact: fact.Fact{Kind: fact.KindOptimizedAtBuild, Storage: "old", OptimizedAtBuild: yes()}, In: []string{"storages", "old"}}}},
+		{"used-by-code-insert", "config", []fact.Edit{
+			{Fact: fact.Fact{Kind: fact.KindUsedByCode, Storage: "images", Paths: []string{"logo.svg"}}, In: []string{"storages", "images"}},
+			{Fact: fact.Fact{Kind: fact.KindUsedByCode, Storage: "images", Paths: []string{"og/*.png", "logo.svg"}}, In: []string{"storages", "images"}},
+		}},
+		{"used-by-code-flow", "config", []fact.Edit{{Fact: fact.Fact{Kind: fact.KindUsedByCode, Storage: "assets", Paths: []string{"hero.jpg"}}, In: []string{"storages", "assets"}}}},
+		{"used-by-code-merge", "used-by-code", []fact.Edit{{Fact: fact.Fact{Kind: fact.KindUsedByCode, Storage: "images", Paths: []string{"b.png", "a.png"}}, In: []string{"storages", "images"}}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -153,6 +159,13 @@ func TestFactCheck(t *testing.T) {
 		{Kind: fact.KindTranslationLocales, Collection: "c", Locales: []string{"c s"}},
 		{Kind: fact.KindOptimizedAtBuild, Storage: "s"},
 		{Kind: fact.KindOptimizedAtBuild, OptimizedAtBuild: yes()},
+		{Kind: fact.KindUsedByCode, Storage: "s"},
+		{Kind: fact.KindUsedByCode, Paths: []string{"a.png"}},
+		{Kind: fact.KindUsedByCode, Storage: "s", Paths: []string{"/a.png"}},
+		{Kind: fact.KindUsedByCode, Storage: "s", Paths: []string{"../a.png"}},
+		{Kind: fact.KindUsedByCode, Storage: "s", Paths: []string{"a**.png"}},
+		{Kind: fact.KindUsedByCode, Storage: "s", Paths: []string{"a.png", "a.png"}},
+		{Kind: fact.KindUsedByCode, Storage: "s", Paths: make([]string, fact.MaxPaths+1)},
 	}
 	for _, f := range bad {
 		if err := f.Check(); !errors.Is(err, fact.ErrInvalid) {
@@ -164,13 +177,14 @@ func TestFactCheck(t *testing.T) {
 		{Kind: fact.KindRole, Block: "seo", Field: "list[card].img", Role: schema.RoleNone},
 		{Kind: fact.KindTranslationLocales, Collection: "c", Locales: []string{"cs", "en-GB"}},
 		{Kind: fact.KindOptimizedAtBuild, Storage: "s", OptimizedAtBuild: no()},
+		{Kind: fact.KindUsedByCode, Storage: "s", Paths: []string{"logo.svg", "og/**/*.png"}},
 	}
 	for _, f := range good {
 		if err := f.Check(); err != nil {
 			t.Errorf("%+v: %v", f, err)
 		}
 	}
-	if len(fact.Kinds()) != 3 {
+	if len(fact.Kinds()) != 4 {
 		t.Errorf("kinds %v", fact.Kinds())
 	}
 }
@@ -221,6 +235,7 @@ fields:
     type: paragraph
     label: Description
 `)},
+		"public/images/icons/a.svg": {Data: []byte("<svg/>")},
 		load.BlocksDir + "/card.yml": {Data: []byte(`label: Card
 fields:
   - key: img
@@ -230,6 +245,28 @@ fields:
     type: text
     label: Caption
 `)},
+	}
+}
+
+// A usedByCode fact names files of the storage (or patterns), lands in
+// config.yml, keeps the file valid and is idempotent.
+func TestMakeUsedByCode(t *testing.T) {
+	fsys := siteFiles()
+	fsys["public/images/logo.png"] = &fstest.MapFile{Data: []byte("png")}
+	facts := []fact.Fact{{Kind: fact.KindUsedByCode, Storage: "images", Paths: []string{"logo.png", "og/**"}}}
+	p, err := fact.Make(fsys, facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Changes) != 1 || p.Changes[0].Path != load.ConfigFile ||
+		!strings.Contains(string(p.Changes[0].After), "    path: public/images\n    usedByCode: [logo.png, og/**]\n") {
+		t.Fatalf("changes %+v", p.Changes)
+	}
+	if errs, err := p.NewErrors(fsys); err != nil || len(errs) != 0 {
+		t.Errorf("new errors %v %v", errs, err)
+	}
+	if again, err := fact.Make(p.FS(fsys), facts); err != nil || len(again.Changes) != 0 {
+		t.Errorf("not idempotent: %v %+v", err, again)
 	}
 }
 
@@ -290,6 +327,9 @@ func TestMakeRefuses(t *testing.T) {
 		{"a bad second fact", []fact.Fact{{Kind: fact.KindRole, Collection: "pages", Field: "title", Role: schema.RoleNone}, {Kind: "x"}}, fact.ErrInvalid, 1},
 		{"a path ending at a list item", []fact.Fact{{Kind: fact.KindRole, Collection: "pages", Field: "blocks[]", Role: schema.RoleNone}}, fact.ErrInvalid, 0},
 		{"a path with an empty key", []fact.Fact{{Kind: fact.KindRole, Collection: "pages", Field: "seo..title", Role: schema.RoleNone}}, fact.ErrInvalid, 0},
+		{"a file the storage lacks", []fact.Fact{{Kind: fact.KindUsedByCode, Storage: "images", Paths: []string{"nope.png"}}}, fact.ErrNotFound, 0},
+		{"a folder, not a file", []fact.Fact{{Kind: fact.KindUsedByCode, Storage: "images", Paths: []string{"icons"}}}, fact.ErrNotFound, 0},
+		{"usedByCode on an unknown storage", []fact.Fact{{Kind: fact.KindUsedByCode, Storage: "nope", Paths: []string{"*.png"}}}, fact.ErrNotFound, 0},
 	}
 	for _, tc := range cases {
 		_, err := fact.Make(siteFiles(), tc.facts)
@@ -353,6 +393,7 @@ func TestFactString(t *testing.T) {
 		"block seo.title: role none":                          {Kind: fact.KindRole, Block: "seo", Field: "title", Role: schema.RoleNone},
 		"cases: translations.locales [cs]":                    {Kind: fact.KindTranslationLocales, Collection: "cases", Locales: []string{"cs"}},
 		"storage images: optimizedAtBuild true":               {Kind: fact.KindOptimizedAtBuild, Storage: "images", OptimizedAtBuild: yes()},
+		"storage images: usedByCode + logo.svg, og/*.png":     {Kind: fact.KindUsedByCode, Storage: "images", Paths: []string{"logo.svg", "og/*.png"}},
 	}
 	for want, f := range cases {
 		if got := f.String(); got != want {

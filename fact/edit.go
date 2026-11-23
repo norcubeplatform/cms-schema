@@ -3,6 +3,7 @@ package fact
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -35,8 +36,46 @@ func Apply(src []byte, e Edit) ([]byte, error) {
 		return apply(src, e, []string{"translations"}, set{key: "locales", value: listValue(f.Locales), after: []string{"by", "localeFrom"}})
 	case KindOptimizedAtBuild:
 		return apply(src, e, nil, set{key: "optimizedAtBuild", value: boolValue(*f.OptimizedAtBuild), after: []string{"path", "type", "publicUrl"}})
+	case KindUsedByCode:
+		merged, err := mergedCodePaths(src, e)
+		if err != nil {
+			return nil, err
+		}
+		return apply(src, e, nil, set{key: schema.StorageKeyUsedByCode, value: listValue(merged), after: []string{"optimizedAtBuild", "publicUrl", "path", "type"}})
 	}
 	return nil, fmt.Errorf("%w: kind %q", ErrInvalid, f.Kind)
+}
+
+// mergedCodePaths is the storage's usedByCode as the file holds it now,
+// with the fact's paths it lacks added at the end.
+func mergedCodePaths(src []byte, e Edit) ([]string, error) {
+	doc, err := topMapping(src)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", e.File, err)
+	}
+	m := doc
+	for _, k := range e.In {
+		if m = child(m, k); m == nil || m.Kind != yaml.MappingNode {
+			return nil, fmt.Errorf("%w: %s has no mapping at %s", ErrNotFound, e.File, strings.Join(e.In, "."))
+		}
+	}
+	var merged []string
+	if list := child(m, schema.StorageKeyUsedByCode); list != nil && list.Kind == yaml.SequenceNode {
+		for _, item := range list.Content {
+			if item.Kind == yaml.ScalarNode && item.Value != "" && !slices.Contains(merged, item.Value) {
+				merged = append(merged, item.Value)
+			}
+		}
+	}
+	for _, p := range e.Fact.Paths {
+		if !slices.Contains(merged, p) {
+			merged = append(merged, p)
+		}
+	}
+	if len(merged) > schema.MaxUsedByCode {
+		return nil, fmt.Errorf("%w: storage %q would list %d paths in usedByCode, at most %d", ErrInvalid, e.Fact.Storage, len(merged), schema.MaxUsedByCode)
+	}
+	return merged, nil
 }
 
 // value is what a key is set to: its YAML text and how to tell the

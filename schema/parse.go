@@ -482,6 +482,13 @@ func parseStorages(v any) []Storage {
 		if b, ok := entry[StorageKeyOptimizedAtBuild].(bool); ok {
 			s.OptimizedAtBuild = &b
 		}
+		if list, ok := entry[StorageKeyUsedByCode].([]any); ok {
+			for _, item := range list {
+				if p, ok := item.(string); ok && p != "" {
+					s.UsedByCode = append(s.UsedByCode, p)
+				}
+			}
+		}
 		out = append(out, s)
 	}
 	return out

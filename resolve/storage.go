@@ -133,6 +133,42 @@ func ValidStorage(s schema.Storage) []string {
 			problems = append(problems, fmt.Sprintf("`%s` is %v, not true or false", schema.StorageKeyOptimizedAtBuild, v))
 		}
 	}
+	return append(problems, usedByCodeProblems(s)...)
+}
+
+// usedByCodeProblems checks `usedByCode`: a list of at most
+// schema.MaxUsedByCode path patterns, each relative to the storage's
+// path and listed once.
+func usedByCodeProblems(s schema.Storage) []string {
+	v, has := s.Raw[schema.StorageKeyUsedByCode]
+	if !has || v == nil {
+		return nil
+	}
+	key := "`" + schema.StorageKeyUsedByCode + "`"
+	list, ok := v.([]any)
+	if !ok {
+		return []string{key + " is not a list of paths"}
+	}
+	if len(list) > schema.MaxUsedByCode {
+		return []string{fmt.Sprintf("%s lists %d paths, at most %d", key, len(list), schema.MaxUsedByCode)}
+	}
+	var problems []string
+	seen := map[string]bool{}
+	for _, item := range list {
+		p, ok := item.(string)
+		if !ok {
+			problems = append(problems, fmt.Sprintf("%s holds %v, not a path", key, item))
+			continue
+		}
+		if err := schema.CheckCodePattern(p); err != nil {
+			problems = append(problems, key+": "+strings.TrimPrefix(err.Error(), schema.ErrCodePattern.Error()+": "))
+			continue
+		}
+		if seen[p] {
+			problems = append(problems, fmt.Sprintf("%s lists %q twice", key, p))
+		}
+		seen[p] = true
+	}
 	return problems
 }
 

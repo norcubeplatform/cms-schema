@@ -93,6 +93,23 @@ func (l *locator) locate(f Fact) (Edit, error) {
 			return Edit{}, fmt.Errorf("%w: storage %q", ErrNotFound, f.Storage)
 		}
 		return Edit{Fact: f, File: l.configFile, In: []string{"storages", f.Storage}}, nil
+	case KindUsedByCode:
+		st, ok := l.cfg.Storage(f.Storage)
+		if !ok || child(child(l.root, "storages"), f.Storage) == nil {
+			return Edit{}, fmt.Errorf("%w: storage %q", ErrNotFound, f.Storage)
+		}
+		if st.Type != schema.StorageTypeRepo || st.Path == "" {
+			return Edit{}, fmt.Errorf("%w: storage %q keeps no files in the repository", ErrInvalid, f.Storage)
+		}
+		for _, p := range f.Paths {
+			if schema.HasCodeWildcard(p) || strings.Contains(p, "**") {
+				continue
+			}
+			if info, err := fs.Stat(l.fsys, path.Join(st.Path, p)); err != nil || info.IsDir() {
+				return Edit{}, fmt.Errorf("%w: no file %s in storage %q", ErrNotFound, p, f.Storage)
+			}
+		}
+		return Edit{Fact: f, File: l.configFile, In: []string{"storages", f.Storage}}, nil
 	}
 	return Edit{}, fmt.Errorf("%w: kind %q", ErrInvalid, f.Kind)
 }

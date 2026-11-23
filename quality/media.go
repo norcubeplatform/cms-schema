@@ -120,11 +120,15 @@ func (r *run) media(pages []Page) {
 		if !underAny(p, roots) || strings.HasPrefix(path.Base(p), ".") {
 			continue
 		}
+		if !used[p] && KeptByCode(r.cfg, p) {
+			// The site's code uses it: weighed like a file content uses.
+			used[p] = true
+		}
 		if !used[p] {
 			if unusedOn {
 				r.emit(report.Finding{File: p, Rule: report.RuleQualityMediaUnused,
 					Message: "No content and no schema refers to this file.",
-					Hint:    "If the site's code does not use it either, delete it to keep the media library tidy.",
+					Hint:    "If the site's code does not use it either, delete it to keep the media library tidy. If the code does use it, list it in the storage's `usedByCode`.",
 					Value:   p, Measure: &report.Measure{Value: f.Size, Unit: report.UnitBytes}}, report.ImpactInfo)
 			}
 			continue
@@ -204,10 +208,46 @@ func (r *run) imageLimits() (heavy, veryHeavy int64) {
 // any value in the schema (a default image). Only paths under the roots
 // are kept.
 func (r *run) usedFiles(pages []Page, roots []string) map[string]bool {
+	values := make([]any, 0, 2*len(pages)+1)
+	for _, p := range pages {
+		values = append(values, p.Frontmatter, p.Body)
+	}
+	values = append(values, r.cfg.Raw)
+	return usedUnder(r.cfg, roots, values)
+}
+
+// UsedMedia are the media files (repository paths under MediaRoots) the
+// given values refer to, read as quality.media_unused reads a page: any
+// string in a value (maps and lists walked), a link or image in any text.
+// A tool asks it of what is not committed yet (unpublished changes), so
+// it never removes a file such a change uses.
+func UsedMedia(cfg *schema.Config, values ...any) map[string]bool {
+	if cfg == nil {
+		return map[string]bool{}
+	}
+	return usedUnder(cfg, MediaRoots(cfg), values)
+}
+
+// KeptByCode reports whether a media file is named by the usedByCode of
+// a storage that holds it: the site's code uses it, so it is in use.
+func KeptByCode(cfg *schema.Config, repoPath string) bool {
+	if cfg == nil {
+		return false
+	}
+	p := resolve.CleanPath(repoPath)
+	for _, s := range cfg.Storages {
+		if s.Type == schema.StorageTypeRepo && s.KeepsFile(p) {
+			return true
+		}
+	}
+	return false
+}
+
+func usedUnder(cfg *schema.Config, roots []string, values []any) map[string]bool {
 	used := map[string]bool{}
 	add := func(v string) {
 		for _, cand := range candidates(v) {
-			p := resolve.AssetRepoPath(r.cfg, cand)
+			p := resolve.AssetRepoPath(cfg, cand)
 			if p != "" && underAny(p, roots) {
 				used[p] = true
 			}
@@ -231,11 +271,9 @@ func (r *run) usedFiles(pages []Page, roots []string) map[string]bool {
 			}
 		}
 	}
-	for _, p := range pages {
-		visit(p.Frontmatter, 0)
-		add(p.Body)
+	for _, v := range values {
+		visit(v, 0)
 	}
-	visit(r.cfg.Raw, 0)
 	return used
 }
 

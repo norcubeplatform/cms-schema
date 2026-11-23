@@ -440,11 +440,27 @@ type Storage struct {
 	// file in the repository is never served as is. Nil when the storage
 	// does not say.
 	OptimizedAtBuild *bool
-	Raw              map[string]any
+	// UsedByCode lists files of this folder the site's code uses (an
+	// import, a template), which no content refers to: paths relative to
+	// Path, `*`, `?` and `[...]` matching within a name and `**` any
+	// number of folders. quality.media_unused skips them.
+	UsedByCode []string
+	Raw        map[string]any
 }
 
 // StorageKeyOptimizedAtBuild is the storage key of OptimizedAtBuild.
 const StorageKeyOptimizedAtBuild = "optimizedAtBuild"
+
+// StorageKeyUsedByCode is the storage key of UsedByCode.
+const StorageKeyUsedByCode = "usedByCode"
+
+// Bounds of usedByCode.
+const (
+	// MaxUsedByCode bounds the entries of one storage's usedByCode.
+	MaxUsedByCode = 500
+	// MaxUsedByCodePattern bounds one entry, in bytes.
+	MaxUsedByCodePattern = 300
+)
 
 // Storage knob values.
 const (

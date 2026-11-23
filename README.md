@@ -102,7 +102,7 @@ for _, f := range res.Findings {
 | `resolve`  | Collection for a path, locale, URL and slug fallback, storage values, links in text, translatable texts, field roles and expected languages. |
 | `quality`  | The content quality rules, their specs and `Check`.                                               |
 | `validate` | `Schema`, `Page`, `Links`, `Quality` and the `Site` runner.                                       |
-| `fact`     | Writing schema facts (a role, expected languages, `optimizedAtBuild`) into the schema files, keeping their formatting. See [Writing facts](#writing-facts). |
+| `fact`     | Writing schema facts (a role, expected languages, `optimizedAtBuild`, `usedByCode`) into the schema files, keeping their formatting. See [Writing facts](#writing-facts). |
 
 `schema.Walk` is the one reading of a document against its schema: it
 visits every field with its definition and its path (`a.b[2].c`),
@@ -432,7 +432,7 @@ carries, besides file, path, rule, message and hint:
 | `quality.translation_missing` | languages | medium | A page with no version in a language its collection expects (`translations.locales`, else every site language) |  |
 | `quality.translation_outdated` | languages | medium | A version last changed more than 7 days before the newest version of the same page | A convention |
 | `quality.image_heavy` | media | medium | A raster image content uses over 200 KB (low impact) or over 1 MB (medium), or over the site's `quality.limits.imageKB`; images in a folder the build optimizes are skipped | Lighthouse flags any image that could be smaller [8]; crawlers flag 100 KB, a number Sitebulb calls relatively arbitrary [9], so 200 KB flags only clear cases |
-| `quality.media_unused` | media | info | A file in a read-write repository storage that no content and no schema refers to (listed, not scored) |  |
+| `quality.media_unused` | media | info | A file in a read-write repository storage that no content and no schema refers to, and that its storage's `usedByCode` does not name (listed, not scored) |  |
 
 **Where the checks look.** Search rules read the fields that hold each
 role (see [Field roles](#field-roles)), on pages of their own (a
@@ -559,6 +559,34 @@ when the files were not listed:
 `kind` is the storage key that confirms the guess, `value` the answer to
 write there.
 
+**Files the site's code uses.** A file no content refers to may still be
+used by the site's code: a logo the layout imports, an icon a component
+names. A storage lists such files in `usedByCode`, paths relative to its
+`path`, where `*`, `?` and `[...]` match within a name and a `**` name
+any number of folders:
+
+```yaml
+storages:
+  images:
+    type: repo
+    path: public/images
+    usedByCode: [logo.svg, 'og/**']
+```
+
+`quality.media_unused` skips a file a storage that holds it names this
+way; it is in use, so a raster one is weighed by `quality.image_heavy`
+like an image content uses. At most 500 entries
+(`schema.MaxUsedByCode`) of at most 300 bytes; an entry that is empty,
+absolute, holds `.` or `..`, uses `**` inside a name or is not a valid
+pattern, a value that is not a list of strings, or an entry listed twice
+is `schema.invalid_storage`. `schema.Storage.UsedByCode`,
+`Storage.KeepsFile`, `schema.CheckCodePattern` and
+`schema.MatchCodePattern` read it; `quality.KeptByCode(cfg, path)` asks
+it of one file. `quality.UsedMedia(cfg, values...)` reads values the
+rule never saw (a tool's unpublished changes) the way the rule reads a
+page, so a tool removing unused files never removes one such a change
+uses.
+
 **The image weight limit.** `quality.limits.imageKB` in `config.yml`
 sets the weight in kilobytes over which an image is heavy (low impact);
 the medium band starts at 5.12 times it, the ratio of the defaults (200
@@ -631,13 +659,16 @@ errs, err := p.NewErrors(os.DirFS(".")) // schema errors the plan would bring
 | `role`               | `Collection` or `Block`, and `Field`                  | `role:` and, when given, `whenEmpty:` on the field |
 | `translationLocales` | `Collection` (one with `translations`)                | `translations.locales`                    |
 | `optimizedAtBuild`   | `Storage`                                             | `optimizedAtBuild:` on the storage        |
+| `usedByCode`         | `Storage` and `Paths` (1 to 100)                      | the paths added to the storage's `usedByCode` |
 
 `Field` is the field's place as `resolve.CollectionRoles` names it
 (`seo.page_title`, `blocks[logos].list[].name`). `Make` follows it
 through the loaded schema to the file that declares the field: the
 collection's file, the block or input a `$ref` pulled in, a collection
 written inline in `config.yml`, or the legacy single file. Storages are
-in `config.yml`.
+in `config.yml`. A `usedByCode` fact adds its paths to what the file
+lists (each once, the existing ones first); a path without a wildcard
+must name a file of the storage.
 
 The edit changes only its lines: a value is replaced where it stands
 (its comment kept), a new key goes on its own line after `label`,

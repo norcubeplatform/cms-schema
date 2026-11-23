@@ -1,0 +1,16 @@
+pagesDir: src/content/pages
+preview:
+  defaultLocale: cs
+  locales: [cs, en]
+storages:
+  images:
+    type: repo
+    path: public/images # served as is
+    publicUrl: /images
+    usedByCode: [logo.svg, og/*.png]
+
+  assets: {type: repo, path: src/assets/images}
+  old:
+    type: repo
+    path: src/assets/old
+    optimizedAtBuild: false

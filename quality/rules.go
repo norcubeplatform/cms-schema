@@ -127,7 +127,7 @@ var specs = []RuleSpec{
 	{report.RuleQualityImageHeavy, AreaMedia, report.ImpactMedium, NeedsMedia,
 		"A raster image content uses over 200 KB (low impact) or over 1 MB (medium); quality.limits.imageKB moves both. Images in a folder the build optimizes (optimizedAtBuild) are skipped", "Lighthouse uses-optimized-images; crawlers flag 100 KB, which Sitebulb calls relatively arbitrary, so 200 KB flags only clear cases"},
 	{report.RuleQualityMediaUnused, AreaMedia, report.ImpactInfo, NeedsMedia,
-		"A file in a read-write repository storage that no content and no schema refers to", ""},
+		"A file in a read-write repository storage that no content and no schema refers to, and that its storage's usedByCode does not name", ""},
 }
 
 // Specs lists every quality rule, in the order of report.QualityRules.

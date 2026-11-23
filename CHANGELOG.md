@@ -2,6 +2,18 @@
 
 Notable changes, newest first.
 
+## 0.9.0 (2026-11-23)
+
+### New
+
+- **`usedByCode:`** on a storage lists files the site's code uses though no content refers to them (a logo the layout imports): paths relative to the storage's `path`, `*`, `?`, `[...]` within a name and `**` for any number of folders. `quality.media_unused` skips them, and a raster one is weighed by `quality.image_heavy` as an image in use. At most 500 entries of 300 bytes; anything malformed is `schema.invalid_storage`. `schema.Storage.UsedByCode`, `Storage.KeepsFile`, `schema.StorageKeyUsedByCode`, `schema.CheckCodePattern`, `schema.MatchCodePattern`, `schema.HasCodeWildcard`, `schema.MaxUsedByCode`, `schema.MaxUsedByCodePattern`.
+- **Fact kind `usedByCode`** (`fact.KindUsedByCode`, `Fact.Paths`, `fact.MaxPaths`): adds paths to a storage's `usedByCode`, merged with what the file lists; a path without a wildcard must name a file of the storage.
+- **`quality.UsedMedia(cfg, values...)`**: the media files values refer to, read as `quality.media_unused` reads a page, for values the rule never saw (unpublished changes). **`quality.KeptByCode(cfg, path)`**: whether a storage's `usedByCode` names a file.
+
+### Behaviour changes
+
+- The hint of `quality.media_unused` mentions `usedByCode`.
+
 ## 0.8.0 (2026-11-23)
 
 ### New
