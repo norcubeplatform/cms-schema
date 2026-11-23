@@ -527,11 +527,11 @@ framework, which it reads from the file names at the repository root
 Only Astro for now. Next.js is left out on purpose: `next/image`
 optimizes at request time, only where the code uses it, and not at all
 in a static export. A storage in neither folder, or on a site no row
-matches, is served as is, as before. A guess is never as good as the
-owner's word: an image found heavy in a folder guessed to be served as
-is weighs `low`, like a finding on a guessed role, and the hint says how
-to confirm it. Declaring `optimizedAtBuild: false` gives such findings
-their full weight.
+matches, is served as is, as before. Guessing "served as is" changes
+nothing against no guess at all, so an image found heavy there keeps its
+full weight; the hint says how to confirm the folder. Only a guessed
+"optimized at build" changes a result: its images are skipped until the
+storage says otherwise.
 
 `res.Quality.MediaFolders` lists every media root with its storage,
 whether its images are optimized at build, whether that was guessed, and
@@ -539,7 +539,9 @@ how many raster images content uses there (skipped or checked; zero when
 the files were not listed), so a report can say "src/assets/images:
 optimized at build, 12 images". `res.Quality.Guessed` lists what the run
 assumed because the schema does not say it, for a person to confirm by
-declaring it:
+declaring it. Only folders where content uses at least one raster image
+are listed (elsewhere the guess changes nothing), so nothing is guessed
+when the files were not listed:
 
 ```json
 "guessed": [{"kind": "optimizedAtBuild", "storage": "assets", "path": "src/assets/images",

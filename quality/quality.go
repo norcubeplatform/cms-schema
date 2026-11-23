@@ -89,7 +89,9 @@ type Summary struct {
 	// optimizes its images and how many images content uses there.
 	MediaFolders []MediaFolder `json:"mediaFolders,omitempty"`
 	// Guessed lists what the run assumed because the schema does not say
-	// it, for a person to confirm.
+	// it, for a person to confirm: only guesses that change a result, so
+	// a media folder where content uses no image (or whose files were
+	// not listed) is left out.
 	Guessed []Guess `json:"guessed,omitempty"`
 }
 

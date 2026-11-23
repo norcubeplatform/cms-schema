@@ -668,7 +668,7 @@ func TestOptimizedAtBuild(t *testing.T) {
 	t.Run("a declared folder is skipped, public is flagged, unused still applies", func(t *testing.T) {
 		res := run(t, mk("    optimizedAtBuild: true\n"), quality.Options{ListMedia: list, RootFiles: astro})
 		want := []string{
-			"public/images/big.jpg# quality.image_heavy low", // public guessed as is
+			"public/images/big.jpg# quality.image_heavy medium", // guessed as is: full weight
 			"src/assets/images/unused.jpg# quality.media_unused info",
 		}
 		if got := keys(res, rules...); !slices.Equal(got, want) {
@@ -700,7 +700,7 @@ func TestOptimizedAtBuild(t *testing.T) {
 	})
 	t.Run("an Astro site that declares nothing gets src/assets guessed", func(t *testing.T) {
 		res := run(t, mk(""), quality.Options{ListMedia: list, RootFiles: astro})
-		if got := keys(res, report.RuleQualityImageHeavy); !slices.Equal(got, []string{"public/images/big.jpg# quality.image_heavy low"}) {
+		if got := keys(res, report.RuleQualityImageHeavy); !slices.Equal(got, []string{"public/images/big.jpg# quality.image_heavy medium"}) {
 			t.Errorf("got %v", got)
 		}
 		want := []quality.Guess{
@@ -735,6 +735,24 @@ func TestOptimizedAtBuild(t *testing.T) {
 	t.Run("the caller's framework wins over the root files", func(t *testing.T) {
 		res := run(t, mk(""), quality.Options{ListMedia: list, Framework: quality.FrameworkAstro})
 		if len(res.Quality.Guessed) != 2 || res.Quality.Guessed[0].Basis != "" {
+			t.Errorf("guessed %+v", res.Quality.Guessed)
+		}
+	})
+	t.Run("a folder where content uses no image is not guessed", func(t *testing.T) {
+		fsys := mk("")
+		fsys["src/content/pages/cs/a.md"] = &fstest.MapFile{Data: []byte(page("title: A page title that is long enough ok\nseo: {image: /images/big.jpg, image_alt: A}"))}
+		res := run(t, fsys, quality.Options{ListMedia: list, RootFiles: astro})
+		want := []quality.Guess{{Kind: quality.GuessOptimizedAtBuild, Storage: "images", Path: "public/images", Framework: quality.FrameworkAstro, Basis: "astro.config.mjs"}}
+		if !slices.Equal(res.Quality.Guessed, want) {
+			t.Errorf("guessed %+v", res.Quality.Guessed)
+		}
+		if len(res.Quality.MediaFolders) != 2 || res.Quality.MediaFolders[1].Images != 0 || !res.Quality.MediaFolders[1].Guessed {
+			t.Errorf("folders %+v", res.Quality.MediaFolders)
+		}
+	})
+	t.Run("without the file listing nothing is guessed", func(t *testing.T) {
+		res := run(t, mk(""), quality.Options{RootFiles: astro})
+		if len(res.Quality.Guessed) != 0 {
 			t.Errorf("guessed %+v", res.Quality.Guessed)
 		}
 	})

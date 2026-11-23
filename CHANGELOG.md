@@ -2,6 +2,13 @@
 
 Notable changes, newest first.
 
+## 0.7.1 (2026-11-23)
+
+### Fixes
+
+- A heavy image in a folder only guessed to be served as is (Astro's `public`) keeps its full weight: guessing "served as is" changes nothing against no guess. Only a guessed "optimized at build" changes a result (it skips the image).
+- `quality.Summary.Guessed` lists only folders where content uses at least one raster image; a guess elsewhere changes nothing, so there is nothing to confirm. Nothing is guessed when the media files were not listed. `MediaFolders` still lists every folder with its count.
+
 ## 0.7.0 (2026-11-23)
 
 ### New

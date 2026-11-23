@@ -108,7 +108,8 @@ type MediaFolder struct {
 	// folder's images; quality.image_heavy skips them.
 	OptimizedAtBuild bool `json:"optimizedAtBuild"`
 	// Guessed is true when the schema does not say and the answer comes
-	// from the framework table (Summary.Guessed names it).
+	// from the framework table (Summary.Guessed names it when content
+	// uses images there).
 	Guessed bool `json:"guessed,omitempty"`
 	// Images counts the raster images content uses in the folder: skipped
 	// by quality.image_heavy when OptimizedAtBuild, checked otherwise.

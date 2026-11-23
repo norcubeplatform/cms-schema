@@ -87,7 +87,11 @@ func (r *run) media(pages []Page) {
 	if len(roots) == 0 {
 		return
 	}
-	r.folders, r.guesses = mediaFolders(r.cfg, roots, r.opts)
+	// Guesses are kept only for folders where content uses images (see
+	// guessesWithImages): unknown until the files are listed.
+	var guesses []Guess
+	r.folders, guesses = mediaFolders(r.cfg, roots, r.opts)
+	defer func() { r.guesses = guessesWithImages(guesses, r.folders) }()
 	heavyOn, unusedOn := !r.off[report.RuleQualityImageHeavy], !r.off[report.RuleQualityMediaUnused]
 	if !heavyOn && !unusedOn {
 		return
@@ -151,13 +155,31 @@ func (r *run) media(pages []Page) {
 		} else {
 			hint += " If the site's build resizes the images of this folder, say `optimizedAtBuild: true` on its storage."
 		}
-		// A guess that the folder is served as is weighs low, as a
-		// guessed role does.
+		// Full weight even when "served as is" is a guess: guessing it
+		// changes nothing against no guess at all. Only a guessed
+		// "optimized" changes the outcome, and it skips the image.
 		r.emit(report.Finding{File: p, Rule: report.RuleQualityImageHeavy,
 			Message: fmt.Sprintf("The image is %s, over %s.", humanBytes(f.Size), humanBytes(limit)),
 			Hint:    hint,
-			Value:   p, Measure: &report.Measure{Value: f.Size, Unit: report.UnitBytes, Max: &limit}}, lowered(impact, folder.Guessed))
+			Value:   p, Measure: &report.Measure{Value: f.Size, Unit: report.UnitBytes, Max: &limit}}, impact)
 	}
+}
+
+// guessesWithImages keeps the guesses about folders where content uses
+// at least one raster image: elsewhere the guess changes nothing, so
+// there is nothing for a person to confirm.
+func guessesWithImages(guesses []Guess, folders []MediaFolder) []Guess {
+	images := map[string]int{}
+	for _, f := range folders {
+		images[f.Path] = f.Images
+	}
+	var out []Guess
+	for _, g := range guesses {
+		if images[g.Path] > 0 {
+			out = append(out, g)
+		}
+	}
+	return out
 }
 
 // imageLimits are the two image weights: the caller's Limits, else the
