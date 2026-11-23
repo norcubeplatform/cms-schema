@@ -2,7 +2,14 @@
 
 Notable changes, newest first.
 
-## 0.7.1 (2026-11-23)
+## 0.8.0 (2026-11-23)
+
+### New
+
+- **`role: none`**: the field has no role and is never guessed to have one, how a person records that a guess from a field's name was wrong. Any field type, any number of times, no `whenEmpty`. `schema.RoleNone`, `schema.RoleValues()` (the six roles and none); `schema.KnownRole` accepts it, `schema.Roles()` and `PageRoles()` are unchanged.
+- **Package `fact`**: writes schema facts into a site's schema files, keeping comments and formatting byte for byte: a field's `role` (and `whenEmpty`), a collection's `translations.locales`, a storage's `optimizedAtBuild`. `fact.Make(fsys, facts)` locates each fact through the loaded schema (blocks and inputs by `$ref`, inline collections, the legacy file) and returns the changed files; `Plan.NewErrors` the schema errors the change would bring; `fact.Apply` the edit on one file. Idempotent; ambiguous paths and unsafe layouts are refused.
+
+
 
 ### Fixes
 

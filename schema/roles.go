@@ -23,6 +23,9 @@ const (
 	// (an image object: a group or list item holding an image and its
 	// text). It may appear once per such list.
 	RoleAlt = "alt"
+	// RoleNone says the field has no role and is never guessed to have
+	// one: how a person records that a guess from its name was wrong.
+	RoleNone = "none"
 )
 
 // pageRoles are the roles a page has at most one of, in the order they
@@ -44,20 +47,28 @@ var roleTypes = map[string][]string{
 // canonical.
 func PageRoles() []string { return append([]string(nil), pageRoles...) }
 
-// Roles lists every role, page roles first, then alt.
+// Roles lists every role, page roles first, then alt. RoleNone is not
+// a role; RoleValues adds it.
 func Roles() []string { return append(PageRoles(), RoleAlt) }
 
-// KnownRole reports whether r is a role.
-func KnownRole(r string) bool { _, ok := roleTypes[r]; return ok }
+// RoleValues lists every value `role:` takes: the roles, then none.
+func RoleValues() []string { return append(Roles(), RoleNone) }
+
+// KnownRole reports whether r is a value `role:` takes, none included.
+func KnownRole(r string) bool { _, ok := roleTypes[r]; return ok || r == RoleNone }
 
 // IsPageRole reports whether r is a role a page has at most one of.
-func IsPageRole(r string) bool { return KnownRole(r) && r != RoleAlt }
+func IsPageRole(r string) bool { _, ok := roleTypes[r]; return ok && r != RoleAlt }
 
 // RoleTypes lists the canonical field types that can hold the role.
 func RoleTypes(r string) []string { return append([]string(nil), roleTypes[r]...) }
 
-// RoleAccepts reports whether a field of type t can hold the role.
+// RoleAccepts reports whether a field of type t can hold the role. Any
+// field can say none.
 func RoleAccepts(r, t string) bool {
+	if r == RoleNone {
+		return true
+	}
 	for _, want := range roleTypes[r] {
 		if Canonical(t) == want {
 			return true

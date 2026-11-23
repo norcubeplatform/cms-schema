@@ -267,6 +267,9 @@ func TestRoleSet(t *testing.T) {
 	if !KnownRole(RoleAlt) || IsPageRole(RoleAlt) || KnownRole("seo.title") || len(Roles()) != 6 {
 		t.Fatal("role set")
 	}
+	if !KnownRole(RoleNone) || IsPageRole(RoleNone) || !RoleAccepts(RoleNone, TypeArray) || RoleAllowsWhenEmpty(RoleNone) || len(RoleValues()) != 7 || RoleValues()[6] != RoleNone {
+		t.Fatal("role none")
+	}
 	if !RoleAccepts(RoleShareImage, TypeImage) || RoleAccepts(RoleShareImage, TypeText) || !RoleAccepts(RoleCanonical, TypeURL) || RoleAccepts(RoleNoindex, TypeSelect) {
 		t.Fatal("role types")
 	}

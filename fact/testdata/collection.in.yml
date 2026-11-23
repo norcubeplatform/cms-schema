@@ -1,0 +1,43 @@
+# Pages of the site.
+label: Pages   # shown in the sidebar
+path: src/content/pages
+
+translations:
+    by: field:translationKey
+
+
+fields:
+    - key: title
+      type: text
+      label: "Název stránky"  # Czech on purpose
+
+    # Search engine settings live here.
+    - key: meta
+      type: group
+      label: Meta
+      fields:
+          - key: title
+            type: text
+            label: 'Title ''for'' search'
+          - key: description
+            type: paragraph
+            label: Description
+            role: "seoTitle"   # wrong, fixed by a fact
+            whenEmpty: siteDefault
+          - {key: image, type: image, label: Image}
+    - key: logos
+      type: array
+      label: Logos
+      items:
+          - key: logo
+            type: group
+            label: Logo
+            fields:
+                - key: img
+                  type: image
+                  label: Logo
+                - key: name
+                  label: >-
+                    Client
+                    name
+                  type: text

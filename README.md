@@ -102,6 +102,7 @@ for _, f := range res.Findings {
 | `resolve`  | Collection for a path, locale, URL and slug fallback, storage values, links in text, translatable texts, field roles and expected languages. |
 | `quality`  | The content quality rules, their specs and `Check`.                                               |
 | `validate` | `Schema`, `Page`, `Links`, `Quality` and the `Site` runner.                                       |
+| `fact`     | Writing schema facts (a role, expected languages, `optimizedAtBuild`) into the schema files, keeping their formatting. See [Writing facts](#writing-facts). |
 
 `schema.Walk` is the one reading of a document against its schema: it
 visits every field with its definition and its path (`a.b[2].c`),
@@ -189,6 +190,13 @@ fields:
 | `noindex`        | True hides the page from search engines            | boolean           | Once per collection, outside lists                     |
 | `canonical`      | The address that should rank instead of this page  | link, text        | Once per collection, outside lists                     |
 | `alt`            | The alt text of the image next to it               | text, paragraph   | Once per fields list that holds exactly one image      |
+| `none`           | No role, and never guessed to have one             | any               | Anywhere                                               |
+
+`role: none` records that a field holds no role: a field guessed from
+its name (a `meta.title` that is not the page's search title) says it,
+and the guess stops. It goes on any field, any number of times, and
+takes no `whenEmpty`. `schema.RoleNone`; `schema.RoleValues()` lists the
+six roles and `none`.
 
 "Once per collection" counts the collection's fields with every block
 pulled in by `$ref`, through groups at any depth. A page role inside a
@@ -225,12 +233,12 @@ reported as `schema.unknown_knob`. The rules:
 
 | Rule                         | Reported when                                                                                   |
 | ---------------------------- | ----------------------------------------------------------------------------------------------- |
-| `schema.unknown_role`        | `role` is not one of the six (or not a string).                                                  |
+| `schema.unknown_role`        | `role` is not one of the six or `none` (or not a string).                                         |
 | `schema.role_type_mismatch`  | The field's type cannot hold the role (`shareImage` on text, `noindex` on a select).            |
 | `schema.duplicate_role`      | A second field of the collection or block has the same page role, or a second `role: alt` sits in one fields list. |
 | `schema.misplaced_role`      | A page role inside a list, or `role: alt` in a fields list without an image.                    |
 | `schema.invalid_alt`         | `alt` names no text or paragraph sibling (or the image itself), `decorative` is not a boolean or comes with alt text, or `role: alt` sits beside several images, a decorative one, or one that names another field. |
-| `schema.invalid_when_empty`  | `whenEmpty` is not `generated` or `siteDefault`, sits on a field without a role, or on a role other than `seoTitle`, `seoDescription` and `shareImage`. |
+| `schema.invalid_when_empty`  | `whenEmpty` is not `generated` or `siteDefault`, sits on a field without a role, or on a role other than `seoTitle`, `seoDescription` and `shareImage` (`none` included). |
 
 All six are errors. A block is checked in its own file and again where
 it is used, so a block whose role is fine alone but lands inside a list
@@ -598,6 +606,57 @@ Sources: [1] https://developers.google.com/search/docs/appearance/title-link
 [7] https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html
 [8] https://developer.chrome.com/docs/lighthouse/performance/uses-optimized-images
 [9] https://sitebulb.com/hints/performance/transferred-image-size-is-over-100kb/
+
+## Writing facts
+
+What a check guessed, a person confirms or corrects by writing it into
+the schema. Package `fact` does that edit, so a tool can offer a button
+instead of a snippet to copy:
+
+```go
+asIs := false
+p, err := fact.Make(os.DirFS("."), []fact.Fact{
+    {Kind: fact.KindRole, Collection: "pages", Field: "seo.title", Role: schema.RoleSEOTitle},
+    {Kind: fact.KindRole, Collection: "pages", Field: "seo.image", Role: schema.RoleShareImage, WhenEmpty: schema.WhenEmptyGenerated},
+    {Kind: fact.KindRole, Collection: "pages", Field: "meta.title", Role: schema.RoleNone},
+    {Kind: fact.KindTranslationLocales, Collection: "cases", Locales: []string{"cs"}},
+    {Kind: fact.KindOptimizedAtBuild, Storage: "images", OptimizedAtBuild: &asIs},
+})
+// p.Changes: per file, Path, Before and After bytes. Nothing is written.
+errs, err := p.NewErrors(os.DirFS(".")) // schema errors the plan would bring
+```
+
+| Kind                 | Names                                                 | Writes                                    |
+| -------------------- | ----------------------------------------------------- | ----------------------------------------- |
+| `role`               | `Collection` or `Block`, and `Field`                  | `role:` and, when given, `whenEmpty:` on the field |
+| `translationLocales` | `Collection` (one with `translations`)                | `translations.locales`                    |
+| `optimizedAtBuild`   | `Storage`                                             | `optimizedAtBuild:` on the storage        |
+
+`Field` is the field's place as `resolve.CollectionRoles` names it
+(`seo.page_title`, `blocks[logos].list[].name`). `Make` follows it
+through the loaded schema to the file that declares the field: the
+collection's file, the block or input a `$ref` pulled in, a collection
+written inline in `config.yml`, or the legacy single file. Storages are
+in `config.yml`.
+
+The edit changes only its lines: a value is replaced where it stands
+(its comment kept), a new key goes on its own line after `label`,
+`type` or `key` (whichever sits on one line), inside `{…}` when the
+field is written that way. Everything else, comments, blank lines,
+quoting and key order, stays byte for byte. A role that takes no
+`whenEmpty` (`none`, `alt`) removes one left beside it. Setting what the
+file already says changes nothing, so a plan made twice is empty the
+second time.
+
+Refused rather than guessed, each with its error: a fact that says
+something the schema cannot hold (`fact.ErrInvalid`: an unknown role, a
+role the field's type cannot hold, a language the site lacks, at most
+`fact.MaxFacts` (50) facts), something the schema does not declare
+(`ErrNotFound`), a path or definition in more than one place (two
+fields with one key, a collection both inline and in a file:
+`ErrAmbiguous`), and a layout with no safe place for the line
+(`ErrUnplaceable`). A `*fact.FactError` names the fact by index.
+`fact.Apply(src, edit)` is the edit on one file's bytes.
 
 ## Fixtures
 

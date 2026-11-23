@@ -1,0 +1,11 @@
+label: Case studies
+translations:
+  by: path
+  localeFrom: path
+  locales:
+    - cs   # Czech first
+    - en
+fields:
+  - key: title
+    type: text
+    label: Title

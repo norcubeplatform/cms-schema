@@ -378,6 +378,8 @@ func TestRoleGuessing(t *testing.T) {
 		{"noindex", []schema.Field{{Key: "noindex", Type: schema.TypeBoolean}}, schema.RoleNoindex, "noindex"},
 		{"a robots select is not noindex", []schema.Field{{Key: "noindex", Type: schema.TypeSelect}}, schema.RoleNoindex, ""},
 		{"canonicalUrl", []schema.Field{{Key: "canonicalUrl", Type: schema.TypeLink}}, schema.RoleCanonical, "canonicalUrl"},
+		{"role none is never guessed", []schema.Field{{Key: "meta", Type: schema.TypeGroup, Fields: []schema.Field{{Key: "title", Type: schema.TypeText, Role: schema.RoleNone}}}}, schema.RoleSEOTitle, ""},
+		{"role none leaves the other candidate alone", []schema.Field{{Key: "meta_title", Type: schema.TypeText, Role: schema.RoleNone}, text("seo_title", "S")}, schema.RoleSEOTitle, "seo_title"},
 	}
 	for _, tc := range cases {
 		got := resolve.CollectionRoles(&schema.Config{}, schema.Collection{Fields: tc.fields})
@@ -417,6 +419,7 @@ func TestAltOf(t *testing.T) {
 		{"name beside one image", img, []schema.Field{text("name"), text("url")}, "name", false, false},
 		{"alt wins over name", img, []schema.Field{text("name"), text("alt")}, "alt", false, false},
 		{"two fits guess nothing", img, []schema.Field{text("alt"), text("altText")}, "", false, false},
+		{"a field saying role none is not guessed", img, []schema.Field{with(text("alt"), func(f *schema.Field) { f.Role = schema.RoleNone })}, "", false, false},
 		{"a field declaring a role is not guessed", img, []schema.Field{with(text("alt"), func(f *schema.Field) { f.Role = schema.RoleSEOTitle })}, "", false, false},
 		{"a number is not alt text", img, []schema.Field{{Key: "alt", Type: schema.TypeNumber}}, "", false, false},
 		{"nothing fits", img, []schema.Field{text("caption")}, "", false, false},

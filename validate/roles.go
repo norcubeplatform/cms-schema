@@ -35,7 +35,7 @@ func Roles(cfg *schema.Config) (out []report.Finding) {
 	return out
 }
 
-const rolesHint = "Roles: seoTitle, seoDescription, shareImage, noindex, canonical, alt."
+const rolesHint = "Roles: seoTitle, seoDescription, shareImage, noindex, canonical, alt, or none (no role, never guessed)."
 
 // roleCheck walks one collection, block or input. A page role is
 // counted across the whole of it; `role: alt` and `alt:` are judged per
@@ -102,6 +102,9 @@ func (rc *roleCheck) role(p, label string, fd schema.Field, raw any, images []sc
 	switch {
 	case !ok || !schema.KnownRole(role):
 		rc.f(rc.file, p, report.SeverityError, report.RuleSchemaUnknownRole, fmt.Sprintf("field %q has role %v, which is not a role", label, raw), rolesHint)
+		return
+	case role == schema.RoleNone:
+		// No role: nothing to count or place.
 		return
 	case !schema.RoleAccepts(role, fd.Type):
 		rc.f(rc.file, p, report.SeverityError, report.RuleSchemaRoleTypeMismatch, fmt.Sprintf("field %q has role %s, which a %s field cannot hold", label, role, fd.Type), fmt.Sprintf("%s goes on a field of type %s.", role, strings.Join(schema.RoleTypes(role), " or ")))

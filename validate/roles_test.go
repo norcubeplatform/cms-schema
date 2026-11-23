@@ -254,6 +254,11 @@ func TestRoleMisuse(t *testing.T) {
 			report.RuleSchemaUnknownRole, "fields.og", "not a role",
 		},
 		{
+			"whenEmpty beside role none",
+			"  - key: og\n    type: image\n    label: OG\n    role: none\n    whenEmpty: generated\n",
+			report.RuleSchemaInvalidWhenEmpty, "fields.og", "role none",
+		},
+		{
 			"alt on a field that is not an image",
 			"  - key: t\n    type: text\n    label: T\n    alt: a\n  - key: a\n    type: text\n    label: A\n",
 			report.RuleSchemaUnknownKnob, "fields.t", "does not read",
@@ -272,6 +277,50 @@ func TestRoleMisuse(t *testing.T) {
 		if got[0].Hint == "" && tc.rule != report.RuleSchemaInvalidAlt {
 			t.Errorf("%s: no hint", tc.name)
 		}
+	}
+}
+
+// role: none goes on any field, any number of times, also inside lists,
+// and says nothing more.
+func TestRoleNone(t *testing.T) {
+	files := map[string]string{
+		load.ConfigFile: "",
+		load.CollectionsDir + "/pages.yml": collectionWith(`  - key: meta
+    type: group
+    label: Meta
+    fields:
+      - key: title
+        type: text
+        label: Title
+        role: none
+      - key: description
+        type: paragraph
+        label: Description
+        role: none
+  - key: list
+    type: array
+    label: List
+    items:
+      - key: item
+        type: group
+        label: Item
+        fields:
+          - key: img
+            type: image
+            label: Img
+            decorative: true
+          - key: name
+            type: text
+            label: Name
+            role: none
+  - key: count
+    type: number
+    label: Count
+    role: none
+`),
+	}
+	if got := schemaFindings(t, files); len(got) != 0 {
+		t.Fatalf("role none reported: %v", got)
 	}
 }
 
