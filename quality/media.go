@@ -80,14 +80,16 @@ func FSMedia(fsys fs.FS) MediaLister {
 }
 
 // media runs the media rules: the size of each raster image content uses,
-// and the files nothing refers to.
+// and the files nothing refers to. Images in a folder the site's build
+// optimizes are not weighed.
 func (r *run) media(pages []Page) {
-	heavyOn, unusedOn := !r.off[report.RuleQualityImageHeavy], !r.off[report.RuleQualityMediaUnused]
-	if !heavyOn && !unusedOn {
-		return
-	}
 	roots := MediaRoots(r.cfg)
 	if len(roots) == 0 {
+		return
+	}
+	r.folders, r.guesses = mediaFolders(r.cfg, roots, r.opts)
+	heavyOn, unusedOn := !r.off[report.RuleQualityImageHeavy], !r.off[report.RuleQualityMediaUnused]
+	if !heavyOn && !unusedOn {
 		return
 	}
 	if r.opts.ListMedia == nil {
@@ -107,16 +109,7 @@ func (r *run) media(pages []Page) {
 	}
 	used := r.usedFiles(pages, roots)
 
-	heavy, veryHeavy := r.opts.Limits.ImageHeavyBytes, r.opts.Limits.ImageVeryHeavyBytes
-	if heavy <= 0 {
-		heavy = DefaultImageHeavyBytes
-	}
-	if veryHeavy <= 0 {
-		veryHeavy = DefaultImageVeryHeavyBytes
-	}
-	if veryHeavy < heavy {
-		veryHeavy = heavy
-	}
+	heavy, veryHeavy := r.imageLimits()
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 	for _, f := range files {
 		p := resolve.CleanPath(f.Path)
@@ -132,7 +125,15 @@ func (r *run) media(pages []Page) {
 			}
 			continue
 		}
-		if !heavyOn || !rasterExtensions[strings.ToLower(path.Ext(p))] {
+		if !rasterExtensions[strings.ToLower(path.Ext(p))] {
+			continue
+		}
+		folder := MediaFolder{}
+		if i := folderOf(p, r.folders); i >= 0 {
+			r.folders[i].Images++
+			folder = r.folders[i]
+		}
+		if !heavyOn || folder.OptimizedAtBuild {
 			continue
 		}
 		r.count(report.RuleQualityImageHeavy)
@@ -144,11 +145,36 @@ func (r *run) media(pages []Page) {
 		default:
 			continue
 		}
+		hint := "A large image makes the page slow to load, above all on a phone. Save it smaller (about 2000 pixels wide is plenty) or as WebP, and upload it again."
+		if folder.Guessed {
+			hint += " The folder is taken to be served as is, a guess from the site's framework: say `optimizedAtBuild: false` on its storage to confirm it, or `true` if the build resizes its images."
+		} else {
+			hint += " If the site's build resizes the images of this folder, say `optimizedAtBuild: true` on its storage."
+		}
+		// A guess that the folder is served as is weighs low, as a
+		// guessed role does.
 		r.emit(report.Finding{File: p, Rule: report.RuleQualityImageHeavy,
 			Message: fmt.Sprintf("The image is %s, over %s.", humanBytes(f.Size), humanBytes(limit)),
-			Hint:    "A large image makes the page slow to load, above all on a phone. Save it smaller (about 2000 pixels wide is plenty) or as WebP, and upload it again.",
-			Value:   p, Measure: &report.Measure{Value: f.Size, Unit: report.UnitBytes, Max: &limit}}, impact)
+			Hint:    hint,
+			Value:   p, Measure: &report.Measure{Value: f.Size, Unit: report.UnitBytes, Max: &limit}}, lowered(impact, folder.Guessed))
 	}
+}
+
+// imageLimits are the two image weights: the caller's Limits, else the
+// schema's `quality.limits.imageKB`, else the defaults. The upper one
+// scales with the lower as the defaults do (1 MB to 200 KB).
+func (r *run) imageLimits() (heavy, veryHeavy int64) {
+	heavy, veryHeavy = r.opts.Limits.ImageHeavyBytes, r.opts.Limits.ImageVeryHeavyBytes
+	if heavy <= 0 {
+		heavy = DefaultImageHeavyBytes
+		if kb := r.cfg.Quality.Limits.ImageKB; kb > 0 {
+			heavy = int64(kb) * 1024
+		}
+	}
+	if veryHeavy <= 0 {
+		veryHeavy = heavy * DefaultImageVeryHeavyBytes / DefaultImageHeavyBytes
+	}
+	return heavy, max(heavy, veryHeavy)
 }
 
 // usedFiles are the media files something refers to: any value of a page

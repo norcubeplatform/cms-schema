@@ -423,7 +423,7 @@ carries, besides file, path, rule, message and hint:
 | `quality.link_text_generic` | accessibility | low | Link text that is only a generic phrase (click here, read more, zde, více, hier, mehr…), in a text or a button label beside a link field | WCAG 2.2 2.4.4 [7]; Lighthouse `link-text` |
 | `quality.translation_missing` | languages | medium | A page with no version in a language its collection expects (`translations.locales`, else every site language) |  |
 | `quality.translation_outdated` | languages | medium | A version last changed more than 7 days before the newest version of the same page | A convention |
-| `quality.image_heavy` | media | medium | A raster image content uses over 200 KB (low impact) or over 1 MB (medium) | Lighthouse flags any image that could be smaller [8]; crawlers flag 100 KB, a number Sitebulb calls relatively arbitrary [9], so 200 KB flags only clear cases |
+| `quality.image_heavy` | media | medium | A raster image content uses over 200 KB (low impact) or over 1 MB (medium), or over the site's `quality.limits.imageKB`; images in a folder the build optimizes are skipped | Lighthouse flags any image that could be smaller [8]; crawlers flag 100 KB, a number Sitebulb calls relatively arbitrary [9], so 200 KB flags only clear cases |
 | `quality.media_unused` | media | info | A file in a read-write repository storage that no content and no schema refers to (listed, not scored) |  |
 
 **Where the checks look.** Search rules read the fields that hold each
@@ -476,7 +476,9 @@ res, err := validate.Site(fsys, validate.Options{
     Quality: quality.Options{
         LastChanged: lastChanged,            // path → when it last changed; nil skips translation_outdated
         ListMedia:   quality.FSMedia(fsys),  // lists files under quality.MediaRoots(cfg) with sizes; nil skips the media rules
-        Limits:      quality.Limits{},       // zero keeps the defaults
+        RootFiles:   quality.FSRootFiles(fsys), // file names at the repository root, to guess the build framework; nil guesses nothing
+        Framework:   "",                     // or quality.FrameworkAstro when the caller knows; wins over RootFiles
+        Limits:      quality.Limits{},       // zero keeps the schema's and the defaults
     },
 })
 ```
@@ -488,6 +490,82 @@ each image for alt text, each expected language version, each raster
 image in use): what a score divides by. `quality.Specs()` gives each
 rule's area, impact and threshold; `quality.Check` runs the rules on
 pages a caller already holds.
+
+**Images the build optimizes.** Some frameworks resize and re-encode
+images at build time and never serve the original: Astro does it for
+images under `src/assets` (imported in code or through `astro:assets`
+and `<Image>`), while it copies `public/` as it is. A storage says so
+with `optimizedAtBuild`:
+
+```yaml
+# config.yml
+storages:
+  images:
+    type: repo
+    path: public/images   # copied as is: weighed
+    publicUrl: /images
+  assets:
+    type: repo
+    path: src/assets/images
+    optimizedAtBuild: true # resized at build: not weighed
+```
+
+`quality.image_heavy` skips the images in such a folder (a file in a
+subfolder belongs to the deepest storage folder holding it);
+`quality.media_unused` still lists the files nothing refers to. The
+value must be `true` or `false`; anything else is
+`schema.invalid_storage`.
+
+When a storage does not say, the module guesses from the build
+framework, which it reads from the file names at the repository root
+(`Options.RootFiles`, or `Options.Framework` from a caller that knows):
+
+| Framework | Marked by                                   | Optimized at build | Served as is |
+| --------- | ------------------------------------------- | ------------------ | ------------ |
+| Astro     | `astro.config.{mjs,js,ts,mts,cjs,cts}`      | `src/assets/**`    | `public/**`  |
+
+Only Astro for now. Next.js is left out on purpose: `next/image`
+optimizes at request time, only where the code uses it, and not at all
+in a static export. A storage in neither folder, or on a site no row
+matches, is served as is, as before. A guess is never as good as the
+owner's word: an image found heavy in a folder guessed to be served as
+is weighs `low`, like a finding on a guessed role, and the hint says how
+to confirm it. Declaring `optimizedAtBuild: false` gives such findings
+their full weight.
+
+`res.Quality.MediaFolders` lists every media root with its storage,
+whether its images are optimized at build, whether that was guessed, and
+how many raster images content uses there (skipped or checked; zero when
+the files were not listed), so a report can say "src/assets/images:
+optimized at build, 12 images". `res.Quality.Guessed` lists what the run
+assumed because the schema does not say it, for a person to confirm by
+declaring it:
+
+```json
+"guessed": [{"kind": "optimizedAtBuild", "storage": "assets", "path": "src/assets/images",
+             "value": true, "framework": "astro", "basis": "astro.config.mjs"}]
+```
+
+`kind` is the storage key that confirms the guess, `value` the answer to
+write there.
+
+**The image weight limit.** `quality.limits.imageKB` in `config.yml`
+sets the weight in kilobytes over which an image is heavy (low impact);
+the medium band starts at 5.12 times it, the ratio of the defaults (200
+KB and 1 MB), so `imageKB: 200` is the default and `imageKB: 500` flags
+images over 500 KB as low and over 2.5 MB as medium:
+
+```yaml
+quality:
+  limits:
+    imageKB: 500
+```
+
+It is a whole number from 20 to 10000; anything else, an unknown key
+under `limits`, or `limits` in a collection (an image is checked once
+per file, not per page, so the limit is the site's) is the warning
+`schema.invalid_quality`, and the default applies. A caller's
+`Options.Limits` wins over the schema.
 
 **Turning a rule off.** A site that does not want a check says so in
 the schema, reviewable in a pull request:
@@ -506,7 +584,8 @@ A rule turned off checks nothing and is listed in `res.Quality.Ignored`
 (site) or `res.Quality.IgnoredIn` (per collection). An entry that is not
 a quality rule is the warning `schema.invalid_quality`. Thresholds come
 from the schema too: `recommendedLength` on the title or description
-field, `translations.locales` on a collection.
+field, `translations.locales` on a collection, `quality.limits.imageKB`
+for the site.
 
 Sources: [1] https://developers.google.com/search/docs/appearance/title-link
 [2] https://developers.google.com/search/docs/appearance/snippet

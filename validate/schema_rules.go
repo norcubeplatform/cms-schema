@@ -2,6 +2,7 @@ package validate
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -62,7 +63,7 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 		f(configFile, "variables.file", report.SeverityError, report.RuleSchemaMissingVariablesFile, fmt.Sprintf("variables.file %q does not exist", cfg.Variables.File), "Create the variables document, or point `variables.file` at the file that holds the {key, value} list.")
 	}
 
-	for _, problem := range qualityProblems(cfg.Raw) {
+	for _, problem := range qualityProblems(cfg.Raw, true) {
 		f(configFile, "quality", report.SeverityWarning, report.RuleSchemaInvalidQuality, problem, qualityHint)
 	}
 
@@ -94,7 +95,7 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 		for _, problem := range translationLocalesProblems(cfg, coll) {
 			f(file, "translations.locales", report.SeverityError, report.RuleSchemaInvalidTranslationLocales, problem, "List the languages this collection's pages are expected in, each one of preview.locales, or leave `locales` out to expect all of them.")
 		}
-		for _, problem := range qualityProblems(coll.Raw) {
+		for _, problem := range qualityProblems(coll.Raw, false) {
 			f(file, "quality", report.SeverityWarning, report.RuleSchemaInvalidQuality, problem, qualityHint)
 		}
 		switch coll.ExtraKeysPolicy {
@@ -483,11 +484,12 @@ func translationsProblem(coll schema.Collection) (reason, hint string) {
 	return fmt.Sprintf("translations.by names %q, which is not a top-level field of the collection", key), "Add the field to the collection, or name one it has."
 }
 
-const qualityHint = "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off; the rule ids are listed in the module's README."
+const qualityHint = "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
 
 // qualityProblems says what is wrong with the `quality` block of a
-// config or collection mapping.
-func qualityProblems(raw map[string]any) []string {
+// config (site) or collection mapping. Limits are read in config.yml
+// only: an image is checked once per file, not per page.
+func qualityProblems(raw map[string]any, site bool) []string {
 	v, has := raw["quality"]
 	if !has || v == nil {
 		return nil
@@ -498,11 +500,21 @@ func qualityProblems(raw map[string]any) []string {
 	}
 	var out []string
 	for _, k := range sortedMapKeys(m) {
-		if k != "ignore" {
+		switch {
+		case k == schema.QualityKeyIgnore:
+		case k == schema.QualityKeyLimits && site:
+		case k == schema.QualityKeyLimits:
+			out = append(out, "quality.limits is read in config.yml only: an image is checked once per file, not per page")
+		case site:
+			out = append(out, fmt.Sprintf("quality has the key %q; only `ignore` and `limits` are read", k))
+		default:
 			out = append(out, fmt.Sprintf("quality has the key %q; only `ignore` is read", k))
 		}
 	}
-	ignore, has := m["ignore"]
+	if site {
+		out = append(out, qualityLimitsProblems(m[schema.QualityKeyLimits])...)
+	}
+	ignore, has := m[schema.QualityKeyIgnore]
 	if !has || ignore == nil {
 		return out
 	}
@@ -521,6 +533,51 @@ func qualityProblems(raw map[string]any) []string {
 		}
 	}
 	return out
+}
+
+// qualityLimitsProblems says what is wrong with a site's
+// `quality.limits`. A limit it reports is not applied.
+func qualityLimitsProblems(v any) []string {
+	if v == nil {
+		return nil
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		return []string{fmt.Sprintf("quality.limits is %v, not a mapping", v)}
+	}
+	var out []string
+	for _, k := range sortedMapKeys(m) {
+		if k != schema.QualityLimitImageKB {
+			out = append(out, fmt.Sprintf("quality.limits has the key %q; only `%s` is read", k, schema.QualityLimitImageKB))
+		}
+	}
+	kb, has := m[schema.QualityLimitImageKB]
+	if !has || kb == nil {
+		return out
+	}
+	n, ok := wholeNumber(kb)
+	switch {
+	case !ok:
+		out = append(out, fmt.Sprintf("quality.limits.imageKB is %v, not a whole number of kilobytes", kb))
+	case n < schema.QualityImageKBMin || n > schema.QualityImageKBMax:
+		out = append(out, fmt.Sprintf("quality.limits.imageKB is %d, outside %d to %d", n, schema.QualityImageKBMin, schema.QualityImageKBMax))
+	}
+	return out
+}
+
+// wholeNumber reads a YAML number that has no fraction.
+func wholeNumber(v any) (int, bool) {
+	switch n := v.(type) {
+	case int:
+		return n, true
+	case int64:
+		return int(n), true
+	case float64:
+		if n == math.Trunc(n) {
+			return int(math.Max(-1e9, math.Min(n, 1e9))), true
+		}
+	}
+	return 0, false
 }
 
 func sortedMapKeys(m map[string]any) []string {

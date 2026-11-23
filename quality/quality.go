@@ -21,8 +21,9 @@ type MediaFile struct {
 // (MediaRoots), with their sizes. It is called at most once per run.
 type MediaLister func(roots []string) ([]MediaFile, error)
 
-// Limits override the default thresholds; a zero value keeps the
-// default.
+// Limits override the schema's and the default thresholds; a zero value
+// keeps them. ImageVeryHeavyBytes left zero scales with ImageHeavyBytes
+// as the defaults do.
 type Limits struct {
 	OutdatedAfter       time.Duration
 	ImageHeavyBytes     int64
@@ -38,6 +39,14 @@ type Options struct {
 	// ListMedia lists the media files. Nil skips the media rules.
 	ListMedia MediaLister
 	Limits    Limits
+	// RootFiles are the names of the files at the repository root, from
+	// which the build framework is guessed (DetectFramework) for media
+	// folders whose storage does not say `optimizedAtBuild`. Nil guesses
+	// nothing.
+	RootFiles []string
+	// Framework names the build framework when the caller knows it
+	// (FrameworkAstro); it wins over RootFiles.
+	Framework string
 }
 
 // Page is one content file as the checks read it.
@@ -76,6 +85,12 @@ type Summary struct {
 	// and value in schema.PageRoles order. Those pages pass the role's
 	// missing rule.
 	FilledInCode []FilledInCode `json:"filledInCode,omitempty"`
+	// MediaFolders says, per media root, whether the site's build
+	// optimizes its images and how many images content uses there.
+	MediaFolders []MediaFolder `json:"mediaFolders,omitempty"`
+	// Guessed lists what the run assumed because the schema does not say
+	// it, for a person to confirm.
+	Guessed []Guess `json:"guessed,omitempty"`
 }
 
 // FilledInCode is how many pages, checked by the search rules, leave one
@@ -117,6 +132,10 @@ type run struct {
 	titles, descriptions []dupCandidate
 	// filled counts pages per role and whenEmpty value.
 	filled map[[2]string]int
+	// folders and guesses are the media folders and what was guessed
+	// about them.
+	folders []MediaFolder
+	guesses []Guess
 }
 
 func newRun(cfg *schema.Config, opts Options) *run {
@@ -175,7 +194,7 @@ func (r *run) rolesOf(coll schema.Collection) resolve.Roles {
 }
 
 func (r *run) summary() Summary {
-	s := Summary{Checked: map[report.Rule]int{}, Skipped: r.skipped}
+	s := Summary{Checked: map[report.Rule]int{}, Skipped: r.skipped, MediaFolders: r.folders, Guessed: r.guesses}
 	for _, spec := range specs {
 		if r.off[spec.Rule] {
 			s.Ignored = append(s.Ignored, spec.Rule)

@@ -1,6 +1,7 @@
 package resolve
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/norcubeplatform/cms-schema/schema"
@@ -126,6 +127,11 @@ func ValidStorage(s schema.Storage) []string {
 		}
 	default:
 		problems = append(problems, "invalid dedup "+quote(s.Dedup)+" (allowed: hash)")
+	}
+	if v, has := s.Raw[schema.StorageKeyOptimizedAtBuild]; has && v != nil {
+		if _, ok := v.(bool); !ok {
+			problems = append(problems, fmt.Sprintf("`%s` is %v, not true or false", schema.StorageKeyOptimizedAtBuild, v))
+		}
 	}
 	return problems
 }

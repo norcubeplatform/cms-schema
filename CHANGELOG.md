@@ -2,6 +2,22 @@
 
 Notable changes, newest first.
 
+## Unreleased
+
+### New
+
+- **`optimizedAtBuild:`** on a storage says the site's build resizes and re-encodes the folder's images, so the original is never served (Astro's `src/assets`). `quality.image_heavy` skips them; `quality.media_unused` still applies. `schema.Storage.OptimizedAtBuild` (nil when the storage does not say), `schema.StorageKeyOptimizedAtBuild`. A value that is not a boolean is `schema.invalid_storage`.
+- **A guess when the storage does not say**, from the build framework the repository root marks: on an Astro site (`astro.config.*`) `src/assets/**` is optimized at build and `public/**` served as is. A small table (`quality.DetectFramework`, `quality.Frameworks`, `quality.FrameworkAstro`); the caller passes the root file names (`quality.Options.RootFiles`, `quality.FSRootFiles`) or names the framework (`Options.Framework`). The CLI passes the checkout's root files.
+- **`quality.Summary.MediaFolders`** (`mediaFolders`): per media root, its storage, whether its images are optimized at build, whether that was guessed, and how many raster images content uses there.
+- **`quality.Summary.Guessed`** (`guessed`): what the run assumed because the schema does not say it, each with the storage key and value that confirm it (`quality.Guess`, kind `quality.GuessOptimizedAtBuild`, `quality.GuessKinds`).
+- **`quality: { limits: { imageKB: <n> } }`** in `config.yml`: the image weight limit in kilobytes, 20 to 10000 (`schema.QualityLimits`, `schema.QualityImageKBMin`, `schema.QualityImageKBMax`). The medium band is 5.12 times it, the ratio of the defaults. Out of bounds, not a whole number, an unknown key, or `limits` in a collection is `schema.invalid_quality` and the default applies.
+
+### Behaviour changes
+
+- On an Astro site whose storages do not say `optimizedAtBuild`, images under `src/assets` are no longer weighed, and a heavy image under `public` weighs `low` (the folder's treatment is a guess) until the storage says `optimizedAtBuild: false`.
+- `quality.Limits.ImageVeryHeavyBytes` left zero now scales with `ImageHeavyBytes` (5.12 times) instead of staying at 1 MB.
+- The hint of `quality.image_heavy` mentions `optimizedAtBuild`.
+
 ## 0.6.0 (2026-11-22)
 
 ### New

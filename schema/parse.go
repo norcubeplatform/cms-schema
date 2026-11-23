@@ -170,7 +170,13 @@ func parseQuality(v any) Quality {
 	if !ok {
 		return Quality{}
 	}
-	return Quality{Ignore: trimmedStrings(m["ignore"])}
+	q := Quality{Ignore: trimmedStrings(m[QualityKeyIgnore])}
+	if limits, ok := m[QualityKeyLimits].(map[string]any); ok {
+		if kb, ok := intOf(limits[QualityLimitImageKB]); ok && kb >= QualityImageKBMin && kb <= QualityImageKBMax {
+			q.Limits.ImageKB = kb
+		}
+	}
+	return q
 }
 
 // parseTranslations reads a collection's `translations` block; nil when
@@ -473,6 +479,9 @@ func parseStorages(v any) []Storage {
 			pu = str(entry["public_url"])
 		}
 		s.PublicURL = strings.TrimRight(strings.TrimSpace(pu), "/")
+		if b, ok := entry[StorageKeyOptimizedAtBuild].(bool); ok {
+			s.OptimizedAtBuild = &b
+		}
 		out = append(out, s)
 	}
 	return out

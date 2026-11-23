@@ -626,3 +626,237 @@ func TestWhenEmptyCountedWhenRuleIgnored(t *testing.T) {
 		t.Errorf("filled %+v, findings %v", res.Quality.FilledInCode, keys(res))
 	}
 }
+
+// buildConfig has a public folder and an Astro assets folder; assets
+// is the knob of the assets storage.
+func buildConfig(assets string) string {
+	return `pagesDir: src/content/pages
+preview:
+  defaultLocale: cs
+  locales: [cs, en]
+  prefixDefaultLocale: true
+storages:
+  images:
+    type: repo
+    path: public/images
+    publicUrl: /images
+  assets:
+    type: repo
+    path: src/assets/images
+` + assets + `defaultStorage: images
+`
+}
+
+func TestOptimizedAtBuild(t *testing.T) {
+	const mb = 1024 * 1024
+	files := []quality.MediaFile{
+		{Path: "public/images/big.jpg", Size: 2 * mb},
+		{Path: "src/assets/images/media.jpg", Size: 2 * mb},
+		{Path: "src/assets/images/unused.jpg", Size: 2 * mb},
+	}
+	list := func([]string) ([]quality.MediaFile, error) { return files, nil }
+	mk := func(assets string) fstest.MapFS {
+		fsys := site(map[string]string{
+			"src/content/pages/cs/a.md": page("title: A page title that is long enough ok\nseo: {image: /images/big.jpg, image_alt: A}\nblocks:\n  - {_type: hero, photo: /src/assets/images/media.jpg, photo_alt: B}"),
+		})
+		fsys[configFile] = &fstest.MapFile{Data: []byte(buildConfig(assets))}
+		return fsys
+	}
+	astro := []string{"package.json", "astro.config.mjs"}
+	rules := []report.Rule{report.RuleQualityImageHeavy, report.RuleQualityMediaUnused}
+
+	t.Run("a declared folder is skipped, public is flagged, unused still applies", func(t *testing.T) {
+		res := run(t, mk("    optimizedAtBuild: true\n"), quality.Options{ListMedia: list, RootFiles: astro})
+		want := []string{
+			"public/images/big.jpg# quality.image_heavy low", // public guessed as is
+			"src/assets/images/unused.jpg# quality.media_unused info",
+		}
+		if got := keys(res, rules...); !slices.Equal(got, want) {
+			t.Errorf("got\n%v\nwant\n%v", got, want)
+		}
+		if n := res.Quality.Checked[report.RuleQualityImageHeavy]; n != 1 {
+			t.Errorf("checked %d; an optimized image is not checked", n)
+		}
+		wantFolders := []quality.MediaFolder{
+			{Path: "public/images", Storage: "images", Guessed: true, Images: 1},
+			{Path: "src/assets/images", Storage: "assets", OptimizedAtBuild: true, Images: 1},
+		}
+		if !slices.Equal(res.Quality.MediaFolders, wantFolders) {
+			t.Errorf("folders %+v", res.Quality.MediaFolders)
+		}
+		wantGuess := []quality.Guess{{Kind: quality.GuessOptimizedAtBuild, Storage: "images", Path: "public/images", Framework: quality.FrameworkAstro, Basis: "astro.config.mjs"}}
+		if !slices.Equal(res.Quality.Guessed, wantGuess) {
+			t.Errorf("guessed %+v", res.Quality.Guessed)
+		}
+	})
+	t.Run("without a framework public weighs fully and nothing is guessed", func(t *testing.T) {
+		res := run(t, mk("    optimizedAtBuild: true\n"), quality.Options{ListMedia: list, RootFiles: []string{"package.json"}})
+		if got := keys(res, report.RuleQualityImageHeavy); !slices.Equal(got, []string{"public/images/big.jpg# quality.image_heavy medium"}) {
+			t.Errorf("got %v", got)
+		}
+		if len(res.Quality.Guessed) != 0 {
+			t.Errorf("guessed %+v", res.Quality.Guessed)
+		}
+	})
+	t.Run("an Astro site that declares nothing gets src/assets guessed", func(t *testing.T) {
+		res := run(t, mk(""), quality.Options{ListMedia: list, RootFiles: astro})
+		if got := keys(res, report.RuleQualityImageHeavy); !slices.Equal(got, []string{"public/images/big.jpg# quality.image_heavy low"}) {
+			t.Errorf("got %v", got)
+		}
+		want := []quality.Guess{
+			{Kind: quality.GuessOptimizedAtBuild, Storage: "images", Path: "public/images", Value: false, Framework: quality.FrameworkAstro, Basis: "astro.config.mjs"},
+			{Kind: quality.GuessOptimizedAtBuild, Storage: "assets", Path: "src/assets/images", Value: true, Framework: quality.FrameworkAstro, Basis: "astro.config.mjs"},
+		}
+		if !slices.Equal(res.Quality.Guessed, want) {
+			t.Errorf("guessed %+v", res.Quality.Guessed)
+		}
+	})
+	t.Run("the same site without astro.config guesses nothing", func(t *testing.T) {
+		res := run(t, mk(""), quality.Options{ListMedia: list})
+		want := []string{"public/images/big.jpg# quality.image_heavy medium", "src/assets/images/media.jpg# quality.image_heavy medium"}
+		if got := keys(res, report.RuleQualityImageHeavy); !slices.Equal(got, want) {
+			t.Errorf("got %v", got)
+		}
+		if len(res.Quality.Guessed) != 0 {
+			t.Errorf("guessed %+v", res.Quality.Guessed)
+		}
+	})
+	t.Run("a declared false wins over the guess", func(t *testing.T) {
+		res := run(t, mk("    optimizedAtBuild: false\n"), quality.Options{ListMedia: list, RootFiles: astro})
+		if got := keys(res, report.RuleQualityImageHeavy); !slices.Contains(got, "src/assets/images/media.jpg# quality.image_heavy medium") {
+			t.Errorf("got %v", got)
+		}
+		for _, g := range res.Quality.Guessed {
+			if g.Storage == "assets" {
+				t.Errorf("a declared folder is guessed: %+v", g)
+			}
+		}
+	})
+	t.Run("the caller's framework wins over the root files", func(t *testing.T) {
+		res := run(t, mk(""), quality.Options{ListMedia: list, Framework: quality.FrameworkAstro})
+		if len(res.Quality.Guessed) != 2 || res.Quality.Guessed[0].Basis != "" {
+			t.Errorf("guessed %+v", res.Quality.Guessed)
+		}
+	})
+	t.Run("lists", func(t *testing.T) {
+		if !slices.Equal(quality.Frameworks(), []string{quality.FrameworkAstro}) || !slices.Equal(quality.GuessKinds(), []string{quality.GuessOptimizedAtBuild}) {
+			t.Errorf("%v %v", quality.Frameworks(), quality.GuessKinds())
+		}
+	})
+	t.Run("detect", func(t *testing.T) {
+		for _, f := range []string{"astro.config.ts", "./astro.config.mjs", "astro.config.cjs"} {
+			if fw, basis := quality.DetectFramework([]string{f}); fw != quality.FrameworkAstro || basis == "" {
+				t.Errorf("%s: %q %q", f, fw, basis)
+			}
+		}
+		if fw, _ := quality.DetectFramework([]string{"next.config.js", "src/astro.config.mjs"}); fw != "" {
+			t.Errorf("got %q", fw)
+		}
+		got := quality.FSRootFiles(fstest.MapFS{"astro.config.mjs": {}, "src/a.ts": {}})
+		if !slices.Equal(got, []string{"astro.config.mjs"}) {
+			t.Errorf("root files %v", got)
+		}
+	})
+}
+
+func TestImageLimit(t *testing.T) {
+	const kb = 1024
+	files := []quality.MediaFile{
+		{Path: "public/images/a.jpg", Size: 150 * kb},
+		{Path: "public/images/b.jpg", Size: 600 * kb},
+		{Path: "public/images/c.jpg", Size: 2500 * kb},
+	}
+	list := func([]string) ([]quality.MediaFile, error) { return files, nil }
+	mk := func(quality string) fstest.MapFS {
+		fsys := site(map[string]string{
+			"src/content/pages/cs/a.md": page("title: A page title that is long enough ok\nblocks:\n  - {_type: hero, gallery: [/images/a.jpg, /images/b.jpg, /images/c.jpg]}"),
+		})
+		fsys[configFile] = &fstest.MapFile{Data: []byte(baseConfig + quality)}
+		return fsys
+	}
+	heavy := func(res *validate.Result) []string { return keys(res, report.RuleQualityImageHeavy) }
+	cases := []struct {
+		name, quality string
+		want          []string
+	}{
+		{"default", "", []string{"public/images/b.jpg# quality.image_heavy low", "public/images/c.jpg# quality.image_heavy medium"}},
+		// 100 KB and 512 KB.
+		{"lower", "quality: {limits: {imageKB: 100}}\n", []string{"public/images/a.jpg# quality.image_heavy low", "public/images/b.jpg# quality.image_heavy medium", "public/images/c.jpg# quality.image_heavy medium"}},
+		// 3000 KB and 15000 KB.
+		{"higher", "quality: {limits: {imageKB: 3000}}\n", nil},
+		{"below the bound keeps the default", "quality: {limits: {imageKB: 10}}\n", []string{"public/images/b.jpg# quality.image_heavy low", "public/images/c.jpg# quality.image_heavy medium"}},
+		{"above the bound keeps the default", "quality: {limits: {imageKB: 20000}}\n", []string{"public/images/b.jpg# quality.image_heavy low", "public/images/c.jpg# quality.image_heavy medium"}},
+		{"a fraction keeps the default", "quality: {limits: {imageKB: 250.5}}\n", []string{"public/images/b.jpg# quality.image_heavy low", "public/images/c.jpg# quality.image_heavy medium"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := heavy(run(t, mk(c.quality), quality.Options{ListMedia: list})); !slices.Equal(got, c.want) {
+				t.Errorf("got\n%v\nwant\n%v", got, c.want)
+			}
+		})
+	}
+	t.Run("the caller's limits win over the schema", func(t *testing.T) {
+		res := run(t, mk("quality: {limits: {imageKB: 100}}\n"), quality.Options{ListMedia: list, Limits: quality.Limits{ImageHeavyBytes: 3000 * kb}})
+		if got := heavy(res); len(got) != 0 {
+			t.Errorf("got %v", got)
+		}
+	})
+	t.Run("the edges are allowed", func(t *testing.T) {
+		for _, n := range []int{20, 10000} {
+			if got := schemaFindings(t, mk(fmt.Sprintf("quality: {limits: {imageKB: %d}}\n", n)), report.RuleSchemaInvalidQuality); len(got) != 0 {
+				t.Errorf("%d: %v", n, got)
+			}
+		}
+	})
+	t.Run("the schema check", func(t *testing.T) {
+		for q, want := range map[string]string{
+			"quality: {limits: {imageKB: 10}}\n":        "outside 20 to 10000",
+			"quality: {limits: {imageKB: 20000}}\n":     "outside 20 to 10000",
+			"quality: {limits: {imageKB: 250.5}}\n":     "not a whole number",
+			"quality: {limits: {imageKB: big}}\n":       "not a whole number",
+			"quality: {limits: {imageMB: 1}}\n":         `the key "imageMB"`,
+			"quality: {limits: 300}\n":                  "not a mapping",
+			"quality: {limits: {imageKB: 300}, x: 1}\n": "only `ignore` and `limits`",
+		} {
+			got := schemaFindings(t, mk(q), report.RuleSchemaInvalidQuality)
+			if len(got) != 1 || !strings.Contains(got[0].Message, want) || got[0].Severity != report.SeverityWarning {
+				t.Errorf("%q: %v", q, got)
+			}
+		}
+	})
+	t.Run("limits in a collection are reported", func(t *testing.T) {
+		fsys := mk("")
+		fsys[pagesFile] = &fstest.MapFile{Data: []byte(pagesSchema + "quality: {limits: {imageKB: 300}}\n")}
+		got := schemaFindings(t, fsys, report.RuleSchemaInvalidQuality)
+		if len(got) != 1 || !strings.Contains(got[0].Message, "config.yml only") {
+			t.Errorf("got %v", got)
+		}
+	})
+	t.Run("optimizedAtBuild must be a boolean", func(t *testing.T) {
+		fsys := mk("")
+		fsys[configFile] = &fstest.MapFile{Data: []byte(buildConfig("    optimizedAtBuild: yes please\n"))}
+		got := schemaFindings(t, fsys, report.RuleSchemaInvalidStorage)
+		if len(got) != 1 || !strings.Contains(got[0].Message, "not true or false") || got[0].Severity != report.SeverityError {
+			t.Errorf("got %v", got)
+		}
+		fsys[configFile] = &fstest.MapFile{Data: []byte(buildConfig("    optimizedAtBuild: true\n"))}
+		if got := schemaFindings(t, fsys, report.RuleSchemaInvalidStorage); len(got) != 0 {
+			t.Errorf("got %v", got)
+		}
+	})
+}
+
+func schemaFindings(t *testing.T, fsys fstest.MapFS, rule report.Rule) []report.Finding {
+	t.Helper()
+	res, err := validate.Site(fsys, validate.Options{Only: []string{validate.ScopeSchema}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []report.Finding
+	for _, f := range res.Findings {
+		if f.Rule == rule {
+			out = append(out, f)
+		}
+	}
+	return out
+}

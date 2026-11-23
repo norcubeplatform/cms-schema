@@ -125,7 +125,7 @@ var specs = []RuleSpec{
 	{report.RuleQualityTranslationOutdated, AreaLanguages, report.ImpactMedium, NeedsLastChanged,
 		"A version last changed more than 7 days before the newest version of the same page", "A convention"},
 	{report.RuleQualityImageHeavy, AreaMedia, report.ImpactMedium, NeedsMedia,
-		"A raster image content uses over 200 KB (low impact) or over 1 MB (medium)", "Lighthouse uses-optimized-images; crawlers flag 100 KB, which Sitebulb calls relatively arbitrary, so 200 KB flags only clear cases"},
+		"A raster image content uses over 200 KB (low impact) or over 1 MB (medium); quality.limits.imageKB moves both. Images in a folder the build optimizes (optimizedAtBuild) are skipped", "Lighthouse uses-optimized-images; crawlers flag 100 KB, which Sitebulb calls relatively arbitrary, so 200 KB flags only clear cases"},
 	{report.RuleQualityMediaUnused, AreaMedia, report.ImpactInfo, NeedsMedia,
 		"A file in a read-write repository storage that no content and no schema refers to", ""},
 }

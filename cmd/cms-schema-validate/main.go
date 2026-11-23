@@ -65,7 +65,7 @@ func run(args []string) int {
 	site := os.DirFS(path)
 	res, err := validate.Site(site, validate.Options{
 		Only: only, Collection: *collection, Strict: *strict, StrictQuality: *strictQuality,
-		Quality: quality.Options{ListMedia: quality.FSMedia(site)},
+		Quality: quality.Options{ListMedia: quality.FSMedia(site), RootFiles: quality.FSRootFiles(site)},
 	})
 	if err != nil {
 		if errors.Is(err, load.ErrNotASite) {

@@ -367,7 +367,28 @@ type Quality struct {
 	// are not run. Entries that are not strings are dropped here; the
 	// validator reports them.
 	Ignore []string
+	// Limits are the site's own thresholds; read in config.yml only.
+	Limits QualityLimits
 }
+
+// QualityLimits is a `quality.limits` block. A zero value keeps the
+// module's default.
+type QualityLimits struct {
+	// ImageKB is the image weight, in kilobytes, over which an image is
+	// heavy. A value outside QualityImageKBMin to QualityImageKBMax, or not
+	// a whole number, is dropped here; the validator reports it.
+	ImageKB int
+}
+
+// Keys and bounds of a `quality` block.
+const (
+	QualityKeyIgnore    = "ignore"
+	QualityKeyLimits    = "limits"
+	QualityLimitImageKB = "imageKB"
+
+	QualityImageKBMin = 20
+	QualityImageKBMax = 10000
+)
 
 // Translations is a collection's `translations` block: how the pages that
 // are versions of one another in different languages are told apart from
@@ -414,8 +435,16 @@ type Storage struct {
 	MaxSize   int64
 	Path      string
 	PublicURL string
-	Raw       map[string]any
+	// OptimizedAtBuild says whether the site's build resizes and
+	// re-encodes the images in this folder (Astro's src/assets), so the
+	// file in the repository is never served as is. Nil when the storage
+	// does not say.
+	OptimizedAtBuild *bool
+	Raw              map[string]any
 }
+
+// StorageKeyOptimizedAtBuild is the storage key of OptimizedAtBuild.
+const StorageKeyOptimizedAtBuild = "optimizedAtBuild"
 
 // Storage knob values.
 const (
