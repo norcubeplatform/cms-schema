@@ -27,7 +27,14 @@ cms-schema-validate path/to/site --strict # warnings fail the run
 cms-schema-validate --only schema         # schema files alone, no content
 cms-schema-validate --json > report.json  # for CI
 cms-schema-validate --quality             # also content quality (see below)
+cms-schema-validate --quality --git       # with dates from git, so outdated translations are found
 ```
+
+`--git` reads when each file last changed from the git history of the
+path (`git log`, at most 5000 commits, 30 seconds; a file changed and
+not committed counts as changed now) and passes the dates to the
+quality checks. Package `gitlog` does it; the checking packages never
+run a program.
 
 Exit codes: `0` clean, `1` findings at error severity, `2` usage or I/O
 error, `3` not a CMS site.
@@ -53,8 +60,11 @@ one directory without literal `match` names to tell them apart, and a
 collection's `translations.by` is `path` (with `localeFrom: path`) or
 names a required top-level text field, `translations.locales` names
 only site languages, `translatable` sits only on fields it can mean
-something for, and field roles, `whenEmpty:`, `alt:` and `decorative:`
-are used as described under [Field roles](#field-roles).
+something for, localized groups hold exactly the site's languages
+([Languages in one file](#languages-in-one-file)), and field roles,
+`whenEmpty:`, `titleTemplate:`, `excerpt:`, `noindexWhen:`,
+`draftWhen:`, `alt:` and `decorative:` are used as described under
+[Field roles](#field-roles).
 
 **content** — every content file against its collection, with the
 editor's rules: required, value shape (including select options), item
@@ -102,7 +112,8 @@ for _, f := range res.Findings {
 | `resolve`  | Collection for a path, locale, URL and slug fallback, storage values, links in text, translatable texts, field roles and expected languages. |
 | `quality`  | The content quality rules, their specs and `Check`.                                               |
 | `validate` | `Schema`, `Page`, `Links`, `Quality` and the `Site` runner.                                       |
-| `fact`     | Writing schema facts (a role, expected languages, `optimizedAtBuild`, `usedByCode`) into the schema files, keeping their formatting. See [Writing facts](#writing-facts). |
+| `fact`     | Writing schema facts (a role, a localized group, an image's alt text, expected languages, `optimizedAtBuild`, `usedByCode`) into the schema files, keeping their formatting. See [Writing facts](#writing-facts). |
+| `gitlog`   | When each file last changed, from a checkout's git history (`quality.Options.LastChanged`). The only package that runs a program. |
 
 `schema.Walk` is the one reading of a document against its schema: it
 visits every field with its definition and its path (`a.b[2].c`),
@@ -180,23 +191,108 @@ fields:
     type: boolean
     label: Hide from search engines
     role: noindex
+  - key: draft
+    type: boolean
+    label: Draft
+    role: draft
 ```
 
 | Role             | Means                                              | Field types       | Where                                                  |
 | ---------------- | -------------------------------------------------- | ----------------- | ------------------------------------------------------ |
 | `seoTitle`       | The page's title in search results and the tab     | text, paragraph   | Once per collection, outside lists                     |
-| `seoDescription` | The page's meta description                        | text, paragraph   | Once per collection, outside lists                     |
+| `seoDescription` | The page's meta description                        | text, paragraph, richtext with `excerpt` | Once per collection, outside lists              |
 | `shareImage`     | The image shown when the page is shared            | image             | Once per collection, outside lists                     |
-| `noindex`        | True hides the page from search engines            | boolean           | Once per collection, outside lists                     |
+| `noindex`        | True hides the page from search engines            | boolean, select with `noindexWhen` | Once per collection, outside lists    |
 | `canonical`      | The address that should rank instead of this page  | link, text        | Once per collection, outside lists                     |
+| `draft`          | True means the page is not published yet           | boolean, select with `draftWhen` | Once per collection, outside lists      |
 | `alt`            | The alt text of the image next to it               | text, paragraph   | Once per fields list that holds exactly one image      |
 | `none`           | No role, and never guessed to have one             | any               | Anywhere                                               |
+
+A localized group (see [Languages in one file](#languages-in-one-file))
+holds the role of its language fields' type, per language: `role:
+seoTitle` on a localized group of text fields is the title of each
+language version.
 
 `role: none` records that a field holds no role: a field guessed from
 its name (a `meta.title` that is not the page's search title) says it,
 and the guess stops. It goes on any field, any number of times, and
 takes no `whenEmpty`. `schema.RoleNone`; `schema.RoleValues()` lists the
-six roles and `none`.
+seven roles and `none`.
+
+**A select for noindex or draft.** A robots select or a workflow state
+says which of its values switch the role on; every entry must be one
+of its options, and there is no default (a select with the role and no
+list is an error):
+
+```yaml
+- key: robots
+  type: select
+  label: Search engine indexing
+  role: noindex
+  noindexWhen: ['noindex,follow', 'noindex,nofollow'] # quoted: a comma splits a flow list
+  options: ['index,follow', 'noindex,follow', 'noindex,nofollow']
+- key: state
+  type: select
+  label: State
+  role: draft
+  draftWhen: [writing, review]
+  options: [writing, review, published]
+```
+
+A draft page is skipped by the search and accessibility checks and is
+not a language version (see [Content quality](#content-quality)). A
+hidden page is listed by `quality.noindex` and skipped by the other
+search checks.
+
+**A title the site composes.** When the site's code builds the page
+title from the field (`<title>{title} – Adéla Maršálová</title>`),
+`titleTemplate:` next to `role: seoTitle` says how, and the checks
+measure the composed title:
+
+```yaml
+- key: name
+  type: group
+  label: Name
+  localized: true
+  role: seoTitle
+  titleTemplate: '{field:kind|label} – {value} – {{site_name}}'
+  fields: [...]
+```
+
+| Placeholder | Is |
+| ----------- | -- |
+| `{value}` | The field's own text, in the page's language. Required. |
+| `{field:<key>}` | Another field of the page outside lists (`a.b` into groups); a localized group in the page's language, a list of choices joined by commas. |
+| `{field:<key>\|label}` | A select's option label in the page's language: the option's `labels.<locale>`, else its `label`, else its value. |
+| `{{key}}` | A site variable from `variables.file`, in the page's language (as the editor resolves it). |
+
+Any other brace is `schema.invalid_title_template`, as is a template
+without `{value}`, longer than 300 bytes, on a field without `role:
+seoTitle`, or naming a field the page does not have (judged in the
+collection, so a block's template names the fields of each page that
+uses it). A variable the site does not define is not an error (the
+variables are content); a title using one is not measured. Titles
+only: a site rarely composes its description, and the one common case,
+the first paragraph of a text, is `excerpt`.
+
+Option labels per language go in `labels`, next to the `label` the
+editor shows:
+
+```yaml
+options:
+  - value: solo
+    label: Samostatná výstava
+    labels: { cs: Samostatná výstava, en: Solo exhibition }
+```
+
+**A description from rich text.** `role: seoDescription` on a rich text
+field says which part is the description with `excerpt:
+firstParagraph`: the plain text of its first paragraph (Markdown split
+at blank lines, headings and fenced code skipped, emphasis and link
+marks removed, links and images keeping their text; HTML's first
+`<p>`). `resolve.FirstParagraph` is that reading. Rich text without
+`excerpt`, an unknown value, or `excerpt` elsewhere is
+`schema.invalid_excerpt`.
 
 "Once per collection" counts the collection's fields with every block
 pulled in by `$ref`, through groups at any depth. A page role inside a
@@ -225,22 +321,34 @@ An image field says where its alt text is in one of three ways:
         role: alt
   ```
 
+- `alt: { from: [title, technique], separator: " – " }` composes it
+  from siblings, as the site's code does (`alt={`${title} – ${technique}`}`):
+  the parts that are not empty, joined by `separator` (a space when it
+  does not say), empty when every part is. 1 to 10 parts, a separator
+  of at most 20 bytes.
 - `decorative: true` on the image says it needs no alt text (a
-  background, an ornament). It cannot be combined with the other two.
+  background, an ornament). It cannot be combined with the others.
+
+A field named by `alt:` (or composed from) is text, paragraph, or a
+localized group of them, whose alt text is then per language.
 
 `alt` and `decorative` are image knobs; on another field type they are
 reported as `schema.unknown_knob`. The rules:
 
 | Rule                         | Reported when                                                                                   |
 | ---------------------------- | ----------------------------------------------------------------------------------------------- |
-| `schema.unknown_role`        | `role` is not one of the six or `none` (or not a string).                                         |
-| `schema.role_type_mismatch`  | The field's type cannot hold the role (`shareImage` on text, `noindex` on a select).            |
+| `schema.unknown_role`        | `role` is not one of the seven or `none` (or not a string).                                     |
+| `schema.role_type_mismatch`  | The field's type cannot hold the role (`shareImage` on text, `noindex` on a multichoice), or a group that is not localized has a page role. |
 | `schema.duplicate_role`      | A second field of the collection or block has the same page role, or a second `role: alt` sits in one fields list. |
 | `schema.misplaced_role`      | A page role inside a list, or `role: alt` in a fields list without an image.                    |
 | `schema.invalid_alt`         | `alt` names no text or paragraph sibling (or the image itself), `decorative` is not a boolean or comes with alt text, or `role: alt` sits beside several images, a decorative one, or one that names another field. |
 | `schema.invalid_when_empty`  | `whenEmpty` is not `generated` or `siteDefault`, sits on a field without a role, or on a role other than `seoTitle`, `seoDescription` and `shareImage` (`none` included). |
+| `schema.invalid_title_template` | A `titleTemplate` that does not parse, has no `{value}`, sits on a field without `role: seoTitle`, or names a field the page lacks. |
+| `schema.invalid_excerpt`     | Rich text with role `seoDescription` and no `excerpt`, an unknown value, or `excerpt` on another field. |
+| `schema.invalid_role_values` | A select with role `noindex` or `draft` lacks `noindexWhen` or `draftWhen`, the list is empty, longer than 100, repeats or names a value that is not an option, or the key sits where nothing reads it. |
+| `schema.invalid_localized`   | See [Languages in one file](#languages-in-one-file).                                            |
 
-All six are errors. A block is checked in its own file and again where
+All of them are errors. A block is checked in its own file and again where
 it is used, so a block whose role is fine alone but lands inside a list
 is reported at the collection.
 
@@ -287,6 +395,53 @@ guessed: a role guessed from a field name never has one, and
 valid value. What it changes in the checks is under [Content
 quality](#content-quality).
 
+### Languages in one file
+
+Some sites keep every language of a page in one file: a work's title is
+`{cs: …, en: …, it: …}` and the site builds `/portfolio/…`,
+`/en/portfolio/…` and `/it/portfolio/…` from it. `localized: true` on
+the group says its fields are the site's languages; `fallback:` names
+the language an empty one shows on the site (the site's code does it,
+`en || cs`):
+
+```yaml
+# collections/works.yml
+localeFrom: none
+fields:
+  - key: title
+    type: group
+    label: Title
+    localized: true
+    fallback: cs
+    role: seoTitle
+    fields:
+      - { key: cs, type: text, label: Czech }
+      - { key: en, type: text, label: English }
+      - { key: it, type: text, label: Italian }
+```
+
+A localized group has one field per language of `preview.locales`,
+keyed by the language, and nothing else; all of one type, text,
+paragraph or rich text; none with a role of its own (the role goes on
+the group and means each language). It sits in a collection whose files
+hold every language: not where the locale comes from the path or a
+field, nor beside `translations.by`. Each file of such a collection is
+a page per language, at `previewPath` with `{locale}` and a localized
+`slug` read per language (`resolve.URLIn`). Any of that broken, a
+`localized` that is not a boolean, a `fallback` without `localized` or
+naming a language the site lacks, or an option's `labels` naming one,
+is `schema.invalid_localized`.
+
+`translations: { locales: [cs, en] }` without `by` says which languages
+the pages of such a collection are expected in (by default every site
+language); without localized groups, `by` stays required.
+
+`schema.Field.IsLocalized`, `ValueType` (the language fields' type),
+`LanguageField(locale)`, `schema.HasLocalized`,
+`Collection.Localized()` and `Collection.OneLanguagePerFile()` read it;
+`resolve.LocalizedValue(v, locale, fallback)` reads one language, saying
+whether the text is the fallback's.
+
 ### Reading roles, and guessing them
 
 `resolve.CollectionRoles(cfg, coll)` answers, for one collection, the
@@ -296,6 +451,14 @@ slots name it) and every image field with the field holding its alt text
 `[]` is an item of a list with one shape, `[<shape>]` of a list with
 several). Each answer says whether it was `Declared` or guessed. At most
 `resolve.MaxRoleImages` (500) images are listed.
+
+A role answer also carries what a reader needs to show it right: the
+value `Type`, `Localized` and `Fallback` (the role holds per language,
+at `<Path>.<locale>`), `TitleTemplate` (the checks measure the composed
+title), `Excerpt` (they measure the first paragraph) and `When` (the
+select values that switch noindex or draft on). An image answer
+carries `AltFrom` and `Separator` for a composed alt text and
+`AltLocalized` when it holds per language.
 
 A declared role wins. A role nobody declares is guessed, so sites that
 predate roles still get answers. Keys and labels are compared in
@@ -309,17 +472,23 @@ candidates for one role guess nothing.
 | `seoTitle`       | `seo_title`, `meta_title`, `page_title`                                                         | SEO title, Meta title                         | `title`                      |
 | `seoDescription` | `seo_description`, `meta_description`, `page_description`                                       | SEO description, Meta description             | `description`                |
 | `shareImage`     | `share_image`, `social_image`, `og_image`, `open_graph_image`, `featured_image`, `seo_image`, `meta_image` | Share image, Social image, OG image, Open Graph image | `image`                      |
-| `noindex`        | `noindex`, `no_index`, `hide_from_search`, `hide_from_search_engines`                           | No index, Hide from search engines            |                              |
+| `noindex`        | `noindex`, `no_index`, `hide_from_search`, `hide_from_search_engines`; a select `robots`, `meta_robots` | No index, Hide from search engines, Robots, Meta robots |                    |
 | `canonical`      | `canonical`, `canonical_url`, `canonical_link`                                                  | Canonical, Canonical URL, Canonical link      |                              |
+| `draft`          | `draft`, `is_draft` (a boolean)                                                                 | Draft                                         |                              |
+
+A robots select is guessed only when some of its options carry the
+directive `noindex` (or `none`); those options are the guessed `When`.
 
 An seo group is a group whose key, or the block it was pulled in from by
 `$ref`, is `seo`, `meta` or `metadata`. A top-level `title`,
 `description` or `image` is the page's own, never guessed as a search
 field.
 
-`resolve.AltOf(siblings, image)` is the same decision for one image:
-declared from `decorative: true`, `alt: <key>`, or a `role: alt` sibling
-when the image is alone in its list; otherwise guessed from a text or
+`resolve.AltOf(siblings, image)` is the same decision for one image,
+returning a `resolve.AltSource` (the keys, the separator, whether it is
+decorative, declared, composed or localized): declared from
+`decorative: true`, `alt: {from: [...]}`, `alt: <key>`, or a `role:
+alt` sibling when the image is alone in its list; otherwise guessed from a text or
 paragraph sibling without a role, `<key>_alt` or `<key>Alt` (also
 `<key>_alt_text`), and, when the image is the only one in its list,
 `alt`, `alt_text` or `alternative_text`, failing those `name`. Two
@@ -340,7 +509,9 @@ Each entry must be a site language; anything else is
 `schema.invalid_translation_locales` (also for an empty list, a repeat
 or a value that is not a list of codes). `resolve.ExpectedLocales(cfg,
 coll)` gives the list, leaving out languages the site does not declare.
-Counts of missing language versions should ask only for these.
+Counts of missing language versions should ask only for these. In a
+collection whose files hold every language (localized groups), the
+same list says which languages each file is a page in.
 
 A collection with `area: site` holds site settings (menus, footers,
 globals), not pages; `Collection.SiteArea()` says so, and page counts
@@ -423,14 +594,15 @@ carries, besides file, path, rule, message and hint:
 | `quality.description_length` | search | low | Outside 70 to 160 characters, or the field's `recommendedLength` | Google sets no limit and cuts snippets to fit [2]; a display convention |
 | `quality.description_duplicate` | search | medium | The same meta description on two or more indexable pages of one language | Google, snippets [2] |
 | `quality.share_image_missing` | search | low | No share image, on a collection with a share image field | Meta, sharing images [3] |
-| `quality.noindex` | search | info | The page's noindex field is true (listed, not scored) |  |
+| `quality.noindex` | search | info | The page's noindex field is true, or holds a value its `noindexWhen` lists (listed, not scored) |  |
 | `quality.image_alt_missing` | accessibility | high | An image that is not decorative with empty alt text | WCAG 2.2 1.1.1, level A [4]; Lighthouse `image-alt` |
 | `quality.image_alt_poor` | accessibility | low | Alt text that is the file name, a camera's file name or a generic word (image, photo, obrázek, Bild…) | Google, image SEO [5] |
 | `quality.heading_skip` | accessibility | low | A heading more than one level below the heading before it, in one text | axe `heading-order`, a best practice, not a WCAG requirement [6] |
 | `quality.link_text_empty` | accessibility | medium | A link in a text with no text, no `aria-label` and no image alt text inside | WCAG 2.2 2.4.4, level A [7] |
 | `quality.link_text_generic` | accessibility | low | Link text that is only a generic phrase (click here, read more, zde, více, hier, mehr…), in a text or a button label beside a link field | WCAG 2.2 2.4.4 [7]; Lighthouse `link-text` |
-| `quality.translation_missing` | languages | medium | A page with no version in a language its collection expects (`translations.locales`, else every site language) |  |
+| `quality.translation_missing` | languages | medium | A page with no version in a language its collection expects (`translations.locales`, else every site language); a version that is a draft is listed as not published yet (info) |  |
 | `quality.translation_outdated` | languages | medium | A version last changed more than 7 days before the newest version of the same page | A convention |
+| `quality.translation_incomplete` | languages | low | A page that holds every language in one file leaves a language's texts empty, or the same as the language they fall back to |  |
 | `quality.image_heavy` | media | medium | A raster image content uses over 200 KB (low impact) or over 1 MB (medium), or over the site's `quality.limits.imageKB`; images in a folder the build optimizes are skipped | Lighthouse flags any image that could be smaller [8]; crawlers flag 100 KB, a number Sitebulb calls relatively arbitrary [9], so 200 KB flags only clear cases |
 | `quality.media_unused` | media | info | A file in a read-write repository storage that no content and no schema refers to, and that its storage's `usedByCode` does not name (listed, not scored) |  |
 
@@ -448,6 +620,46 @@ is skipped; HTML `alt=""` is a decorative image on purpose), and the
 label beside a link field. Fields a page hides (`hidden`, `visibleIf`)
 are skipped. Word lists for generic text exist for English, Czech and
 German, and every list is checked on every page.
+
+**Drafts.** A page whose draft field is on (`role: draft`, declared or
+guessed) is skipped by the search and accessibility rules and counted
+in `res.Quality.Drafts`. It is not a language version: a language whose
+only version is a draft gets an info finding of
+`quality.translation_missing` ("not published yet") on the draft, a
+language with no version at all is reported only when the page has a
+published version, and `quality.translation_outdated` compares
+published versions only.
+
+**Pages that hold every language.** A file of a collection with
+localized groups is read once per expected language, as that
+language's page: localized role fields, alt texts, link labels and rich
+texts in that language, its URL from `previewPath`. A finding about a
+language field has its path (`title.en`) and `locale`. A language left
+empty that falls back shows the fallback's text: it is not missing and
+is not measured again (the fallback's own page measured it). What is
+the same in every language (a plain alt text, a rich text that is not
+localized, the body) is checked once, on the default language's page.
+`quality.translation_incomplete` then says, per page and language, which
+localized texts are untranslated: empty while another language has
+text, or, where the group falls back, the same as the fallback (after
+trimming and joining white space). A group empty in every language, a
+`slug`, a computed field and a group that says `translatable: false`
+are left out. The finding names the texts and counts them (`measure`,
+unit `fields`), impact low: the page is there, partly in another
+language, which is less than no page at all (`translation_missing`). A
+file is one version, so `translation_outdated` has nothing to compare
+within it.
+
+**Values the site composes.** A title with `titleTemplate` is measured
+as the template composes it (length against 30 to 60, the field's
+`recommendedLength` being the editor's guide to the field alone;
+duplicates on the composed text), a rich text description with
+`excerpt` as its first paragraph (against 70 to 160), an alt text with
+`alt: {from: [...]}` as the parts joined. Such a finding's `value` is
+what the site shows, and `basis` says how it was made
+(`titleTemplate`, `excerpt`, `composedAlt`; `report.Bases()`), so a tool
+does not write it into the field as is. `title_missing` and
+`description_missing` still read the field itself.
 
 **Fields the site fills in code.** When a role field declares
 `whenEmpty` (see [Values the site fills in code](#values-the-site-fills-in-code))
@@ -475,10 +687,15 @@ something else (a title it composes, or one for the whole site). A
 search engines may then pick their own snippet, so writing one per page
 is still worth it where it matters.
 
-**What the caller supplies.** The module never reads git or the
-network. `quality.Options` carries what only the caller knows:
+**What the caller supplies.** The checking packages never read git or
+the network. `quality.Options` carries what only the caller knows;
+package `gitlog` reads the dates from a local checkout (the newest of
+the last 5000 commits touching each file, relative to the directory
+asked about, a file changed and not committed as now; at most 64 MB of
+output per command and a 30 second deadline; on any error, no dates):
 
 ```go
+lastChanged, err := gitlog.LastChanged(ctx, dir, gitlog.Options{}) // or the caller's own dates
 res, err := validate.Site(fsys, validate.Options{
     Only: []string{validate.ScopeSchema, validate.ScopeContent, validate.ScopeLinks, validate.ScopeQuality},
     Quality: quality.Options{
@@ -649,6 +866,10 @@ p, err := fact.Make(os.DirFS("."), []fact.Fact{
     {Kind: fact.KindRole, Collection: "pages", Field: "meta.title", Role: schema.RoleNone},
     {Kind: fact.KindTranslationLocales, Collection: "cases", Locales: []string{"cs"}},
     {Kind: fact.KindOptimizedAtBuild, Storage: "images", OptimizedAtBuild: &asIs},
+    {Kind: fact.KindLocalized, Collection: "works", Field: "title", Fallback: "cs"},
+    {Kind: fact.KindRole, Collection: "works", Field: "title", Role: schema.RoleSEOTitle, TitleTemplate: "{value} – {{site_name}}"},
+    {Kind: fact.KindRole, Collection: "pages", Field: "seo.robots", Role: schema.RoleNoindex, When: []string{"noindex,follow"}},
+    {Kind: fact.KindAlt, Collection: "works", Field: "image", AltFrom: []string{"title", "technique"}, Separator: " – "},
 })
 // p.Changes: per file, Path, Before and After bytes. Nothing is written.
 errs, err := p.NewErrors(os.DirFS(".")) // schema errors the plan would bring
@@ -656,7 +877,9 @@ errs, err := p.NewErrors(os.DirFS(".")) // schema errors the plan would bring
 
 | Kind                 | Names                                                 | Writes                                    |
 | -------------------- | ----------------------------------------------------- | ----------------------------------------- |
-| `role`               | `Collection` or `Block`, and `Field`                  | `role:` and, when given, `whenEmpty:` on the field |
+| `role`               | `Collection` or `Block`, and `Field`                  | `role:` and, when given, `whenEmpty:`, `titleTemplate:`, `excerpt:` and `noindexWhen:` or `draftWhen:` (from `When`) on the field |
+| `localized`          | `Collection` or `Block`, and `Field` (a group)        | `localized: true` and, when given, `fallback:` |
+| `alt`                | `Collection` or `Block`, `Field` (an image), and `Alt` or `AltFrom` | `alt: <key>`, or `alt: {from: [...], separator: "..."}` |
 | `translationLocales` | `Collection` (one with `translations`)                | `translations.locales`                    |
 | `optimizedAtBuild`   | `Storage`                                             | `optimizedAtBuild:` on the storage        |
 | `usedByCode`         | `Storage` and `Paths` (1 to 100)                      | the paths added to the storage's `usedByCode` |
@@ -674,14 +897,21 @@ The edit changes only its lines: a value is replaced where it stands
 (its comment kept), a new key goes on its own line after `label`,
 `type` or `key` (whichever sits on one line), inside `{…}` when the
 field is written that way. Everything else, comments, blank lines,
-quoting and key order, stays byte for byte. A role that takes no
-`whenEmpty` (`none`, `alt`) removes one left beside it. Setting what the
-file already says changes nothing, so a plan made twice is empty the
-second time.
+quoting and key order, stays byte for byte. A role removes the knobs
+left beside it that it does not take (`whenEmpty` beside `none`,
+`noindexWhen` beside anything but `noindex`, and so on); a knob the fact
+does not give is otherwise left as the file has it. Facts apply in
+order and each is judged on the schema as the earlier ones leave it, so
+one plan can make a group localized and give it a role. Setting what
+the file already says changes nothing, so a plan made twice is empty
+the second time.
 
 Refused rather than guessed, each with its error: a fact that says
 something the schema cannot hold (`fact.ErrInvalid`: an unknown role, a
-role the field's type cannot hold, a language the site lacks, at most
+role the field cannot hold as the fact says it (a select without its
+values, rich text without its excerpt, a plain group), a value that is
+not an option, a group whose fields are not the site's languages, an
+alt text from a field that cannot hold one, a language the site lacks, at most
 `fact.MaxFacts` (50) facts), something the schema does not declare
 (`ErrNotFound`), a path or definition in more than one place (two
 fields with one key, a collection both inline and in a file:

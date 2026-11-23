@@ -62,6 +62,7 @@ const (
 	UnitDays       = "days"
 	UnitPages      = "pages"
 	UnitLevel      = "level"
+	UnitFields     = "fields"
 )
 
 // Measure is the number a quality check measured, with the window it
@@ -100,7 +101,32 @@ type Finding struct {
 	Value string `json:"value,omitempty"`
 	// Measure is the number the check measured, when it measured one.
 	Measure *Measure `json:"measure,omitempty"`
+	// Basis says how Value was made from the content when it is not one
+	// field's text as written: BasisTitleTemplate, BasisExcerpt or
+	// BasisComposedAlt. Value is then what the site shows, not what to
+	// write into the field.
+	Basis string `json:"basis,omitempty"`
+	// Locale is the language a finding is about on a page whose file
+	// holds every language (localized groups); empty on other pages,
+	// whose file is one language.
+	Locale string `json:"locale,omitempty"`
 }
+
+// Bases of a quality finding's Value.
+const (
+	// BasisTitleTemplate: the seoTitle field as its titleTemplate composes
+	// the page title.
+	BasisTitleTemplate = "titleTemplate"
+	// BasisExcerpt: the plain text of a rich text description's first
+	// paragraph (excerpt: firstParagraph).
+	BasisExcerpt = "excerpt"
+	// BasisComposedAlt: an image's alt text joined from several fields
+	// (alt: {from: [...]}).
+	BasisComposedAlt = "composedAlt"
+)
+
+// Bases lists the values of Finding.Basis.
+func Bases() []string { return []string{BasisTitleTemplate, BasisExcerpt, BasisComposedAlt} }
 
 // String renders the finding the way a compiler would: file, path,
 // severity, rule and message on one line.

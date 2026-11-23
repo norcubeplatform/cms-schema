@@ -160,7 +160,8 @@ var commonKnobs = map[string]bool{
 	"required": true, "requiredMessage": true, "nullable": true, "hidden": true,
 	"visibleIf": true, "whenHidden": true, "computed": true, "customValidators": true,
 	"default": true, "_blockRef": true, "schemaVersion": true, "translatable": true,
-	"role": true, "whenEmpty": true,
+	"role": true, "whenEmpty": true, KnobTitleTemplate: true, KnobExcerpt: true,
+	KnobNoindexWhen: true, KnobDraftWhen: true,
 }
 
 // parseQuality reads a `quality` block; the zero value when there is
@@ -205,7 +206,7 @@ var typeKnobs = map[string][]string{
 	TypeFile:        {"accept", "maxSize", "storage", "dir", "lockDir"},
 	TypeReference:   {"collection", "by", "multiple"},
 	TypeSelect:      {"options", "widget", "searchable", "searchPlaceholder"},
-	TypeGroup:       {"fields", "preview", "inline"},
+	TypeGroup:       {"fields", "preview", "inline", KnobLocalized, KnobFallback},
 	TypeArray:       {"items", "widget", "idKey", "minItems", "minItemsMessage", "maxItems", "maxItemsMessage", "uniqueOn", "uniqueOnMessage", "components", "fields", "preview"},
 }
 
@@ -250,6 +251,10 @@ func ParseField(m map[string]any) Field {
 		LockDir:           boolOf(m["lockDir"]),
 		Role:              strings.TrimSpace(str(m["role"])),
 		WhenEmpty:         strings.TrimSpace(str(m["whenEmpty"])),
+		TitleTemplate:     str(m[KnobTitleTemplate]),
+		Excerpt:           strings.TrimSpace(str(m[KnobExcerpt])),
+		NoindexWhen:       scalarStrings(m[KnobNoindexWhen]),
+		DraftWhen:         scalarStrings(m[KnobDraftWhen]),
 		Collection:        str(m["collection"]),
 		By:                str(m["by"]),
 		Multiple:          boolOf(m["multiple"]),
@@ -308,8 +313,21 @@ func ParseField(m map[string]any) Field {
 		}
 	}
 	if Canonical(f.Type) == TypeImage {
-		f.Alt = strings.TrimSpace(str(m["alt"]))
+		switch alt := m[KnobAlt].(type) {
+		case string:
+			f.Alt = strings.TrimSpace(alt)
+		case map[string]any:
+			f.AltFrom = trimmedStrings(alt[AltKeyFrom])
+			f.AltSeparator = DefaultAltSeparator
+			if sep, ok := alt[AltKeySeparator].(string); ok {
+				f.AltSeparator = sep
+			}
+		}
 		f.Decorative = boolOf(m["decorative"])
+	}
+	if IsGroup(f.Type) {
+		f.Localized = boolOf(m[KnobLocalized])
+		f.Fallback = strings.TrimSpace(str(m[KnobFallback]))
 	}
 	f.Fields = ParseFields(m["fields"])
 	f.Items = ParseFields(m["items"])
@@ -344,7 +362,18 @@ func ParseOptions(v any) []SelectOption {
 		case string:
 			out = append(out, SelectOption{Value: o})
 		case map[string]any:
-			out = append(out, SelectOption{Value: scalarString(o["value"]), Label: str(o["label"]), Description: str(o["description"])})
+			opt := SelectOption{Value: scalarString(o["value"]), Label: str(o["label"]), Description: str(o["description"])}
+			if labels, ok := o[OptionKeyLabels].(map[string]any); ok {
+				for loc, l := range labels {
+					if s, ok := l.(string); ok && strings.TrimSpace(s) != "" {
+						if opt.Labels == nil {
+							opt.Labels = map[string]string{}
+						}
+						opt.Labels[loc] = strings.TrimSpace(s)
+					}
+				}
+			}
+			out = append(out, opt)
 		default:
 			if s := scalarString(o); s != "" {
 				out = append(out, SelectOption{Value: s})
@@ -590,6 +619,22 @@ func stringList(v any) []string {
 		return trimmedStrings(x)
 	}
 	return nil
+}
+
+// scalarStrings reads a list of scalars as the strings select values
+// compare as (numbers and booleans included); nil when v is not a list.
+func scalarStrings(v any) []string {
+	list, ok := v.([]any)
+	if !ok {
+		return nil
+	}
+	var out []string
+	for _, item := range list {
+		if s := strings.TrimSpace(scalarString(item)); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func trimmedStrings(v any) []string {

@@ -208,6 +208,9 @@ type SelectOption struct {
 	Value       string
 	Label       string
 	Description string
+	// Labels is the label per language (`labels: {cs: …, en: …}`), for a
+	// site that shows the option in each language; nil when it says none.
+	Labels map[string]string
 }
 
 // RecommendedLength is the soft length window of a text field.
@@ -291,9 +294,13 @@ type Field struct {
 	Dir     string
 	LockDir bool
 	// image: Alt names the sibling field that holds the image's alt text;
-	// Decorative says the image needs none.
-	Alt        string
-	Decorative bool
+	// AltFrom, instead, the siblings it is composed of (`alt: {from: [...],
+	// separator: ...}`), joined by AltSeparator. Decorative says the image
+	// needs none.
+	Alt          string
+	AltFrom      []string
+	AltSeparator string
+	Decorative   bool
 
 	// reference
 	Collection string
@@ -304,6 +311,11 @@ type Field struct {
 	Fields  []Field
 	Preview *Preview
 	Inline  bool
+	// Localized says the group's fields are the site's languages, one per
+	// locale (`localized: true`); Fallback the language an empty one shows
+	// on the site.
+	Localized bool
+	Fallback  string
 
 	// array
 	Items           []Field
@@ -329,6 +341,16 @@ type Field struct {
 	// (WhenEmptyGenerated, WhenEmptySiteDefault); empty when it does not
 	// say or the value is not a string.
 	WhenEmpty string
+	// TitleTemplate composes the page title from a seoTitle field
+	// (`{value} – {{site_name}}`), as the site's code does.
+	TitleTemplate string
+	// Excerpt says how a rich text seoDescription becomes the meta
+	// description (ExcerptFirstParagraph).
+	Excerpt string
+	// NoindexWhen and DraftWhen list the values of a select with role
+	// noindex or draft that hide the page or make it a draft.
+	NoindexWhen []string
+	DraftWhen   []string
 
 	// Extra holds keys the editor does not read for this field type.
 	Extra map[string]any

@@ -184,7 +184,7 @@ func TestFactCheck(t *testing.T) {
 			t.Errorf("%+v: %v", f, err)
 		}
 	}
-	if len(fact.Kinds()) != 4 {
+	if len(fact.Kinds()) != 6 {
 		t.Errorf("kinds %v", fact.Kinds())
 	}
 }

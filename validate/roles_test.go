@@ -16,6 +16,9 @@ var roleRules = map[report.Rule]bool{
 	report.RuleSchemaRoleTypeMismatch: true, report.RuleSchemaMisplacedRole: true,
 	report.RuleSchemaInvalidAlt: true, report.RuleSchemaUnknownKnob: true,
 	report.RuleSchemaInvalidTranslationLocales: true, report.RuleSchemaInvalidWhenEmpty: true,
+	report.RuleSchemaInvalidLocalized: true, report.RuleSchemaInvalidTitleTemplate: true,
+	report.RuleSchemaInvalidRoleValues: true, report.RuleSchemaInvalidExcerpt: true,
+	report.RuleSchemaInvalidTranslations: true,
 }
 
 func schemaFindings(t *testing.T, files map[string]string) []report.Finding {
@@ -139,8 +142,13 @@ func TestRoleMisuse(t *testing.T) {
 			report.RuleSchemaRoleTypeMismatch, "fields.t", "cannot hold",
 		},
 		{
-			"noindex on a select",
+			"noindex on a select without noindexWhen",
 			"  - key: robots\n    type: select\n    label: Robots\n    options: [index, noindex]\n    role: noindex\n",
+			report.RuleSchemaInvalidRoleValues, "fields.robots", "no noindexWhen",
+		},
+		{
+			"noindex on a multichoice",
+			"  - key: robots\n    type: multichoice\n    label: Robots\n    options: [index, noindex]\n    role: noindex\n",
 			report.RuleSchemaRoleTypeMismatch, "fields.robots", "cannot hold",
 		},
 		{

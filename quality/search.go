@@ -2,6 +2,7 @@ package quality
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -14,6 +15,28 @@ import (
 type dupCandidate struct {
 	file, path, locale, value, key string
 	guessed                        bool
+	// basis is how the value was made (report.Basis*); view the language
+	// of a page that holds every language.
+	basis, view string
+}
+
+// roleValue is what a page holds in one role field, read in the page's
+// language.
+type roleValue struct {
+	// value is the text (a rich text description's excerpt), or "true"
+	// for a boolean that is on.
+	value string
+	// raw is the value as the file holds it.
+	raw any
+	// path is where to fix it: `<field>.<locale>` in a localized group.
+	path  string
+	field resolve.RoleField
+	// borrowed is true when the language is empty and the site shows the
+	// fallback language's text: the fallback's own view measures it.
+	borrowed bool
+	// shared is true when the value is the same in every language of a
+	// localized page, so only one view checks it.
+	shared bool
 }
 
 // search runs the search rules on one page: only a page of its own (it
@@ -25,114 +48,203 @@ func (r *run) search(p Page, hidden map[string]bool) {
 		return
 	}
 	roles := r.rolesOf(coll)
-	read := func(role string) (value, path string, field resolve.RoleField, ok bool) {
-		field, ok = roles.Field(role)
+	locale := p.localeOf()
+	read := func(role string) (roleValue, bool) {
+		field, ok := roles.Field(role)
 		if !ok {
-			return "", "", field, false
+			return roleValue{}, false
 		}
+		rv := roleValue{path: field.Path, field: field, shared: p.view != nil && !field.Localized}
 		if schema.PathHidden(field.Path, hidden) {
-			return "", field.Path, field, true
+			return rv, true
 		}
-		v := resolve.ReadDotted(p.Frontmatter, field.Path)
-		s, _ := v.(string)
-		if b, isBool := v.(bool); isBool && b {
-			s = "true"
+		rv.raw = resolve.ReadDotted(p.Frontmatter, field.Path)
+		switch v := rv.raw.(type) {
+		case string:
+			rv.value = strings.TrimSpace(v)
+		case bool:
+			if v {
+				rv.value = "true"
+			}
 		}
-		return strings.TrimSpace(s), field.Path, field, true
+		if field.Localized {
+			rv.path = field.Path + "." + locale
+			rv.value, rv.borrowed = resolve.LocalizedValue(rv.raw, locale, field.Fallback)
+		}
+		if field.Excerpt == schema.ExcerptFirstParagraph && rv.value != "" {
+			rv.value = resolve.FirstParagraph(rv.value, richTextIsHTML(r.valueField(coll, rv.path)))
+		}
+		return rv, true
 	}
 
-	if v, path, field, ok := read(schema.RoleNoindex); ok && v == "true" {
-		if r.on(report.RuleQualityNoindex, coll) {
-			r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityNoindex,
-				Message: "The page is hidden from search engines.", Hint: "That is fine for a thank-you page or a draft; turn off " + labelOr(field.Label, "the no-index field") + " if people should find it in search.",
-				Value: p.URL}, report.ImpactInfo)
+	if nx, ok := read(schema.RoleNoindex); ok && !schema.PathHidden(nx.field.Path, hidden) && roleOn(nx.field, nx.raw) {
+		if p.once() && r.on(report.RuleQualityNoindex, coll) {
+			msg, hint := "The page is hidden from search engines.", "That is fine for a thank-you page or a draft; turn off "+labelOr(nx.field.Label, "the no-index field")+" if people should find it in search."
+			if len(nx.field.When) > 0 {
+				msg = fmt.Sprintf("The page is hidden from search engines (%s).", nx.value)
+				hint = "That is fine for a thank-you page; pick a value of " + labelOr(nx.field.Label, "the indexing field") + " that lets search engines index it if people should find it in search."
+			}
+			r.emit(report.Finding{File: p.Path, Path: nx.path, Rule: report.RuleQualityNoindex, Message: msg, Hint: hint, Value: p.URL}, report.ImpactInfo)
 		}
 		return
 	}
 	canonicalElsewhere := false
-	if v, _, _, ok := read(schema.RoleCanonical); ok && v != "" && resolve.NormalizeURLPath(stripOrigin(v)) != resolve.NormalizeURLPath(p.URL) {
+	if c, ok := read(schema.RoleCanonical); ok && c.value != "" && resolve.NormalizeURLPath(stripOrigin(c.value)) != resolve.NormalizeURLPath(p.URL) {
 		canonicalElsewhere = true
 	}
 
-	// Title: the SEO title, else the page title. An empty SEO title the
-	// site fills in code (whenEmpty) is the site's, not the page title.
-	seoTitle, seoPath, seoField, hasSEO := read(schema.RoleSEOTitle)
-	fallback, fallbackPath, hasFallback := pageTitle(coll, p.Frontmatter, seoPath)
-	if hasSEO && seoTitle == "" && seoField.WhenEmpty != "" {
-		r.fillInCode(schema.RoleSEOTitle, seoField.WhenEmpty)
-		if r.on(report.RuleQualityTitleMissing, coll) {
-			r.count(report.RuleQualityTitleMissing)
-		}
-	} else if hasSEO || hasFallback {
-		title, titlePath, guessed := seoTitle, seoPath, hasSEO && !seoField.Declared
-		if title == "" {
-			title, titlePath, guessed = fallback, fallbackPath, false
-			if titlePath == "" {
-				titlePath = seoPath
-			}
-		}
-		if r.on(report.RuleQualityTitleMissing, coll) {
-			r.count(report.RuleQualityTitleMissing)
-			if title == "" {
-				missingPath := seoPath
-				if !hasSEO {
-					missingPath = fallbackPath
-				}
-				r.emit(report.Finding{File: p.Path, Path: missingPath, Rule: report.RuleQualityTitleMissing,
-					Message: "The page has no title for search results.", Hint: "Write a title that says what the page is about, in a few words."},
-					lowered(report.ImpactHigh, hasSEO && !seoField.Declared))
-			}
-		}
-		if title != "" {
-			min, max := window(r.cfg, coll, seoPath, hasSEO && titlePath == seoPath, DefaultTitleMin, DefaultTitleMax)
-			r.length(p, coll, report.RuleQualityTitleLength, "title", titlePath, title, min, max)
-			if !canonicalElsewhere && r.on(report.RuleQualityTitleDuplicate, coll) {
-				r.count(report.RuleQualityTitleDuplicate)
-				r.titles = append(r.titles, dupCandidate{file: p.Path, path: titlePath, locale: p.Locale, value: title, key: dupKey(title), guessed: guessed})
-			}
-		}
-	}
+	r.searchTitle(p, read, canonicalElsewhere)
 
 	// Description: the SEO description field, when the collection has one.
-	if desc, path, field, ok := read(schema.RoleSEODescription); ok {
-		guessed := !field.Declared
-		fromCode := desc == "" && field.WhenEmpty != ""
+	if d, ok := read(schema.RoleSEODescription); ok && (!d.shared || p.once()) {
+		guessed := !d.field.Declared
+		fromCode := d.value == "" && d.field.WhenEmpty != ""
 		if fromCode {
-			r.fillInCode(schema.RoleSEODescription, field.WhenEmpty)
+			r.fillInCode(schema.RoleSEODescription, d.field.WhenEmpty)
 		}
 		if r.on(report.RuleQualityDescriptionMissing, coll) {
 			r.count(report.RuleQualityDescriptionMissing)
-			if desc == "" && !fromCode {
-				r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityDescriptionMissing,
-					Message: "The page has no meta description.", Hint: "Search engines then pick a snippet from the page. Write one or two sentences that make someone want to open it. If the site writes descriptions in code, say so in the schema with `whenEmpty` on the field."},
+			if d.value == "" && !fromCode {
+				msg := "The page has no meta description."
+				if d.field.Excerpt != "" {
+					msg = "The page has no meta description: the first paragraph of its text is empty."
+				}
+				r.emit(report.Finding{File: p.Path, Path: d.path, Rule: report.RuleQualityDescriptionMissing,
+					Message: msg, Hint: "Search engines then pick a snippet from the page. Write one or two sentences that make someone want to open it. If the site writes descriptions in code, say so in the schema with `whenEmpty` on the field."},
 					lowered(report.ImpactMedium, guessed))
 			}
 		}
-		if desc != "" {
-			min, max := window(r.cfg, coll, path, true, DefaultDescriptionMin, DefaultDescriptionMax)
-			r.length(p, coll, report.RuleQualityDescriptionLength, "description", path, desc, min, max)
+		if d.value != "" && !d.borrowed {
+			min, max := DefaultDescriptionMin, DefaultDescriptionMax
+			basis := ""
+			if d.field.Excerpt != "" {
+				basis = report.BasisExcerpt
+			} else {
+				min, max = window(r.cfg, coll, d.path, true, min, max)
+			}
+			r.length(p, coll, report.RuleQualityDescriptionLength, "description", d.path, d.value, min, max, basis)
 			if !canonicalElsewhere && r.on(report.RuleQualityDescriptionDuplicate, coll) {
 				r.count(report.RuleQualityDescriptionDuplicate)
-				r.descriptions = append(r.descriptions, dupCandidate{file: p.Path, path: path, locale: p.Locale, value: desc, key: dupKey(desc), guessed: guessed})
+				r.descriptions = append(r.descriptions, dupCandidate{file: p.Path, path: d.path, locale: p.Locale, value: d.value, key: dupKey(d.value), guessed: guessed, basis: basis, view: localeOfPath(p, d.path)})
 			}
 		}
 	}
 
 	// Share image.
-	if img, path, field, ok := read(schema.RoleShareImage); ok {
-		fromCode := img == "" && field.WhenEmpty != ""
+	if img, ok := read(schema.RoleShareImage); ok && (!img.shared || p.once()) {
+		fromCode := img.value == "" && img.field.WhenEmpty != ""
 		if fromCode {
-			r.fillInCode(schema.RoleShareImage, field.WhenEmpty)
+			r.fillInCode(schema.RoleShareImage, img.field.WhenEmpty)
 		}
 		if r.on(report.RuleQualityShareImageMissing, coll) {
 			r.count(report.RuleQualityShareImageMissing)
-			if img == "" && !fromCode {
-				r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityShareImageMissing,
+			if img.value == "" && !fromCode {
+				r.emit(report.Finding{File: p.Path, Path: img.path, Rule: report.RuleQualityShareImageMissing,
 					Message: "The page has no share image.", Hint: "A link to it shared on social networks or in chat shows no picture, unless the site adds one in code. Pick an image of at least 1200 x 630 pixels, or, if the site makes these images itself, say so in the schema with `whenEmpty: generated` on the field."},
-					lowered(report.ImpactLow, !field.Declared))
+					lowered(report.ImpactLow, !img.field.Declared))
 			}
 		}
 	}
+}
+
+// searchTitle runs the title rules: the SEO title, else the page title.
+// An empty SEO title the site fills in code (whenEmpty) is the site's,
+// not the page title. A title template composes what is measured.
+func (r *run) searchTitle(p Page, read func(string) (roleValue, bool), canonicalElsewhere bool) {
+	coll := p.Collection
+	seo, hasSEO := read(schema.RoleSEOTitle)
+	if hasSEO && seo.shared && !p.once() {
+		return
+	}
+	fallback, fallbackPath, hasFallback := pageTitle(r.cfg, coll, p.Frontmatter, seo.field.Path, p.localeOf())
+	if !p.once() && hasFallback && !hasSEO && !inLocalized(coll, fallbackPath) {
+		// A page title that is the same in every language is checked once.
+		return
+	}
+	if hasSEO && seo.value == "" && seo.field.WhenEmpty != "" {
+		r.fillInCode(schema.RoleSEOTitle, seo.field.WhenEmpty)
+		if r.on(report.RuleQualityTitleMissing, coll) {
+			r.count(report.RuleQualityTitleMissing)
+		}
+		return
+	}
+	if !hasSEO && !hasFallback {
+		return
+	}
+	title, titlePath, guessed, borrowed := seo.value, seo.path, hasSEO && !seo.field.Declared, seo.borrowed
+	fromSEO := title != ""
+	if title == "" {
+		title, titlePath, guessed, borrowed = fallback, fallbackPath, false, false
+		if titlePath == "" {
+			titlePath = seo.path
+		}
+	}
+	if r.on(report.RuleQualityTitleMissing, coll) {
+		r.count(report.RuleQualityTitleMissing)
+		if title == "" {
+			missingPath := seo.path
+			if !hasSEO {
+				missingPath = fallbackPath
+			}
+			r.emit(report.Finding{File: p.Path, Path: missingPath, Rule: report.RuleQualityTitleMissing,
+				Message: "The page has no title for search results.", Hint: "Write a title that says what the page is about, in a few words."},
+				lowered(report.ImpactHigh, hasSEO && !seo.field.Declared))
+		}
+	}
+	if title == "" || borrowed {
+		return
+	}
+	measured, basis := title, ""
+	min, max := DefaultTitleMin, DefaultTitleMax
+	if fromSEO && seo.field.TitleTemplate != "" {
+		composed, ok := resolve.ComposeTitle(seo.field.TitleTemplate, title, resolve.TitleContext{
+			Fields: coll.Fields, Frontmatter: p.Frontmatter, Locale: p.localeOf(), DefaultLocale: r.cfg.Preview.DefaultLocale, Variables: r.variables,
+		})
+		if !ok {
+			return
+		}
+		measured, basis = composed, report.BasisTitleTemplate
+	} else {
+		min, max = window(r.cfg, coll, titlePath, fromSEO, min, max)
+	}
+	r.length(p, coll, report.RuleQualityTitleLength, "title", titlePath, measured, min, max, basis)
+	if !canonicalElsewhere && r.on(report.RuleQualityTitleDuplicate, coll) {
+		r.count(report.RuleQualityTitleDuplicate)
+		r.titles = append(r.titles, dupCandidate{file: p.Path, path: titlePath, locale: p.Locale, value: measured, key: dupKey(measured), guessed: guessed, basis: basis, view: localeOfPath(p, titlePath)})
+	}
+}
+
+// inLocalized reports whether a page path is a language field of a
+// localized group (`name.en`).
+func inLocalized(coll schema.Collection, path string) bool {
+	i := strings.LastIndex(path, ".")
+	if i <= 0 {
+		return false
+	}
+	f, ok := schema.FieldAtPath(coll.Fields, path[:i])
+	return ok && f.IsLocalized()
+}
+
+// valueField is the definition of the field at a page path outside
+// lists (a localized group's language field at `<group>.<locale>`).
+func (r *run) valueField(coll schema.Collection, path string) schema.Field {
+	f, _ := schema.FieldAtPath(coll.Fields, path)
+	return f
+}
+
+// localeOfPath is the language a finding at path is about: the view's,
+// when the path is a language field of a localized group; empty for a
+// value that is the same in every language and on any other page.
+func localeOfPath(p Page, path string) string {
+	if p.view == nil || !strings.HasSuffix(path, "."+p.view.locale) {
+		return ""
+	}
+	// Paths through a list (`gallery[0].caption.en`) are only made for
+	// localized groups; others are checked against the schema.
+	if !strings.Contains(path, "[") && !inLocalized(p.Collection, path) {
+		return ""
+	}
+	return p.view.locale
 }
 
 // fillInCode counts a page whose role field is empty for the site to
@@ -142,7 +254,7 @@ func (r *run) fillInCode(role, whenEmpty string) { r.filled[[2]string{role, when
 // length checks a title or a description against its window. A value
 // with a `{{placeholder}}` is not measured: its length on the page is not
 // known.
-func (r *run) length(p Page, coll schema.Collection, rule report.Rule, what, path, value string, min, max int) {
+func (r *run) length(p Page, coll schema.Collection, rule report.Rule, what, path, value string, min, max int, basis string) {
 	if !r.on(rule, coll) || strings.Contains(value, "{{") {
 		return
 	}
@@ -154,14 +266,21 @@ func (r *run) length(p Page, coll schema.Collection, rule report.Rule, what, pat
 	lo, hi := int64(min), int64(max)
 	m := &report.Measure{Value: int64(n), Unit: report.UnitCharacters, Min: &lo, Max: &hi}
 	msg, hint := "", ""
+	subject := "The " + what
+	switch basis {
+	case report.BasisTitleTemplate:
+		subject = "The title as the site composes it"
+	case report.BasisExcerpt:
+		subject = "The description (the first paragraph of the text)"
+	}
 	if n < min {
-		msg = fmt.Sprintf("The %s has %d characters, fewer than the recommended %d to %d.", what, n, min, max)
+		msg = fmt.Sprintf("%s has %d characters, fewer than the recommended %d to %d.", subject, n, min, max)
 		hint = fmt.Sprintf("A longer %s says more about the page in search results.", what)
 	} else {
-		msg = fmt.Sprintf("The %s has %d characters, more than the recommended %d to %d.", what, n, min, max)
+		msg = fmt.Sprintf("%s has %d characters, more than the recommended %d to %d.", subject, n, min, max)
 		hint = fmt.Sprintf("Search results cut a long %s off; put what matters first or shorten it.", what)
 	}
-	r.emit(report.Finding{File: p.Path, Path: path, Rule: rule, Message: msg, Hint: hint, Value: value, Measure: m}, report.ImpactLow)
+	r.emit(report.Finding{File: p.Path, Path: path, Rule: rule, Message: msg, Hint: hint, Value: value, Measure: m, Basis: basis}, report.ImpactLow)
 }
 
 // duplicates reports the titles and the descriptions shared by pages of
@@ -196,7 +315,7 @@ func (r *run) dupes(cands []dupCandidate, rule report.Rule, what string) {
 			r.emit(report.Finding{File: c.file, Path: c.path, Rule: rule,
 				Message: fmt.Sprintf("%d pages share this %s: %s%s.", len(g), what, strings.Join(others, ", "), more),
 				Hint:    fmt.Sprintf("Give each page a %s of its own, so people can tell them apart in search results.", what),
-				Value:   c.value, Measure: &report.Measure{Value: int64(len(g)), Unit: report.UnitPages}},
+				Value:   c.value, Measure: &report.Measure{Value: int64(len(g)), Unit: report.UnitPages}, Basis: c.basis, Locale: c.view},
 				lowered(report.ImpactMedium, c.guessed))
 		}
 	}
@@ -208,7 +327,10 @@ func (r *run) dupes(cands []dupCandidate, rule report.Rule, what string) {
 // path is where the value is, or, when there is none, the first place a
 // title could be written. has is false when the collection names no such
 // field, so a missing title cannot be told.
-func pageTitle(coll schema.Collection, fm map[string]any, seoPath string) (value, path string, has bool) {
+//
+// On a page that holds every language, a slot naming one language of a
+// localized group (`name.cs`) reads the page's language instead.
+func pageTitle(cfg *schema.Config, coll schema.Collection, fm map[string]any, seoPath, locale string) (value, path string, has bool) {
 	first := ""
 	consider := func(key string) (string, bool) {
 		has = true
@@ -223,11 +345,12 @@ func pageTitle(coll schema.Collection, fm map[string]any, seoPath string) (value
 			if slot.Literal != "" {
 				return strings.TrimSpace(slot.Literal), "", true
 			}
-			if slot.Key == "" || slot.Key == seoPath {
+			key := inLanguage(cfg, coll, slot.Key, locale)
+			if key == "" || key == seoPath || slot.Key == seoPath {
 				continue
 			}
-			if v, ok := consider(slot.Key); ok {
-				return v, slot.Key, true
+			if v, ok := consider(key); ok {
+				return v, key, true
 			}
 		}
 	}
@@ -239,6 +362,23 @@ func pageTitle(coll schema.Collection, fm map[string]any, seoPath string) (value
 		}
 	}
 	return "", first, has
+}
+
+// inLanguage turns a path into a localized group (the group, or one of
+// its languages) into the path of the locale's language field.
+func inLanguage(cfg *schema.Config, coll schema.Collection, key, locale string) string {
+	if key == "" || locale == "" || !coll.Localized() {
+		return key
+	}
+	if f, ok := schema.FieldAtPath(coll.Fields, key); ok && f.IsLocalized() {
+		return key + "." + locale
+	}
+	if i := strings.LastIndex(key, "."); i > 0 {
+		if f, ok := schema.FieldAtPath(coll.Fields, key[:i]); ok && f.IsLocalized() && slices.Contains(cfg.Preview.Locales, key[i+1:]) {
+			return key[:i] + "." + locale
+		}
+	}
+	return key
 }
 
 // window is the length window of a role field: its recommendedLength

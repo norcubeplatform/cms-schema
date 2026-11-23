@@ -261,16 +261,16 @@ func TestParseRolesAndLocales(t *testing.T) {
 }
 
 func TestRoleSet(t *testing.T) {
-	if got := PageRoles(); len(got) != 5 || got[0] != RoleSEOTitle || got[4] != RoleCanonical {
+	if got := PageRoles(); len(got) != 6 || got[0] != RoleSEOTitle || got[4] != RoleCanonical || got[5] != RoleDraft {
 		t.Fatalf("page roles: %v", got)
 	}
-	if !KnownRole(RoleAlt) || IsPageRole(RoleAlt) || KnownRole("seo.title") || len(Roles()) != 6 {
+	if !KnownRole(RoleAlt) || IsPageRole(RoleAlt) || KnownRole("seo.title") || len(Roles()) != 7 {
 		t.Fatal("role set")
 	}
-	if !KnownRole(RoleNone) || IsPageRole(RoleNone) || !RoleAccepts(RoleNone, TypeArray) || RoleAllowsWhenEmpty(RoleNone) || len(RoleValues()) != 7 || RoleValues()[6] != RoleNone {
+	if !KnownRole(RoleNone) || IsPageRole(RoleNone) || !RoleAccepts(RoleNone, TypeArray) || RoleAllowsWhenEmpty(RoleNone) || len(RoleValues()) != 8 || RoleValues()[7] != RoleNone {
 		t.Fatal("role none")
 	}
-	if !RoleAccepts(RoleShareImage, TypeImage) || RoleAccepts(RoleShareImage, TypeText) || !RoleAccepts(RoleCanonical, TypeURL) || RoleAccepts(RoleNoindex, TypeSelect) {
+	if !RoleAccepts(RoleShareImage, TypeImage) || RoleAccepts(RoleShareImage, TypeText) || !RoleAccepts(RoleCanonical, TypeURL) || RoleAccepts(RoleNoindex, TypeMultiChoice) || !RoleAccepts(RoleDraft, TypeSelect) {
 		t.Fatal("role types")
 	}
 	if !KnownWhenEmpty(WhenEmptyGenerated) || !KnownWhenEmpty(WhenEmptySiteDefault) || KnownWhenEmpty("fallback") || len(WhenEmptyValues()) != 2 {

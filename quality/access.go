@@ -15,11 +15,23 @@ var linkLabelKeys = map[string]bool{"label": true, "text": true, "linktext": tru
 
 // accessibility runs the accessibility rules on one page: every image
 // value, every rich text field, the link fields that carry a label, and
-// the body. Fields the page hides are skipped.
+// the body. Fields the page hides are skipped. On one language of a page
+// that holds every language, a localized group is read in that language
+// and what is the same in every language is checked on one view only.
 func (r *run) accessibility(p Page) {
 	coll := p.Collection
+	locale := p.localeOf()
 	schema.Walk(r.cfg, coll.Fields, p.Frontmatter, func(v schema.Visit) bool {
 		if !v.Item && (v.Field.Hidden || (v.Field.VisibleIf != nil && !schema.Eval(*v.Field.VisibleIf, v.Scope))) {
+			return false
+		}
+		if v.Field.IsLocalized() {
+			if child, ok := v.Field.LanguageField(locale); ok && schema.Canonical(child.Type) == schema.TypeRichText {
+				m, _ := v.Value.(map[string]any)
+				if s, _ := m[locale].(string); strings.TrimSpace(s) != "" {
+					r.text(p, v.Path+"."+locale, s, richTextIsHTML(child))
+				}
+			}
 			return false
 		}
 		s, isString := v.Value.(string)
@@ -30,7 +42,9 @@ func (r *run) accessibility(p Page) {
 		case schema.TypeImage:
 			r.imageAlt(p, v, s)
 		case schema.TypeRichText:
-			r.text(p, v.Path, s, richTextIsHTML(v.Field))
+			if p.once() {
+				r.text(p, v.Path, s, richTextIsHTML(v.Field))
+			}
 		case schema.TypeLink:
 			if !v.Item {
 				r.linkLabel(p, v)
@@ -38,28 +52,41 @@ func (r *run) accessibility(p Page) {
 		}
 		return true
 	})
-	if coll.HasBody && !p.IsData && strings.TrimSpace(p.Body) != "" {
+	if coll.HasBody && !p.IsData && p.once() && strings.TrimSpace(p.Body) != "" {
 		r.text(p, resolve.BodyPath, p.Body, false)
 	}
 }
 
-// imageAlt checks the alt text of one image value.
+// altPart is one field an image's alt text is read from, in the page's
+// language.
+type altPart struct {
+	text, path string
+	// borrowed is true when the language is empty and the text is the
+	// fallback language's.
+	borrowed bool
+}
+
+// imageAlt checks the alt text of one image value. An alt text that is
+// the same in every language is checked on one view of a localized page;
+// one that is localized on each.
 func (r *run) imageAlt(p Page, v schema.Visit, value string) {
 	coll := p.Collection
 	if v.Field.Decorative || !r.on(report.RuleQualityImageAltMissing, coll) && !r.on(report.RuleQualityImageAltPoor, coll) {
 		return
 	}
-	var altKey string
-	declared := false
+	var src resolve.AltSource
+	siblings := siblingsOf(r.cfg, coll, v)
 	if !v.Item {
-		var decorative bool
-		altKey, decorative, declared = resolve.AltOf(siblingsOf(r.cfg, coll, v), v.Field)
-		if decorative {
+		src = resolve.AltOf(siblings, v.Field)
+		if src.Decorative {
 			return
 		}
 	}
+	if !src.Localized && !p.once() {
+		return
+	}
 	base := strings.TrimSuffix(v.Path, v.Field.Key)
-	if altKey == "" {
+	if len(src.Keys) == 0 {
 		if r.on(report.RuleQualityImageAltMissing, coll) {
 			r.count(report.RuleQualityImageAltMissing)
 			r.emit(report.Finding{File: p.Path, Path: v.Path, Rule: report.RuleQualityImageAltMissing,
@@ -69,29 +96,69 @@ func (r *run) imageAlt(p Page, v schema.Visit, value string) {
 		}
 		return
 	}
-	alt, _ := v.Scope.Self[altKey].(string)
-	alt = strings.TrimSpace(alt)
-	altPath := base + altKey
+	locale := p.localeOf()
+	var parts []altPart
+	for _, key := range src.Keys {
+		def := fieldByKey(siblings, key)
+		part := altPart{path: base + key}
+		if def.IsLocalized() {
+			part.path += "." + locale
+			part.text, part.borrowed = resolve.LocalizedValue(v.Scope.Self[key], locale, def.Fallback)
+		} else {
+			s, _ := v.Scope.Self[key].(string)
+			part.text = strings.TrimSpace(s)
+		}
+		parts = append(parts, part)
+	}
+	var texts []string
+	borrowed := true
+	for _, part := range parts {
+		if part.text != "" {
+			texts = append(texts, part.text)
+			borrowed = borrowed && part.borrowed
+		}
+	}
+	alt := strings.Join(texts, src.Separator)
+	basis := ""
+	if src.Composed {
+		basis = report.BasisComposedAlt
+	}
+	altPath := parts[0].path
 	if alt == "" {
 		if r.on(report.RuleQualityImageAltMissing, coll) {
 			r.count(report.RuleQualityImageAltMissing)
 			msg := "The image has no alt text."
-			if !declared {
+			switch {
+			case src.Composed:
+				msg = "The image has no alt text: every field it is made of is empty."
+			case !src.Declared:
 				msg = "The image has no alt text (the field for it was guessed from field names)."
 			}
 			r.emit(report.Finding{File: p.Path, Path: altPath, Rule: report.RuleQualityImageAltMissing, Message: msg,
 				Hint:  "Describe what the image shows, for people who cannot see it. If it is only decoration, a developer can mark it `decorative: true`.",
-				Value: value}, lowered(report.ImpactHigh, !declared))
+				Value: value}, lowered(report.ImpactHigh, !src.Declared))
 		}
 		return
 	}
 	if r.on(report.RuleQualityImageAltMissing, coll) {
 		r.count(report.RuleQualityImageAltMissing)
 	}
-	r.altPoor(p, altPath, alt, value, !declared)
+	if !borrowed || !src.Localized {
+		r.altPoor(p, altPath, alt, value, !src.Declared, basis)
+	}
 }
 
-func (r *run) altPoor(p Page, path, alt, src string, guessed bool) {
+// fieldByKey is the field of a list with the key.
+func fieldByKey(fields []schema.Field, key string) schema.Field {
+	for _, f := range fields {
+		if f.Key == key {
+			return f
+		}
+	}
+	return schema.Field{}
+}
+
+func (r *run) altPoor(p Page, path, alt, src string, guessed bool, basis string) {
 	if !r.on(report.RuleQualityImageAltPoor, p.Collection) {
 		return
 	}
@@ -100,7 +167,7 @@ func (r *run) altPoor(p Page, path, alt, src string, guessed bool) {
 		r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityImageAltPoor,
 			Message: fmt.Sprintf("The image's alt text %q is %s.", alt, why),
 			Hint:    "Say what the image shows or why it is there, in a few words.",
-			Value:   alt}, lowered(report.ImpactLow, guessed))
+			Value:   alt, Basis: basis}, lowered(report.ImpactLow, guessed))
 	}
 }
 
@@ -132,8 +199,8 @@ func (r *run) linkLabel(p Page, v schema.Visit) {
 	}
 	var label *schema.Field
 	for _, s := range siblingsOf(r.cfg, p.Collection, v) {
-		t := schema.Canonical(s.Type)
-		if s.Key == v.Field.Key || (t != schema.TypeText && t != schema.TypeParagraph) || !linkLabelKeys[normalKey(s.Key)] {
+		t := s.ValueType()
+		if s.Key == v.Field.Key || (t != schema.TypeText && t != schema.TypeParagraph) || (schema.IsGroup(s.Type) && !s.IsLocalized()) || !linkLabelKeys[normalKey(s.Key)] {
 			continue
 		}
 		if label != nil {
@@ -142,16 +209,24 @@ func (r *run) linkLabel(p Page, v schema.Visit) {
 		s := s
 		label = &s
 	}
-	if label == nil {
+	if label == nil || (!label.IsLocalized() && !p.once()) {
 		return
 	}
+	path := strings.TrimSuffix(v.Path, v.Field.Key) + label.Key
 	text, _ := v.Scope.Self[label.Key].(string)
+	if label.IsLocalized() {
+		var borrowed bool
+		path += "." + p.localeOf()
+		if text, borrowed = resolve.LocalizedValue(v.Scope.Self[label.Key], p.localeOf(), label.Fallback); borrowed {
+			return
+		}
+	}
 	if strings.TrimSpace(text) == "" {
 		return
 	}
 	r.count(report.RuleQualityLinkTextGeneric)
 	if GenericLinkText(text) {
-		r.emit(report.Finding{File: p.Path, Path: strings.TrimSuffix(v.Path, v.Field.Key) + label.Key, Rule: report.RuleQualityLinkTextGeneric,
+		r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityLinkTextGeneric,
 			Message: fmt.Sprintf("The link's text %q does not say where it leads.", strings.TrimSpace(text)),
 			Hint:    "People using a screen reader often jump from link to link. Say what they get (\"See our pricing\") instead.",
 			Value:   strings.TrimSpace(text)}, report.ImpactLow)
@@ -223,7 +298,7 @@ func (r *run) text(p Page, path, value string, isHTML bool) {
 		if r.on(report.RuleQualityImageAltMissing, coll) {
 			r.count(report.RuleQualityImageAltMissing)
 		}
-		r.altPoor(p, path, im.alt, im.src, false)
+		r.altPoor(p, path, im.alt, im.src, false, "")
 	}
 }
 

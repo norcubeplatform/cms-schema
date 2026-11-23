@@ -15,10 +15,13 @@ const (
 	// RoleShareImage is the image shown when the page is shared.
 	RoleShareImage = "shareImage"
 	// RoleNoindex is a boolean that hides the page from search engines
-	// when true.
+	// when true, or a select whose values in noindexWhen do.
 	RoleNoindex = "noindex"
 	// RoleCanonical is the address that should rank instead of the page.
 	RoleCanonical = "canonical"
+	// RoleDraft is a boolean that marks the page as not published yet
+	// when true (or a select, with the values that do in draftWhen).
+	RoleDraft = "draft"
 	// RoleAlt is the alt text of the one image in the same fields list
 	// (an image object: a group or list item holding an image and its
 	// text). It may appear once per such list.
@@ -30,21 +33,25 @@ const (
 
 // pageRoles are the roles a page has at most one of, in the order they
 // are listed.
-var pageRoles = []string{RoleSEOTitle, RoleSEODescription, RoleShareImage, RoleNoindex, RoleCanonical}
+var pageRoles = []string{RoleSEOTitle, RoleSEODescription, RoleShareImage, RoleNoindex, RoleCanonical, RoleDraft}
 
-// roleTypes are the canonical field types that can hold each role.
+// roleTypes are the canonical value types that can hold each role. A
+// localized group holds its language fields' type (Field.ValueType). A
+// rich text description needs `excerpt` and a select its `noindexWhen`
+// or `draftWhen` (Field.HoldsRole).
 var roleTypes = map[string][]string{
 	RoleSEOTitle:       {TypeText, TypeParagraph},
-	RoleSEODescription: {TypeText, TypeParagraph},
+	RoleSEODescription: {TypeText, TypeParagraph, TypeRichText},
 	RoleShareImage:     {TypeImage},
-	RoleNoindex:        {TypeBoolean},
+	RoleNoindex:        {TypeBoolean, TypeSelect},
 	RoleCanonical:      {TypeLink, TypeText},
+	RoleDraft:          {TypeBoolean, TypeSelect},
 	RoleAlt:            {TypeText, TypeParagraph},
 }
 
 // PageRoles lists the roles a collection has at most one field for, in
 // a stable order: seoTitle, seoDescription, shareImage, noindex,
-// canonical.
+// canonical, draft.
 func PageRoles() []string { return append([]string(nil), pageRoles...) }
 
 // Roles lists every role, page roles first, then alt. RoleNone is not

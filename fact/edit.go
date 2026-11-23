@@ -19,19 +19,23 @@ func Apply(src []byte, e Edit) ([]byte, error) {
 	f := e.Fact
 	switch f.Kind {
 	case KindRole:
-		out, err := apply(src, e, nil, set{key: "role", value: scalarValue(f.Role), after: []string{"label", "type", "key", "name"}})
-		if err != nil {
-			return nil, err
+		return applyRole(src, e)
+	case KindLocalized:
+		out, err := apply(src, e, nil, set{key: schema.KnobLocalized, value: boolValue(true), after: []string{"label", "type", "key"}})
+		if err != nil || f.Fallback == "" {
+			return out, err
 		}
-		if f.WhenEmpty != "" {
-			return apply(out, e, nil, set{key: "whenEmpty", value: scalarValue(f.WhenEmpty), after: []string{"role"}})
+		return apply(out, e, nil, set{key: schema.KnobFallback, value: scalarValue(f.Fallback), after: []string{schema.KnobLocalized}})
+	case KindAlt:
+		v := scalarValue(f.Alt)
+		if len(f.AltFrom) > 0 {
+			sep := f.Separator
+			if sep == "" {
+				sep = schema.DefaultAltSeparator
+			}
+			v = altFromValue(f.AltFrom, sep)
 		}
-		if !schema.RoleAllowsWhenEmpty(f.Role) {
-			// A whenEmpty left beside a role that takes none would be an
-			// error.
-			return apply(out, e, nil, set{key: "whenEmpty", remove: true})
-		}
-		return out, nil
+		return apply(src, e, nil, set{key: schema.KnobAlt, value: v, after: []string{"label", "type", "key"}})
 	case KindTranslationLocales:
 		return apply(src, e, []string{"translations"}, set{key: "locales", value: listValue(f.Locales), after: []string{"by", "localeFrom"}})
 	case KindOptimizedAtBuild:
@@ -44,6 +48,66 @@ func Apply(src []byte, e Edit) ([]byte, error) {
 		return apply(src, e, nil, set{key: schema.StorageKeyUsedByCode, value: listValue(merged), after: []string{"optimizedAtBuild", "publicUrl", "path", "type"}})
 	}
 	return nil, fmt.Errorf("%w: kind %q", ErrInvalid, f.Kind)
+}
+
+// applyRole writes a role and the knobs that go with it. A knob the fact
+// does not give is left as the file has it, unless the role does not
+// take it: a leftover would be an error.
+func applyRole(src []byte, e Edit) ([]byte, error) {
+	f := e.Fact
+	out, err := apply(src, e, nil, set{key: "role", value: scalarValue(f.Role), after: []string{"label", "type", "key", "name"}})
+	if err != nil {
+		return nil, err
+	}
+	knobs := []struct {
+		key   string
+		value value
+		given bool
+		takes bool
+	}{
+		{"whenEmpty", scalarValue(f.WhenEmpty), f.WhenEmpty != "", schema.RoleAllowsWhenEmpty(f.Role)},
+		{schema.KnobTitleTemplate, scalarValue(f.TitleTemplate), f.TitleTemplate != "", f.Role == schema.RoleSEOTitle},
+		{schema.KnobExcerpt, scalarValue(f.Excerpt), f.Excerpt != "", f.Role == schema.RoleSEODescription},
+		{schema.KnobNoindexWhen, listValue(f.When), len(f.When) > 0 && f.Role == schema.RoleNoindex, f.Role == schema.RoleNoindex},
+		{schema.KnobDraftWhen, listValue(f.When), len(f.When) > 0 && f.Role == schema.RoleDraft, f.Role == schema.RoleDraft},
+	}
+	for _, k := range knobs {
+		switch {
+		case k.given:
+			out, err = apply(out, e, nil, set{key: k.key, value: k.value, after: []string{"role"}})
+		case !k.takes:
+			out, err = apply(out, e, nil, set{key: k.key, remove: true})
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// altFromValue is a composed alt text, `{from: [a, b], separator: " – "}`.
+func altFromValue(from []string, sep string) value {
+	m := &yaml.Node{Kind: yaml.MappingNode, Style: yaml.FlowStyle}
+	seq := &yaml.Node{Kind: yaml.SequenceNode, Style: yaml.FlowStyle}
+	for _, k := range from {
+		seq.Content = append(seq.Content, strNode(k))
+	}
+	sepNode := strNode(sep)
+	sepNode.Style = yaml.DoubleQuotedStyle
+	m.Content = append(m.Content, strNode(schema.AltKeyFrom), seq, strNode(schema.AltKeySeparator), sepNode)
+	return value{text: yamlText(m), same: func(n *yaml.Node) bool {
+		if n.Kind != yaml.MappingNode {
+			return false
+		}
+		got := map[string]*yaml.Node{}
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			got[n.Content[i].Value] = n.Content[i+1]
+		}
+		if len(got) != 2 || got[schema.AltKeySeparator] == nil || got[schema.AltKeySeparator].Value != sep {
+			return false
+		}
+		return listValue(from).same(got[schema.AltKeyFrom])
+	}}
 }
 
 // mergedCodePaths is the storage's usedByCode as the file holds it now,

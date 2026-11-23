@@ -11,6 +11,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -19,6 +20,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/norcubeplatform/cms-schema/gitlog"
 	"github.com/norcubeplatform/cms-schema/load"
 	"github.com/norcubeplatform/cms-schema/quality"
 	"github.com/norcubeplatform/cms-schema/report"
@@ -35,6 +37,7 @@ func run(args []string) int {
 	var only multiFlag
 	fs.Var(&only, "only", "scope to run: schema, content, links or quality (repeatable; default the first three)")
 	withQuality := fs.Bool("quality", false, "also run the content quality checks (titles, descriptions, alt text, languages, media)")
+	withGit := fs.Bool("git", false, "with --quality, read when each file last changed from the git history of path, so quality.translation_outdated runs")
 	strictQuality := fs.Bool("strict-quality", false, "treat content quality warnings as errors")
 	collection := fs.String("collection", "", "limit content and links checks to one collection")
 	strict := fs.Bool("strict", false, "treat warnings as errors")
@@ -62,10 +65,25 @@ func run(args []string) int {
 		}
 		only = append(only, validate.ScopeQuality)
 	}
+	if *withGit && !*withQuality {
+		fmt.Fprintln(os.Stderr, "--git goes with --quality: the dates are for the content quality checks")
+		return 2
+	}
 	site := os.DirFS(path)
+	qopts := quality.Options{ListMedia: quality.FSMedia(site), RootFiles: quality.FSRootFiles(site)}
+	if *withGit {
+		ctx, cancel := context.WithTimeout(context.Background(), gitlog.DefaultTimeout)
+		dates, err := gitlog.LastChanged(ctx, path, gitlog.Options{})
+		cancel()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error: reading the git history:", err)
+			return 2
+		}
+		qopts.LastChanged = dates
+	}
 	res, err := validate.Site(site, validate.Options{
 		Only: only, Collection: *collection, Strict: *strict, StrictQuality: *strictQuality,
-		Quality: quality.Options{ListMedia: quality.FSMedia(site), RootFiles: quality.FSRootFiles(site)},
+		Quality: qopts,
 	})
 	if err != nil {
 		if errors.Is(err, load.ErrNotASite) {

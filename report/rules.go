@@ -105,7 +105,8 @@ const (
 	// `preview.locales`.
 	RuleSchemaInvalidTranslationLocales Rule = "schema.invalid_translation_locales"
 	// RuleSchemaUnknownRole: a field's `role` is not one of the roles
-	// (seoTitle, seoDescription, shareImage, noindex, canonical, alt).
+	// (seoTitle, seoDescription, shareImage, noindex, canonical, draft,
+	// alt) or none.
 	RuleSchemaUnknownRole Rule = "schema.unknown_role"
 	// RuleSchemaDuplicateRole: two fields of one collection or block
 	// declare the same page role, or two fields of one fields list declare
@@ -128,6 +129,26 @@ const (
 	// empty value a site does not fill in code (only seoTitle,
 	// seoDescription and shareImage may say it).
 	RuleSchemaInvalidWhenEmpty Rule = "schema.invalid_when_empty"
+	// RuleSchemaInvalidLocalized: a group's `localized` is not a boolean,
+	// its fields are not exactly the site's languages of one text type, a
+	// language field has a role of its own, `fallback` is not a language
+	// of the group, a localized group sits in a collection whose files are
+	// one language each, or a select option's `labels` names a language
+	// the site lacks.
+	RuleSchemaInvalidLocalized Rule = "schema.invalid_localized"
+	// RuleSchemaInvalidTitleTemplate: a `titleTemplate` is not text, sits
+	// on a field without role seoTitle, uses a placeholder that does not
+	// exist or no `{value}`, or names a field the page does not have.
+	RuleSchemaInvalidTitleTemplate Rule = "schema.invalid_title_template"
+	// RuleSchemaInvalidRoleValues: a select with role noindex or draft
+	// lacks `noindexWhen` or `draftWhen`, the list is empty, too long or
+	// names a value that is not an option, or the key sits on a field
+	// that does not read it.
+	RuleSchemaInvalidRoleValues Rule = "schema.invalid_role_values"
+	// RuleSchemaInvalidExcerpt: `excerpt` is not firstParagraph, sits on a
+	// field that is not a rich text seoDescription, or a rich text
+	// seoDescription does not say it.
+	RuleSchemaInvalidExcerpt Rule = "schema.invalid_excerpt"
 	// RuleSchemaInvalidQuality: a `quality` block in config.yml or a
 	// collection is not a mapping, its `ignore` is not a list, or the list
 	// names something that is not a quality rule.
@@ -272,6 +293,11 @@ const (
 	// RuleQualityTranslationOutdated: a language version last changed
 	// well before the newest version of the same page.
 	RuleQualityTranslationOutdated Rule = "quality.translation_outdated"
+	// RuleQualityTranslationIncomplete: a page that holds every language
+	// in one file (localized groups) leaves texts of one language empty,
+	// or, where the group falls back to another language, the same as
+	// that language: readers of that language see the other one.
+	RuleQualityTranslationIncomplete Rule = "quality.translation_incomplete"
 	// RuleQualityImageHeavy: an image that content uses is a large file.
 	RuleQualityImageHeavy Rule = "quality.image_heavy"
 	// RuleQualityMediaUnused: a file in a media storage that no content
@@ -287,7 +313,7 @@ func QualityRules() []Rule {
 		RuleQualityShareImageMissing, RuleQualityNoindex,
 		RuleQualityImageAltMissing, RuleQualityImageAltPoor, RuleQualityHeadingSkip,
 		RuleQualityLinkTextEmpty, RuleQualityLinkTextGeneric,
-		RuleQualityTranslationMissing, RuleQualityTranslationOutdated,
+		RuleQualityTranslationMissing, RuleQualityTranslationOutdated, RuleQualityTranslationIncomplete,
 		RuleQualityImageHeavy, RuleQualityMediaUnused,
 	}
 }
@@ -308,7 +334,9 @@ func Rules() []Rule {
 		RuleSchemaUnknownPreviewToken, RuleSchemaInvalidLocaleFrom, RuleSchemaInvalidTranslations,
 		RuleSchemaTranslatableIgnored, RuleSchemaInvalidTranslationLocales,
 		RuleSchemaUnknownRole, RuleSchemaDuplicateRole, RuleSchemaRoleTypeMismatch,
-		RuleSchemaMisplacedRole, RuleSchemaInvalidAlt, RuleSchemaInvalidWhenEmpty, RuleSchemaInvalidQuality,
+		RuleSchemaMisplacedRole, RuleSchemaInvalidAlt, RuleSchemaInvalidWhenEmpty,
+		RuleSchemaInvalidLocalized, RuleSchemaInvalidTitleTemplate, RuleSchemaInvalidRoleValues, RuleSchemaInvalidExcerpt,
+		RuleSchemaInvalidQuality,
 		RuleSchemaDefaultLocaleNotDeclared, RuleSchemaUnknownRedirectsFormat,
 		RuleSchemaMissingVariablesFile, RuleSchemaInternalError,
 		RuleContentParseError, RuleContentNoCollection, RuleContentRequired,

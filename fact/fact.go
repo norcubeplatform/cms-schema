@@ -1,6 +1,8 @@
 // Package fact writes schema facts into a site's schema files: a field's
-// role (and whenEmpty), the languages a collection is expected in, and
-// whether the build optimizes a storage's images. These are the answers
+// role (with whenEmpty, titleTemplate, excerpt, noindexWhen or
+// draftWhen), a localized group, an image's alt text, the languages a
+// collection is expected in, and what a storage's images are to the
+// build. These are the answers
 // a person gives when confirming or rejecting what a check guessed.
 //
 // An edit changes only the lines it is about: the rest of the file,
@@ -37,11 +39,17 @@ const (
 	// KindUsedByCode adds paths to a storage's `usedByCode`: files the
 	// site's code uses though no content refers to them.
 	KindUsedByCode = "usedByCode"
+	// KindLocalized marks a group whose fields are the site's languages
+	// `localized: true`, with its `fallback` when given.
+	KindLocalized = "localized"
+	// KindAlt says where an image's alt text is: `alt: <key>`, or
+	// composed, `alt: {from: [...], separator: ...}`.
+	KindAlt = "alt"
 )
 
 // Kinds lists every kind of fact.
 func Kinds() []string {
-	return []string{KindRole, KindTranslationLocales, KindOptimizedAtBuild, KindUsedByCode}
+	return []string{KindRole, KindTranslationLocales, KindOptimizedAtBuild, KindUsedByCode, KindLocalized, KindAlt}
 }
 
 // Bounds of one fact.
@@ -82,6 +90,26 @@ type Fact struct {
 	// storage's path (schema.CheckCodePattern). A path without a wildcard
 	// must name a file.
 	Paths []string `json:"paths,omitempty"`
+
+	// TitleTemplate, on a role fact with role seoTitle, is how the site
+	// composes the page title (schema.ParseTemplate).
+	TitleTemplate string `json:"titleTemplate,omitempty"`
+	// Excerpt, on a role fact with role seoDescription on rich text, is
+	// schema.ExcerptFirstParagraph.
+	Excerpt string `json:"excerpt,omitempty"`
+	// When, on a role fact with role noindex or draft on a select, lists
+	// the values that switch the role on (written as noindexWhen or
+	// draftWhen).
+	When []string `json:"when,omitempty"`
+	// Fallback, on a localized fact, is the language an empty language
+	// of the group shows; empty to say none.
+	Fallback string `json:"fallback,omitempty"`
+	// Alt, on an alt fact, names the sibling that holds the image's alt
+	// text; AltFrom, instead, the siblings it is composed of, joined by
+	// Separator (schema.DefaultAltSeparator when empty).
+	Alt       string   `json:"alt,omitempty"`
+	AltFrom   []string `json:"altFrom,omitempty"`
+	Separator string   `json:"separator,omitempty"`
 }
 
 // ErrInvalid marks a fact that says something the schema cannot hold.
@@ -100,7 +128,25 @@ var ErrUnplaceable = errors.New("cannot be placed")
 var (
 	localeRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,34}$`)
 	nameRe   = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
+	keyRe    = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_-]{0,127}$`)
 )
+
+// checkNames checks a list of 1 to max distinct, non-blank entries of at
+// most 200 bytes.
+func checkNames(list []string, max int, what string) error {
+	if len(list) > max {
+		return fmt.Errorf("at most %d entries", max)
+	}
+	for i, v := range list {
+		if strings.TrimSpace(v) == "" || len(v) > 200 {
+			return fmt.Errorf("a %s is blank or longer than 200 bytes", what)
+		}
+		if slices.Contains(list[:i], v) {
+			return fmt.Errorf("%q is listed twice", v)
+		}
+	}
+	return nil
+}
 
 // Check reports what is wrong with a fact on its own, before any file
 // is read.
@@ -121,6 +167,62 @@ func (f Fact) Check() error {
 		}
 		if f.WhenEmpty != "" && (!schema.KnownWhenEmpty(f.WhenEmpty) || !schema.RoleAllowsWhenEmpty(f.Role)) {
 			return bad("whenEmpty %q does not go with role %s", f.WhenEmpty, f.Role)
+		}
+		if f.TitleTemplate != "" {
+			if f.Role != schema.RoleSEOTitle {
+				return bad("titleTemplate goes with role %s", schema.RoleSEOTitle)
+			}
+			if _, err := schema.ParseTemplate(f.TitleTemplate); err != nil {
+				return bad("%v", err)
+			}
+		}
+		if f.Excerpt != "" && (f.Role != schema.RoleSEODescription || !slices.Contains(schema.ExcerptValues(), f.Excerpt)) {
+			return bad("excerpt %q does not go with role %s", f.Excerpt, f.Role)
+		}
+		if len(f.When) > 0 {
+			if schema.RoleWhen(f.Role) == "" {
+				return bad("values that switch a role on go with role %s or %s", schema.RoleNoindex, schema.RoleDraft)
+			}
+			if err := checkNames(f.When, schema.MaxRoleValues, "value"); err != nil {
+				return bad("%v", err)
+			}
+		}
+		if f.Fallback != "" || f.Alt != "" || len(f.AltFrom) > 0 || f.Separator != "" {
+			return bad("a role fact takes no fallback or alt")
+		}
+	case KindLocalized:
+		if (f.Collection == "") == (f.Block == "") {
+			return bad("a localized fact names a collection or a block, one of them")
+		}
+		if f.Field == "" || len(f.Field) > MaxFieldPath {
+			return bad("a localized fact names a group (at most %d bytes)", MaxFieldPath)
+		}
+		if f.Fallback != "" && !localeRe.MatchString(f.Fallback) {
+			return bad("%q is not a language code", f.Fallback)
+		}
+	case KindAlt:
+		if (f.Collection == "") == (f.Block == "") {
+			return bad("an alt fact names a collection or a block, one of them")
+		}
+		if f.Field == "" || len(f.Field) > MaxFieldPath {
+			return bad("an alt fact names an image field (at most %d bytes)", MaxFieldPath)
+		}
+		if (f.Alt == "") == (len(f.AltFrom) == 0) {
+			return bad("an alt fact names one field (alt) or the fields it is composed of (altFrom), one of them")
+		}
+		if f.Alt != "" && !keyRe.MatchString(f.Alt) {
+			return bad("%q is not a field key", f.Alt)
+		}
+		if err := checkNames(f.AltFrom, schema.MaxAltParts, "field"); err != nil {
+			return bad("%v", err)
+		}
+		for _, k := range f.AltFrom {
+			if !keyRe.MatchString(k) {
+				return bad("%q is not a field key", k)
+			}
+		}
+		if len(f.Separator) > schema.MaxSeparatorBytes || (f.Separator != "" && len(f.AltFrom) == 0) {
+			return bad("a separator (at most %d bytes) goes with altFrom", schema.MaxSeparatorBytes)
 		}
 	case KindTranslationLocales:
 		if f.Collection == "" || f.Block != "" {
@@ -176,7 +278,27 @@ func (f Fact) String() string {
 		if f.WhenEmpty != "" {
 			s += ", whenEmpty " + f.WhenEmpty
 		}
+		if f.TitleTemplate != "" {
+			s += ", titleTemplate " + f.TitleTemplate
+		}
+		if f.Excerpt != "" {
+			s += ", excerpt " + f.Excerpt
+		}
+		if len(f.When) > 0 {
+			s += ", " + schema.RoleWhen(f.Role) + " [" + strings.Join(f.When, ", ") + "]"
+		}
 		return s
+	case KindLocalized:
+		s := fmt.Sprintf("%s.%s: localized", f.owner(), f.Field)
+		if f.Fallback != "" {
+			s += ", fallback " + f.Fallback
+		}
+		return s
+	case KindAlt:
+		if f.Alt != "" {
+			return fmt.Sprintf("%s.%s: alt %s", f.owner(), f.Field, f.Alt)
+		}
+		return fmt.Sprintf("%s.%s: alt from %s", f.owner(), f.Field, strings.Join(f.AltFrom, ", "))
 	case KindTranslationLocales:
 		return fmt.Sprintf("%s: translations.locales [%s]", f.Collection, strings.Join(f.Locales, ", "))
 	case KindOptimizedAtBuild:
@@ -189,6 +311,13 @@ func (f Fact) String() string {
 		return fmt.Sprintf("storage %s: usedByCode + %s", f.Storage, strings.Join(f.Paths, ", "))
 	}
 	return f.Kind
+}
+
+func (f Fact) owner() string {
+	if f.Collection != "" {
+		return f.Collection
+	}
+	return "block " + f.Block
 }
 
 // FactError is the error of one fact of a Plan.
@@ -229,11 +358,7 @@ func Make(fsys fs.FS, facts []Fact) (*Plan, error) {
 			return nil, &FactError{Index: i, Err: err}
 		}
 	}
-	doc, _, err := load.Load(fsys)
-	if err != nil {
-		return nil, err
-	}
-	l, err := newLocator(fsys, doc)
+	l, err := relocate(fsys)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +384,15 @@ func Make(fsys fs.FS, facts []Fact) (*Plan, error) {
 		if err != nil {
 			return nil, &FactError{Index: i, Err: err}
 		}
+		changed := string(out) != string(p.Changes[idx].After)
 		p.Changes[idx].After = out
+		if changed && i < len(facts)-1 {
+			// A later fact is judged on the schema as this one leaves it
+			// (a role on a group this plan makes localized).
+			if l, err = relocate(p.FS(fsys)); err != nil {
+				return nil, &FactError{Index: i, Err: err}
+			}
+		}
 	}
 	kept := p.Changes[:0]
 	for _, c := range p.Changes {
@@ -269,6 +402,15 @@ func Make(fsys fs.FS, facts []Fact) (*Plan, error) {
 	}
 	p.Changes = kept
 	return p, nil
+}
+
+// relocate loads the schema of fsys and a locator over it.
+func relocate(fsys fs.FS) (*locator, error) {
+	doc, _, err := load.Load(fsys)
+	if err != nil {
+		return nil, err
+	}
+	return newLocator(fsys, doc)
 }
 
 // FS is fsys with the plan's files changed, for a check of the result.

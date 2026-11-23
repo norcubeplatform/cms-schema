@@ -297,7 +297,10 @@ func URL(filePath string, coll schema.Collection, site schema.PreviewSite, fm ma
 	if fm == nil {
 		fm = map[string]any{}
 	}
-	locale := Locale(filePath, coll, site, fm)
+	return urlFor(filePath, coll, site, fm, Locale(filePath, coll, site, fm))
+}
+
+func urlFor(filePath string, coll schema.Collection, site schema.PreviewSite, fm map[string]any, locale string) string {
 	localeSeg := ""
 	if locale != "" && !(locale == site.DefaultLocale && !site.PrefixDefaultLocale) {
 		localeSeg = locale

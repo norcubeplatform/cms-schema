@@ -1,6 +1,8 @@
 package quality
 
 import (
+	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -61,7 +63,33 @@ type Page struct {
 	Frontmatter    map[string]any
 	Body           string
 	IsData         bool
+
+	// view is set on one language of a page that holds every language
+	// in localized groups.
+	view *view
 }
+
+// view is one language of a page whose file holds every language.
+type view struct {
+	locale string
+	// primary is the view that also checks what does not change with the
+	// language (an image's plain alt text, a rich text that is not
+	// localized), so it is reported once.
+	primary bool
+}
+
+// localeOf is the language a page is read in.
+func (p Page) localeOf() string {
+	if p.view != nil {
+		return p.view.locale
+	}
+	return p.Locale
+}
+
+// once reports whether a value that is the same in every language is
+// checked on this page: always, but on one view only of a localized
+// page.
+func (p Page) once() bool { return p.view == nil || p.view.primary }
 
 // Skipped is a rule that did not run, and why.
 type Skipped struct {
@@ -93,6 +121,9 @@ type Summary struct {
 	// a media folder where content uses no image (or whose files were
 	// not listed) is left out.
 	Guessed []Guess `json:"guessed,omitempty"`
+	// Drafts counts the pages the search and accessibility rules skipped
+	// because their draft field says they are not published yet.
+	Drafts int `json:"drafts,omitempty"`
 }
 
 // FilledInCode is how many pages, checked by the search rules, leave one
@@ -109,6 +140,7 @@ type FilledInCode struct {
 // arguments and what opts.ListMedia returns.
 func Check(cfg *schema.Config, pages []Page, opts Options) ([]report.Finding, Summary) {
 	r := newRun(cfg, opts)
+	r.variables = siteVariables(r.cfg, pages)
 	for _, p := range pages {
 		r.page(p)
 	}
@@ -138,13 +170,17 @@ type run struct {
 	// about them.
 	folders []MediaFolder
 	guesses []Guess
+	// variables are the site's `{{key}}` values, for title templates.
+	variables []resolve.SiteVariable
+	// drafts holds the pages whose draft field is on, by path.
+	drafts map[string]bool
 }
 
 func newRun(cfg *schema.Config, opts Options) *run {
 	if cfg == nil {
 		cfg = &schema.Config{}
 	}
-	r := &run{cfg: cfg, opts: opts, checked: map[report.Rule]int{}, off: map[report.Rule]bool{}, roles: map[string]resolve.Roles{}, filled: map[[2]string]int{}}
+	r := &run{cfg: cfg, opts: opts, checked: map[report.Rule]int{}, off: map[report.Rule]bool{}, roles: map[string]resolve.Roles{}, filled: map[[2]string]int{}, drafts: map[string]bool{}}
 	for _, id := range cfg.Quality.Ignore {
 		if _, ok := Spec(report.Rule(id)); ok {
 			r.off[report.Rule(id)] = true
@@ -196,7 +232,7 @@ func (r *run) rolesOf(coll schema.Collection) resolve.Roles {
 }
 
 func (r *run) summary() Summary {
-	s := Summary{Checked: map[report.Rule]int{}, Skipped: r.skipped, MediaFolders: r.folders, Guessed: r.guesses}
+	s := Summary{Checked: map[report.Rule]int{}, Skipped: r.skipped, MediaFolders: r.folders, Guessed: r.guesses, Drafts: len(r.drafts)}
 	for _, spec := range specs {
 		if r.off[spec.Rule] {
 			s.Ignored = append(s.Ignored, spec.Rule)
@@ -228,14 +264,83 @@ func (r *run) summary() Summary {
 	return s
 }
 
-// page runs the rules that read one page alone.
+// page runs the rules that read one page alone. A draft is skipped. A
+// page whose file holds every language (localized groups) is read once
+// per language it is expected in.
 func (r *run) page(p Page) {
 	if p.Frontmatter == nil {
 		p.Frontmatter = map[string]any{}
 	}
+	if r.isDraft(p) {
+		r.drafts[p.Path] = true
+		return
+	}
 	hidden := schema.HiddenPaths(r.cfg, p.Collection.Fields, p.Frontmatter)
-	r.search(p, hidden)
-	r.accessibility(p)
+	for _, v := range r.views(p) {
+		from := len(r.out)
+		r.search(v, hidden)
+		r.accessibility(v)
+		for i := from; i < len(r.out); i++ {
+			r.out[i].Locale = localeOfPath(v, r.out[i].Path)
+		}
+	}
+}
+
+// views are the pages one file makes: itself, or one per expected
+// language of a localized collection.
+func (r *run) views(p Page) []Page {
+	if !p.Collection.Localized() {
+		return []Page{p}
+	}
+	locales := resolve.ExpectedLocales(r.cfg, p.Collection)
+	if len(locales) == 0 {
+		locales = []string{p.Locale}
+	}
+	primary := locales[0]
+	if slices.Contains(locales, r.cfg.Preview.DefaultLocale) {
+		primary = r.cfg.Preview.DefaultLocale
+	}
+	out := make([]Page, 0, len(locales))
+	for _, l := range locales {
+		v := p
+		v.Locale = l
+		v.URL = resolve.URLIn(p.Path, p.Collection, r.cfg.Preview, p.Frontmatter, l)
+		v.view = &view{locale: l, primary: l == primary}
+		out = append(out, v)
+	}
+	return out
+}
+
+// isDraft reports whether a page's draft field (role draft) says it is
+// not published yet: true, or a value its draftWhen lists.
+func (r *run) isDraft(p Page) bool {
+	f, ok := r.rolesOf(p.Collection).Field(schema.RoleDraft)
+	return ok && roleOn(f, resolve.ReadDotted(p.Frontmatter, f.Path))
+}
+
+// roleOn reports whether a noindex or draft field is on: a boolean that
+// is true, or a select whose value its list names.
+func roleOn(f resolve.RoleField, v any) bool {
+	if len(f.When) > 0 {
+		s := strings.TrimSpace(fmt.Sprint(v))
+		return v != nil && slices.Contains(f.When, s)
+	}
+	b, _ := v.(bool)
+	return b
+}
+
+// siteVariables are the `{{key}}` values of the site's variables
+// document, when it is among the pages.
+func siteVariables(cfg *schema.Config, pages []Page) []resolve.SiteVariable {
+	if cfg.Variables.File == "" {
+		return nil
+	}
+	for _, p := range pages {
+		if p.Path == cfg.Variables.File {
+			return resolve.SiteVariables(p.Frontmatter, cfg.Variables.Field)
+		}
+	}
+	return nil
 }
 
 // weight orders impacts; info weighs nothing.

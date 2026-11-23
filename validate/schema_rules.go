@@ -104,7 +104,7 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 			f(file, "extraKeysPolicy", report.SeverityWarning, report.RuleSchemaUnknownKnob, fmt.Sprintf("extraKeysPolicy %q is not show, hide or strip; show is assumed", coll.ExtraKeysPolicy), "")
 		}
 		checkFields(cfg, file, "fields", coll.Fields, rootSchemaScope(coll.Fields), f)
-		checkRoles(cfg, file, "fields", coll.Fields, f)
+		checkCollectionRoles(cfg, file, coll, f)
 	}
 	paths := make([]string, 0, len(byPath))
 	for p := range byPath {
@@ -459,6 +459,12 @@ func translationsProblem(coll schema.Collection) (reason, hint string) {
 		return "", ""
 	}
 	const forms = "Use `by: path` (the same path under each locale folder) or `by: field:<key>` (pages with the same value of that field)."
+	if t.By == "" && !coll.OneLanguagePerFile() && schema.HasLocalized(coll.Fields) {
+		// Each file holds every language in localized groups: there are
+		// no versions to link, and `locales` alone says which languages a
+		// page is expected in.
+		return "", ""
+	}
 	if t.By == schema.TranslationsByPath {
 		if coll.LocaleFrom != schema.LocaleFromPath {
 			return "translations.by is path, but the collection's locale does not come from the path", "Add `localeFrom: path`, or link the versions by a field: `by: field:<key>`."
@@ -467,7 +473,7 @@ func translationsProblem(coll schema.Collection) (reason, hint string) {
 	}
 	key, ok := t.Field()
 	if !ok {
-		return fmt.Sprintf("translations.by %q is not path or field:<key>", t.By), forms
+		return fmt.Sprintf("translations.by %q is not path or field:<key>", t.By), forms + " A collection whose files hold every language in localized groups may list `locales` alone."
 	}
 	for _, f := range coll.Fields {
 		if f.Key != key {

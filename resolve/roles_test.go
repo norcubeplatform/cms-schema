@@ -139,11 +139,11 @@ func TestRolesGuessedOnJetlio(t *testing.T) {
 	cfg := loadSchema(t, jetlio)
 	got := resolve.CollectionRoles(cfg, cfg.Collections["pages"])
 	want := []resolve.RoleField{
-		{Role: schema.RoleSEOTitle, Path: "seo.page_title", Label: "Meta title"},
-		{Role: schema.RoleSEODescription, Path: "seo.page_description", Label: "Meta description"},
-		{Role: schema.RoleShareImage, Path: "seo.featured_image", Label: "Share image"},
-		{Role: schema.RoleNoindex, Path: "seo.no_index", Label: "Hide from search engines"},
-		{Role: schema.RoleCanonical, Path: "seo.canonical_url", Label: "Canonical URL"},
+		{Role: schema.RoleSEOTitle, Path: "seo.page_title", Label: "Meta title", Type: schema.TypeText},
+		{Role: schema.RoleSEODescription, Path: "seo.page_description", Label: "Meta description", Type: schema.TypeParagraph},
+		{Role: schema.RoleShareImage, Path: "seo.featured_image", Label: "Share image", Type: schema.TypeImage},
+		{Role: schema.RoleNoindex, Path: "seo.no_index", Label: "Hide from search engines", Type: schema.TypeBoolean},
+		{Role: schema.RoleCanonical, Path: "seo.canonical_url", Label: "Canonical URL", Type: schema.TypeLink},
 	}
 	if !reflect.DeepEqual(got.Fields, want) {
 		t.Fatalf("roles:\n got %+v\nwant %+v", got.Fields, want)
@@ -319,9 +319,11 @@ func TestRolesGuessedOnTheTemplate(t *testing.T) {
 	cfg := loadSchema(t, template)
 	pages := resolve.CollectionRoles(cfg, cfg.Collections["pages"])
 	want := []resolve.RoleField{
-		{Role: schema.RoleSEOTitle, Path: "seo.title", Label: "Meta title"},
-		{Role: schema.RoleSEODescription, Path: "seo.description", Label: "Meta description"},
-		{Role: schema.RoleShareImage, Path: "seo.image", Label: "Social image"},
+		{Role: schema.RoleSEOTitle, Path: "seo.title", Label: "Meta title", Type: schema.TypeText},
+		{Role: schema.RoleSEODescription, Path: "seo.description", Label: "Meta description", Type: schema.TypeParagraph},
+		{Role: schema.RoleShareImage, Path: "seo.image", Label: "Social image", Type: schema.TypeImage},
+		// A robots select: the options that say noindex hide the page.
+		{Role: schema.RoleNoindex, Path: "seo.robots", Label: "Robots", Type: schema.TypeSelect, When: []string{"noindex"}},
 	}
 	if !reflect.DeepEqual(pages.Fields, want) {
 		t.Fatalf("pages roles:\n got %+v\nwant %+v", pages.Fields, want)
@@ -426,7 +428,11 @@ func TestAltOf(t *testing.T) {
 	}
 	for _, tc := range cases {
 		siblings := append([]schema.Field{tc.image}, tc.siblings...)
-		alt, decorative, declared := resolve.AltOf(siblings, tc.image)
+		src := resolve.AltOf(siblings, tc.image)
+		alt, decorative, declared := "", src.Decorative, src.Declared
+		if len(src.Keys) == 1 {
+			alt = src.Keys[0]
+		}
 		if alt != tc.alt || decorative != tc.decorative || declared != tc.declar {
 			t.Errorf("%s: got (%q, %v, %v), want (%q, %v, %v)", tc.name, alt, decorative, declared, tc.alt, tc.decorative, tc.declar)
 		}

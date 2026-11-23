@@ -2,6 +2,30 @@
 
 Notable changes, newest first.
 
+## 0.10.0 (2026-11-23)
+
+### New
+
+- **Languages in one file**: `localized: true` on a group says its fields are the site's languages (one per locale of `preview.locales`, one text type, no roles of their own); `fallback: <locale>` names the language an empty one shows. Only in a collection whose files hold every language. A role on a localized group holds per language. `translations: { locales: [...] }` without `by` says which languages such a collection's pages are expected in. `schema.Field.Localized`, `.Fallback`, `IsLocalized`, `ValueType`, `LanguageField`, `HoldsRole`, `schema.HasLocalized`, `schema.FieldAtPath`, `Collection.Localized`, `Collection.OneLanguagePerFile`, `resolve.LocalizedValue`, `resolve.URLIn`.
+- **`titleTemplate:`** next to `role: seoTitle`: the page title as the site composes it, from `{value}`, `{field:<key>}`, `{field:<key>|label}` and `{{variable}}`. Select options may carry `labels` per language. `schema.ParseTemplate`, `schema.TemplateFields`, `schema.OptionLabel`, `SelectOption.Labels`, `resolve.ComposeTitle`, `resolve.SiteVariables`, `resolve.LookupVariable`, `resolve.ExpandVariables`.
+- **`role: draft`** (boolean, or a select with `draftWhen`), and **`role: noindex` on a select** with `noindexWhen`. `schema.RoleDraft`, `schema.RoleWhen`, `Field.NoindexWhen`, `Field.DraftWhen`, `Field.WhenValues`.
+- **`excerpt: firstParagraph`**: `role: seoDescription` on rich text, measured as the plain text of its first paragraph. `schema.ExcerptFirstParagraph`, `resolve.FirstParagraph`.
+- **A composed alt text**: `alt: { from: [title, technique], separator: " – " }`; `alt:` may also name a localized group. `Field.AltFrom`, `Field.AltSeparator`, `resolve.AltSource`.
+- Four schema rules and one quality rule (89 in all): `schema.invalid_localized`, `schema.invalid_title_template`, `schema.invalid_role_values`, `schema.invalid_excerpt`, errors; `quality.translation_incomplete` (languages, low): per page and language of a localized page, the texts left empty or the same as their fallback.
+- Quality reads a localized page once per expected language (`Finding.Locale`, paths like `title.en`), measures composed titles, excerpts and composed alt texts (`Finding.Basis`: `report.BasisTitleTemplate`, `BasisExcerpt`, `BasisComposedAlt`), skips drafts (`Summary.Drafts`). `report.UnitFields`.
+- `resolve.RoleField` gains `Type`, `Localized`, `Fallback`, `TitleTemplate`, `Excerpt` and `When`; `resolve.ImageAlt` gains `AltFrom`, `Separator` and `AltLocalized`.
+- **Package `gitlog`**: when each file of a checkout last changed, from `git log` (bounded commits, output and time). `cms-schema-validate --quality --git` passes the dates, so `quality.translation_outdated` runs. The checking packages never import it (a test holds them to that).
+- **Fact kinds `localized` and `alt`**; a `role` fact takes `TitleTemplate`, `Excerpt` and `When`. Facts of one plan are judged on the schema as the earlier ones leave it.
+
+### Behaviour changes
+
+- `schema.PageRoles()` ends with `draft`; `RoleValues()` has eight values.
+- `role: noindex` on a select is no longer `schema.role_type_mismatch`; without `noindexWhen` it is `schema.invalid_role_values`. `RoleAccepts(seoDescription, richtext)` is true (the field still needs `excerpt`, `Field.HoldsRole`).
+- Guessing: a select keyed or labelled `robots` or `meta robots` whose options carry `noindex` (or `none`) is a guessed noindex; a boolean keyed `draft` or `is_draft` (label Draft) a guessed draft. A rich text field is never guessed as a description.
+- A draft page is skipped by the search and accessibility rules; a draft version is not a language version (info "not published yet"); `translation_outdated` compares published versions only.
+- `resolve.AltOf` returns a `resolve.AltSource` instead of three values.
+- The hint of `schema.invalid_translations` for a missing `by` mentions localized groups.
+
 ## 0.9.0 (2026-11-23)
 
 ### New

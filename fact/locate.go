@@ -70,6 +70,10 @@ func (l *locator) locate(f Fact) (Edit, error) {
 	switch f.Kind {
 	case KindRole:
 		return l.role(f)
+	case KindLocalized:
+		return l.localized(f)
+	case KindAlt:
+		return l.alt(f)
 	case KindTranslationLocales:
 		coll, ok := l.cfg.Collections[f.Collection]
 		if !ok {
@@ -120,12 +124,110 @@ const (
 	kindInputs      = "inputs"
 )
 
-// role follows a field path through the loaded schema, switching files
-// where a `$ref` pulled a block or input in.
+// role places a role fact: the field must hold the role as the fact
+// declares it (a rich text description with its excerpt, a select with
+// the values that switch the role on, each one of its options).
 func (l *locator) role(f Fact) (Edit, error) {
-	steps, err := parsePath(f.Field)
+	e, cur, _, err := l.field(f)
 	if err != nil {
 		return Edit{}, err
+	}
+	after := cur
+	after.Role = f.Role
+	if f.Excerpt != "" {
+		after.Excerpt = f.Excerpt
+	}
+	switch f.Role {
+	case schema.RoleNoindex:
+		if len(f.When) > 0 {
+			after.NoindexWhen = f.When
+		}
+	case schema.RoleDraft:
+		if len(f.When) > 0 {
+			after.DraftWhen = f.When
+		}
+	}
+	if !after.HoldsRole(f.Role) {
+		what := cur.Type + " field"
+		if cur.IsLocalized() {
+			what = "localized group of " + cur.ValueType() + " fields"
+		}
+		return Edit{}, fmt.Errorf("%w: a %s cannot hold role %s as the fact says it", ErrInvalid, what, f.Role)
+	}
+	values := schema.OptionValues(cur.Options)
+	for _, v := range f.When {
+		if !slices.Contains(values, v) {
+			return Edit{}, fmt.Errorf("%w: %q is not an option of %q", ErrInvalid, v, f.Field)
+		}
+	}
+	return e, nil
+}
+
+// localized places a localized fact: a group whose fields are exactly
+// the site's languages, falling back to one of them.
+func (l *locator) localized(f Fact) (Edit, error) {
+	e, cur, _, err := l.field(f)
+	if err != nil {
+		return Edit{}, err
+	}
+	locales := l.cfg.Preview.Locales
+	if !schema.IsGroup(cur.Type) {
+		return Edit{}, fmt.Errorf("%w: %q is a %s field, not a group", ErrInvalid, f.Field, cur.Type)
+	}
+	if len(cur.Fields) != len(locales) {
+		return Edit{}, fmt.Errorf("%w: group %q has %d fields, the site %d languages", ErrInvalid, f.Field, len(cur.Fields), len(locales))
+	}
+	for _, c := range cur.Fields {
+		if !slices.Contains(locales, c.Key) {
+			return Edit{}, fmt.Errorf("%w: field %q of %q is not a language of the site", ErrInvalid, c.Key, f.Field)
+		}
+	}
+	if f.Fallback != "" && !slices.Contains(locales, f.Fallback) {
+		return Edit{}, fmt.Errorf("%w: %q is not a language of the site (preview.locales)", ErrInvalid, f.Fallback)
+	}
+	return e, nil
+}
+
+// alt places an alt fact: an image whose named siblings can hold alt
+// text.
+func (l *locator) alt(f Fact) (Edit, error) {
+	e, cur, siblings, err := l.field(f)
+	if err != nil {
+		return Edit{}, err
+	}
+	if schema.Canonical(cur.Type) != schema.TypeImage {
+		return Edit{}, fmt.Errorf("%w: %q is a %s field, not an image", ErrInvalid, f.Field, cur.Type)
+	}
+	keys := f.AltFrom
+	if f.Alt != "" {
+		keys = []string{f.Alt}
+	}
+	for _, k := range keys {
+		var found *schema.Field
+		for i := range siblings {
+			if siblings[i].Key == k {
+				found = &siblings[i]
+			}
+		}
+		if found == nil {
+			return Edit{}, fmt.Errorf("%w: no field %q beside image %q", ErrNotFound, k, f.Field)
+		}
+		t := found.ValueType()
+		if k == cur.Key || (t != schema.TypeText && t != schema.TypeParagraph) || (schema.IsGroup(found.Type) && !found.IsLocalized()) {
+			return Edit{}, fmt.Errorf("%w: field %q cannot hold alt text", ErrInvalid, k)
+		}
+	}
+	return e, nil
+}
+
+// field follows a field path through the loaded schema, switching files
+// where a `$ref` pulled a block or input in. It returns the edit, the
+// field and the fields list it sits in.
+func (l *locator) field(f Fact) (Edit, schema.Field, []schema.Field, error) {
+	fail := func(err error) (Edit, schema.Field, []schema.Field, error) { return Edit{}, schema.Field{}, nil, err }
+	steps, err := parsePath(f.Field)
+	if err != nil {
+		return fail(err)
 	}
 	var fields []schema.Field
 	var file string
@@ -133,26 +235,27 @@ func (l *locator) role(f Fact) (Edit, error) {
 	if f.Collection != "" {
 		coll, ok := l.cfg.Collections[f.Collection]
 		if !ok {
-			return Edit{}, fmt.Errorf("%w: collection %q", ErrNotFound, f.Collection)
+			return fail(fmt.Errorf("%w: collection %q", ErrNotFound, f.Collection))
 		}
 		fields = coll.Fields
 		file, in, err = l.source(kindCollections, f.Collection)
 	} else {
 		b, ok := l.cfg.Blocks[f.Block]
 		if !ok {
-			return Edit{}, fmt.Errorf("%w: block %q", ErrNotFound, f.Block)
+			return fail(fmt.Errorf("%w: block %q", ErrNotFound, f.Block))
 		}
 		fields = b.Fields
 		file, in, err = l.source(kindBlocks, f.Block)
 	}
 	if err != nil {
-		return Edit{}, err
+		return fail(err)
 	}
 	var rel []Step
 	var cur *schema.Field
+	var siblings []schema.Field
 	for depth, st := range steps {
 		if depth > schema.MaxWalkDepth {
-			return Edit{}, fmt.Errorf("%w: %q nests deeper than %d", ErrInvalid, f.Field, schema.MaxWalkDepth)
+			return fail(fmt.Errorf("%w: %q nests deeper than %d", ErrInvalid, f.Field, schema.MaxWalkDepth))
 		}
 		if !st.Item {
 			var found []schema.Field
@@ -163,16 +266,17 @@ func (l *locator) role(f Fact) (Edit, error) {
 			}
 			switch len(found) {
 			case 0:
-				return Edit{}, fmt.Errorf("%w: field %q of %q", ErrNotFound, st.Key, f.Field)
+				return fail(fmt.Errorf("%w: field %q of %q", ErrNotFound, st.Key, f.Field))
 			case 1:
 			default:
-				return Edit{}, fmt.Errorf("%w: %d fields have the key %q", ErrAmbiguous, len(found), st.Key)
+				return fail(fmt.Errorf("%w: %d fields have the key %q", ErrAmbiguous, len(found), st.Key))
 			}
 			fd := found[0]
+			siblings = fields
 			cur, fields = &fd, fd.Fields
 			if fd.BlockRef != "" {
 				if file, in, err = l.refSource(fd.BlockRef); err != nil {
-					return Edit{}, err
+					return fail(err)
 				}
 				rel = nil
 				continue
@@ -181,15 +285,15 @@ func (l *locator) role(f Fact) (Edit, error) {
 			continue
 		}
 		if cur == nil || !schema.IsArray(cur.Type) {
-			return Edit{}, fmt.Errorf("%w: %q steps into a list item of a field that is not a list", ErrNotFound, f.Field)
+			return fail(fmt.Errorf("%w: %q steps into a list item of a field that is not a list", ErrNotFound, f.Field))
 		}
 		if cur.Type == schema.TypeBlocks || len(cur.Components) > 0 {
 			b, ok := l.cfg.Blocks[st.Shape]
 			if !ok || !slices.Contains(cur.Components, st.Shape) {
-				return Edit{}, fmt.Errorf("%w: block %q in %q", ErrNotFound, st.Shape, f.Field)
+				return fail(fmt.Errorf("%w: block %q in %q", ErrNotFound, st.Shape, f.Field))
 			}
 			if file, in, err = l.source(kindBlocks, st.Shape); err != nil {
-				return Edit{}, err
+				return fail(err)
 			}
 			rel, fields = nil, b.Fields
 			cur = &schema.Field{Type: schema.TypeGroup, Fields: b.Fields}
@@ -197,23 +301,22 @@ func (l *locator) role(f Fact) (Edit, error) {
 		}
 		e, err := pickEntry(schema.ItemEntries(*cur), st.Shape)
 		if err != nil {
-			return Edit{}, fmt.Errorf("%q: %w", f.Field, err)
+			return fail(fmt.Errorf("%q: %w", f.Field, err))
 		}
 		item := e.Field
+		// A primitive item stands alone in its list.
+		siblings = []schema.Field{item}
 		cur, fields = &item, item.Fields
 		if item.BlockRef != "" {
 			if file, in, err = l.refSource(item.BlockRef); err != nil {
-				return Edit{}, err
+				return fail(err)
 			}
 			rel = nil
 			continue
 		}
 		rel = append(rel, Step{Item: true, Shape: e.Name})
 	}
-	if !schema.RoleAccepts(f.Role, cur.Type) {
-		return Edit{}, fmt.Errorf("%w: a %s field cannot hold role %s", ErrInvalid, cur.Type, f.Role)
-	}
-	return Edit{Fact: f, File: file, In: in, Steps: rel}, nil
+	return Edit{Fact: f, File: file, In: in, Steps: rel}, *cur, siblings, nil
 }
 
 func pickEntry(entries []schema.Entry, shape string) (schema.Entry, error) {
