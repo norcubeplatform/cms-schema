@@ -2,11 +2,10 @@ package quality
 
 import (
 	"fmt"
-	"math"
 	"sort"
 	"strings"
-	"time"
 
+	"github.com/norcubeplatform/cms-schema/content"
 	"github.com/norcubeplatform/cms-schema/report"
 	"github.com/norcubeplatform/cms-schema/resolve"
 	"github.com/norcubeplatform/cms-schema/schema"
@@ -42,14 +41,11 @@ func (r *run) languages(pages []Page) {
 	sort.Strings(order)
 
 	outdatedOn := !r.off[report.RuleQualityTranslationOutdated]
-	if outdatedOn && r.opts.LastChanged == nil {
-		r.skip(report.RuleQualityTranslationOutdated, "when each file last changed was not given")
+	if outdatedOn && r.opts.SourceBases == nil {
+		r.skip(report.RuleQualityTranslationOutdated, "the history of the content files was not given")
 		outdatedOn = false
 	}
-	after := r.opts.Limits.OutdatedAfter
-	if after <= 0 {
-		after = DefaultOutdatedAfter
-	}
+	var pairs []versionPair
 
 	for _, id := range order {
 		g := groups[id]
@@ -96,8 +92,11 @@ func (r *run) languages(pages []Page) {
 			}
 		}
 		if outdatedOn && r.on(report.RuleQualityTranslationOutdated, coll) && len(published) > 1 {
-			r.outdated(published, after)
+			pairs = append(pairs, r.versionPairs(published)...)
 		}
+	}
+	if len(pairs) > 0 {
+		r.outdated(pairs)
 	}
 }
 
@@ -112,40 +111,149 @@ func (r *run) sourceVersion(versions []Page) Page {
 	return versions[0]
 }
 
-// outdated reports the dated versions that last changed more than after
-// before the newest dated version of the same page.
-func (r *run) outdated(versions []Page, after time.Duration) {
-	var dated []Page
-	var newest Page
-	var newestAt time.Time
-	for _, v := range versions {
-		at, ok := r.opts.LastChanged[v.Path]
-		if !ok || at.IsZero() {
-			continue
-		}
-		dated = append(dated, v)
-		if at.After(newestAt) {
-			newest, newestAt = v, at
+// versionPair is a language version and the source it is judged
+// against.
+type versionPair struct {
+	translation, source Page
+}
+
+// versionPairs pairs each published version of a page with its source:
+// the version in the site's default language. A page with no version in
+// the default language has no source and nothing is judged.
+func (r *run) versionPairs(published []Page) []versionPair {
+	def := r.cfg.Preview.DefaultLocale
+	if def == "" {
+		return nil
+	}
+	var source *Page
+	for i := range published {
+		if published[i].Locale == def {
+			source = &published[i]
+			break
 		}
 	}
-	if len(dated) < 2 {
+	if source == nil {
+		return nil
+	}
+	var out []versionPair
+	for _, v := range published {
+		if v.Path == source.Path || v.Locale == def {
+			continue
+		}
+		out = append(out, versionPair{translation: v, source: *source})
+	}
+	return out
+}
+
+// outdated reports the language versions whose source changed a
+// translatable text since the version was last current with it. Its base
+// is the source as a mark on the version records it (while the version's
+// file is the one marked), else the source as it was when the version
+// last changed; Options.SourceBases reads it. A version whose base can't
+// be read is not judged, and neither are the versions past
+// MaxBaseQueries.
+func (r *run) outdated(pairs []versionPair) {
+	if len(pairs) > MaxBaseQueries {
+		r.skipped = append(r.skipped, Skipped{Rule: report.RuleQualityTranslationOutdated,
+			Reason: fmt.Sprintf("only the first %d language versions were judged", MaxBaseQueries)})
+		pairs = pairs[:MaxBaseQueries]
+	}
+	queries := make([]BaseQuery, len(pairs))
+	for i, p := range pairs {
+		queries[i] = QueryFor(p.translation, p.source.Path)
+	}
+	answers, err := r.opts.SourceBases(queries)
+	if err != nil && len(answers) == 0 {
+		r.skipped = append(r.skipped, Skipped{Rule: report.RuleQualityTranslationOutdated, Reason: "the history of the content files could not be read"})
 		return
 	}
-	limit := int64(math.Round(after.Hours() / 24))
-	for _, v := range dated {
-		r.count(report.RuleQualityTranslationOutdated)
-		at := r.opts.LastChanged[v.Path]
-		behind := newestAt.Sub(at)
-		if v.Path == newest.Path || behind <= after {
+	for i, p := range pairs {
+		if i >= len(answers) || !answers[i].Known {
 			continue
 		}
-		days := int64(behind.Hours() / 24)
-		r.emit(report.Finding{File: v.Path, Rule: report.RuleQualityTranslationOutdated,
-			Message: fmt.Sprintf("This %q version last changed %d days before the %q version (%s).", v.Locale, days, newest.Locale, newest.Path),
-			Hint:    "Check whether the newer version says something this one does not, and bring it up to date.",
-			Value:   newest.Path + "@" + newestAt.UTC().Format(time.RFC3339),
-			Measure: &report.Measure{Value: days, Unit: report.UnitDays, Max: &limit}}, report.ImpactMedium)
+		r.count(report.RuleQualityTranslationOutdated)
+		changes, ok := SourceChanges(r.cfg, p.source, answers[i])
+		if !ok || len(changes) == 0 {
+			continue
+		}
+		r.emit(outdatedFinding(p, changes), report.ImpactMedium)
 	}
+}
+
+// QueryFor is the BaseQuery of a language version against the source at
+// sourcePath: with the blob its mark names while the mark applies (the
+// version's file is still the one marked, content.TranslationMark), else
+// asking for the source as it was when the version last changed. The
+// version's Blob and Mark must be set.
+func QueryFor(translation Page, sourcePath string) BaseQuery {
+	q := BaseQuery{Translation: translation.Path, Source: sourcePath}
+	if translation.Mark.Applies(sourcePath, translation.Blob) {
+		q.SourceBlob = translation.Mark.SourceBlob
+	}
+	return q
+}
+
+// SourceChanges are the translatable texts of the source (its current
+// Frontmatter and Body, its Collection) that differ from the source at
+// its base, as quality.translation_outdated reads them; false when the
+// base can't be read as a page.
+func SourceChanges(cfg *schema.Config, source Page, base SourceBase) ([]resolve.TextChange, bool) {
+	if !base.Known {
+		return nil, false
+	}
+	if base.Same {
+		return nil, true
+	}
+	doc, err := content.Parse(source.Path, base.Content)
+	if err != nil {
+		return nil, false
+	}
+	changes, err := resolve.ChangedTexts(cfg, source.Collection, doc.Frontmatter, doc.Body, source.Frontmatter, source.Body)
+	if err != nil && len(changes) == 0 {
+		return nil, false
+	}
+	return changes, true
+}
+
+// OutdatedValue is the Value of a quality.translation_outdated finding:
+// the source's path and the blob id of the source as it was judged, the
+// version a "mark up to date" names. ParseOutdatedValue reads it back.
+func OutdatedValue(sourcePath, sourceBlob string) string {
+	return sourcePath + "@" + sourceBlob
+}
+
+// ParseOutdatedValue splits an OutdatedValue; false when it is not one.
+func ParseOutdatedValue(v string) (sourcePath, sourceBlob string, ok bool) {
+	i := strings.LastIndexByte(v, '@')
+	if i <= 0 || i == len(v)-1 {
+		return "", "", false
+	}
+	return v[:i], v[i+1:], true
+}
+
+func outdatedFinding(p versionPair, changes []resolve.TextChange) report.Finding {
+	named := make([]string, 0, MaxNamed)
+	for _, c := range changes {
+		if len(named) == MaxNamed {
+			break
+		}
+		named = append(named, c.Label)
+	}
+	more := ""
+	if len(changes) > MaxNamed {
+		more = fmt.Sprintf(" and %d more", len(changes)-MaxNamed)
+	}
+	noun := "texts"
+	if len(changes) == 1 {
+		noun = "text"
+	}
+	return report.Finding{File: p.translation.Path, Path: changes[0].Path, Rule: report.RuleQualityTranslationOutdated,
+		Message: fmt.Sprintf("The %q version (%s) changed %d %s since this version was last current with it: %s%s.",
+			p.source.Locale, p.source.Path, len(changes), noun, strings.Join(named, ", "), more),
+		Hint:    "Check whether this version still says what the source says now. If it does, mark it up to date; if not, update the texts that changed.",
+		Value:   OutdatedValue(p.source.Path, p.source.Blob),
+		Locale:  p.translation.Locale,
+		Measure: &report.Measure{Value: int64(len(changes)), Unit: report.UnitChangedTexts}}
 }
 
 // localizedText is one localized group of text on a page, with its

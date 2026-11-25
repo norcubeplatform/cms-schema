@@ -10,14 +10,13 @@
 // field's `recommendedLength` wins.
 //
 // The module never reads the network or git: what only the caller knows
-// (when each file last changed, which media files exist and how large
-// they are) comes in Options, and a rule whose data is missing is
+// (what a language version's source said when the version was last
+// current, which media files exist and how large they are) comes in
+// Options, and a rule whose data is missing is
 // skipped and said so in the Summary.
 package quality
 
 import (
-	"time"
-
 	"github.com/norcubeplatform/cms-schema/report"
 )
 
@@ -38,9 +37,9 @@ func Areas() []Area {
 
 // Data a rule needs from the caller.
 const (
-	NeedsNothing     = ""
-	NeedsLastChanged = "lastChanged"
-	NeedsMedia       = "media"
+	NeedsNothing = ""
+	NeedsHistory = "history"
+	NeedsMedia   = "media"
 )
 
 // RuleSpec is one quality rule: its area, its impact, the threshold it
@@ -69,9 +68,6 @@ const (
 	DefaultTitleMax       = 60
 	DefaultDescriptionMin = 70
 	DefaultDescriptionMax = 160
-	// DefaultOutdatedAfter is how much older than the newest version of
-	// a page another language version may be before it is outdated.
-	DefaultOutdatedAfter = 7 * 24 * time.Hour
 	// DefaultImageHeavyBytes and DefaultImageVeryHeavyBytes are the two
 	// size limits of an image content uses: over the first is low impact,
 	// over the second medium.
@@ -91,6 +87,9 @@ const (
 	maxTextScan = 200000
 	// maxValueRunes bounds a finding's Value.
 	maxValueRunes = 500
+	// MaxBaseQueries bounds the language versions one run asks
+	// Options.SourceBases about; the rest are not judged.
+	MaxBaseQueries = 5000
 )
 
 var specs = []RuleSpec{
@@ -122,8 +121,8 @@ var specs = []RuleSpec{
 		"Link text that is only a generic phrase (click here, read more, zde, více, hier…)", "WCAG 2.2 success criterion 2.4.4 (level A); Lighthouse link-text"},
 	{report.RuleQualityTranslationMissing, AreaLanguages, report.ImpactMedium, NeedsNothing,
 		"A page with no version in a language its collection expects (translations.locales, else every site language); a version that is a draft is listed as not published yet", ""},
-	{report.RuleQualityTranslationOutdated, AreaLanguages, report.ImpactMedium, NeedsLastChanged,
-		"A version last changed more than 7 days before the newest version of the same page", "A convention"},
+	{report.RuleQualityTranslationOutdated, AreaLanguages, report.ImpactMedium, NeedsHistory,
+		"A language version whose source (the version in the site's default language) changed a translatable text since the version was last current with it: since the version itself last changed, or since it was marked up to date. Links, images, numbers, choices and other values that are not translated never count", ""},
 	{report.RuleQualityTranslationIncomplete, AreaLanguages, report.ImpactLow, NeedsNothing,
 		"A page that holds every language in one file (localized groups) leaves a language's texts empty, or the same as the language they fall back to", ""},
 	{report.RuleQualityImageHeavy, AreaMedia, report.ImpactMedium, NeedsMedia,

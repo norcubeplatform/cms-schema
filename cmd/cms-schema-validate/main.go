@@ -37,7 +37,7 @@ func run(args []string) int {
 	var only multiFlag
 	fs.Var(&only, "only", "scope to run: schema, content, links or quality (repeatable; default the first three)")
 	withQuality := fs.Bool("quality", false, "also run the content quality checks (titles, descriptions, alt text, languages, media)")
-	withGit := fs.Bool("git", false, "with --quality, read when each file last changed from the git history of path, so quality.translation_outdated runs")
+	withGit := fs.Bool("git", false, "with --quality, read the git history of path, so quality.translation_outdated runs")
 	strictQuality := fs.Bool("strict-quality", false, "treat content quality warnings as errors")
 	collection := fs.String("collection", "", "limit content and links checks to one collection")
 	strict := fs.Bool("strict", false, "treat warnings as errors")
@@ -71,15 +71,17 @@ func run(args []string) int {
 	}
 	site := os.DirFS(path)
 	qopts := quality.Options{ListMedia: quality.FSMedia(site), RootFiles: quality.FSRootFiles(site)}
+	var historyErr error
 	if *withGit {
-		ctx, cancel := context.WithTimeout(context.Background(), gitlog.DefaultTimeout)
-		dates, err := gitlog.LastChanged(ctx, path, gitlog.Options{})
-		cancel()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "error: reading the git history:", err)
-			return 2
+		reader, cancel := gitlog.SourceBases(context.Background(), path, gitlog.Options{})
+		defer cancel()
+		qopts.SourceBases = func(q []quality.BaseQuery) ([]quality.SourceBase, error) {
+			out, err := reader(q)
+			if err != nil {
+				historyErr = err
+			}
+			return out, err
 		}
-		qopts.LastChanged = dates
 	}
 	res, err := validate.Site(site, validate.Options{
 		Only: only, Collection: *collection, Strict: *strict, StrictQuality: *strictQuality,
@@ -91,6 +93,11 @@ func run(args []string) int {
 			return 3
 		}
 		fmt.Fprintln(os.Stderr, "error:", err)
+		return 2
+	}
+
+	if historyErr != nil {
+		fmt.Fprintln(os.Stderr, "error: reading the git history:", historyErr)
 		return 2
 	}
 

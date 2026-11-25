@@ -290,8 +290,9 @@ const (
 	// RuleQualityTranslationMissing: a page has no version in a language
 	// its collection expects.
 	RuleQualityTranslationMissing Rule = "quality.translation_missing"
-	// RuleQualityTranslationOutdated: a language version last changed
-	// well before the newest version of the same page.
+	// RuleQualityTranslationOutdated: a language version whose source
+	// changed a translatable text since the version was last current
+	// with it.
 	RuleQualityTranslationOutdated Rule = "quality.translation_outdated"
 	// RuleQualityTranslationIncomplete: a page that holds every language
 	// in one file (localized groups) leaves texts of one language empty,

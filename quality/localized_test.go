@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
-	"time"
 
 	"github.com/norcubeplatform/cms-schema/quality"
 	"github.com/norcubeplatform/cms-schema/report"
@@ -356,10 +355,16 @@ func TestDraftsAndNoindexSelect(t *testing.T) {
 // A localized page is one file: translation_outdated has no versions to
 // compare there, and its languages are never missing as files.
 func TestLocalizedHasNoFileVersions(t *testing.T) {
-	now := time.Now()
+	asked := 0
 	res := run(t, localizedSite(map[string]string{
 		"src/content/works/a.md": page("title: {cs: Les, en: Forest, it: Foresta}\ndescription: {cs: '" + goodDescription + "'}"),
-	}), quality.Options{LastChanged: map[string]time.Time{"src/content/works/a.md": now}})
+	}), quality.Options{SourceBases: func(q []quality.BaseQuery) ([]quality.SourceBase, error) {
+		asked += len(q)
+		return make([]quality.SourceBase, len(q)), nil
+	}})
+	if asked != 0 {
+		t.Errorf("asked about %d versions", asked)
+	}
 	for _, f := range res.Findings {
 		if f.Rule == report.RuleQualityTranslationMissing || f.Rule == report.RuleQualityTranslationOutdated {
 			t.Errorf("unexpected %v", f)

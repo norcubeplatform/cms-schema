@@ -28,6 +28,9 @@ type Entry struct {
 	doc    content.Document
 	coll   schema.Collection
 	hasCol bool
+	// blob is the file's git blob id; mark its sidecar's translation mark.
+	blob string
+	mark *content.TranslationMark
 }
 
 // Links checks the references between files: URL collisions, site links,

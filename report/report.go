@@ -63,6 +63,9 @@ const (
 	UnitPages      = "pages"
 	UnitLevel      = "level"
 	UnitFields     = "fields"
+	// UnitChangedTexts counts the translatable texts a language version's
+	// source changed since the version was last current with it.
+	UnitChangedTexts = "changedTexts"
 )
 
 // Measure is the number a quality check measured, with the window it

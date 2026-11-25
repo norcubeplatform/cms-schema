@@ -127,6 +127,7 @@ func Site(fsys fs.FS, opts Options) (res *Result, err error) {
 			findings = append(findings, Links(cfg, entries, exists, sidecars)...)
 		}
 		if want[ScopeQuality] {
+			readMarks(fsys, entries)
 			qf, summary := Quality(cfg, entries, opts.Quality)
 			findings = append(findings, qf...)
 			res.Quality = &summary
@@ -153,6 +154,7 @@ func Quality(cfg *schema.Config, entries []Entry, opts quality.Options) (out []r
 		pages = append(pages, quality.Page{
 			Path: e.Path, Collection: e.coll, URL: e.URL, Locale: e.Locale, TranslationKey: e.TranslationKey,
 			Frontmatter: e.doc.Frontmatter, Body: e.doc.Body, IsData: e.doc.IsData,
+			Blob: e.blob, Mark: e.mark,
 		})
 	}
 	out, summary = quality.Check(cfg, pages, opts)
@@ -211,8 +213,31 @@ func checkFile(cfg *schema.Config, p string, raw []byte, opts Options, want map[
 		doc:            doc,
 		coll:           coll,
 		hasCol:         true,
+		blob:           content.BlobID(raw),
 	}, out
 }
+
+// readMarks reads the translation mark from the sidecar of each language
+// version (a file of a collection with `translations` that has a
+// translation key). A sidecar that is missing or can't be read is no mark.
+func readMarks(fsys fs.FS, entries []Entry) {
+	for i := range entries {
+		e := &entries[i]
+		if !e.hasCol || e.coll.Translations == nil || e.TranslationKey == "" {
+			continue
+		}
+		raw, err := fs.ReadFile(fsys, content.SidecarPath(e.Path))
+		if err != nil || len(raw) > maxSidecarBytes {
+			continue
+		}
+		if sc, err := content.ParseSidecar(raw); err == nil {
+			e.mark = sc.Translation
+		}
+	}
+}
+
+// maxSidecarBytes bounds a sidecar read for its translation mark.
+const maxSidecarBytes = 1 << 20
 
 // internalResult is the result of a run that stopped on f.
 func internalResult(cfg *schema.Config, f report.Finding) *Result {

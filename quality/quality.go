@@ -5,8 +5,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"time"
 
+	"github.com/norcubeplatform/cms-schema/content"
 	"github.com/norcubeplatform/cms-schema/report"
 	"github.com/norcubeplatform/cms-schema/resolve"
 	"github.com/norcubeplatform/cms-schema/schema"
@@ -27,17 +27,17 @@ type MediaLister func(roots []string) ([]MediaFile, error)
 // keeps them. ImageVeryHeavyBytes left zero scales with ImageHeavyBytes
 // as the defaults do.
 type Limits struct {
-	OutdatedAfter       time.Duration
 	ImageHeavyBytes     int64
 	ImageVeryHeavyBytes int64
 }
 
 // Options is what the caller knows and the module cannot.
 type Options struct {
-	// LastChanged maps a content file's repository path to when it last
-	// changed. Nil skips quality.translation_outdated; a file missing from
-	// it is undated and never counted as outdated.
-	LastChanged map[string]time.Time
+	// SourceBases reads what the source of each language version said
+	// when the version was last current with it (BaseReader). Nil skips
+	// quality.translation_outdated; a version whose base it can't read is
+	// not judged.
+	SourceBases BaseReader
 	// ListMedia lists the media files. Nil skips the media rules.
 	ListMedia MediaLister
 	Limits    Limits
@@ -63,6 +63,11 @@ type Page struct {
 	Frontmatter    map[string]any
 	Body           string
 	IsData         bool
+	// Blob is the git blob id of the file as read (content.BlobID); empty
+	// when unknown, and a mark then never applies.
+	Blob string
+	// Mark is the translation mark of the file's sidecar, if any.
+	Mark *content.TranslationMark
 
 	// view is set on one language of a page that holds every language
 	// in localized groups.

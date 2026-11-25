@@ -2,6 +2,20 @@
 
 Notable changes, newest first.
 
+## 0.11.0 (2026-11-25)
+
+### Behaviour changes
+
+- **`quality.translation_outdated` compares texts, not dates.** A language version is judged against its source, the published version in the site's default language, and reported only when the source changed a translatable text since the version was last current with it: since the version last changed, or since a translation mark (below) says it was checked. Links, images, numbers, booleans, select values, slugs, texts with a `regex` and `translatable: false` fields never count, nor does white space. A version whose base can't be read is not judged, so dates from another repository's history or a shallow clone can no longer make a version "154 days behind". The finding sits at the first changed text's path, names the texts, counts them (`report.UnitChangedTexts`), and its value is the source's path and blob (`quality.OutdatedValue`, `quality.ParseOutdatedValue`). The 7-day window is gone.
+- `quality.Options.LastChanged` and `Limits.OutdatedAfter` are removed, and `quality.DefaultOutdatedAfter`; `quality.NeedsLastChanged` is `quality.NeedsHistory`.
+
+### New
+
+- **`quality.Options.SourceBases`** (`quality.BaseReader`, `BaseQuery`, `SourceBase`, `MaxBaseQueries`): the caller answers, for each version, what its source's file was at the version's base. `quality.QueryFor` builds a version's query (its mark applied) and `quality.SourceChanges` compares a source with its base, as the rule does, for a caller that shows the changes.
+- **`gitlog.SourceBases(ctx, dir, opts)`** answers it from a checkout (`git log` once, one `git cat-file --batch`); `gitlog.ParseCommits`, `gitlog.MaxFileBytes`. `cms-schema-validate --quality --git` uses it. `gitlog.LastChanged` stays.
+- **Translation marks**: `content.Sidecar.Translation` (`content.TranslationMark`: `source`, `sourceBlob`, `blob`; `Applies`) records that a version was checked against its source and found current. `content.BlobID` is a file's git blob id. `quality.Page.Blob` and `quality.Page.Mark`, filled by `validate.Site` from the files and their sidecars.
+- **`resolve.ChangedTexts`** (`resolve.TextChange`, `TextChanged`, `TextAdded`, `TextRemoved`): the translatable texts that differ between two versions of a page.
+
 ## 0.10.0 (2026-11-23)
 
 ### New

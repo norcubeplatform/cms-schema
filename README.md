@@ -27,14 +27,14 @@ cms-schema-validate path/to/site --strict # warnings fail the run
 cms-schema-validate --only schema         # schema files alone, no content
 cms-schema-validate --json > report.json  # for CI
 cms-schema-validate --quality             # also content quality (see below)
-cms-schema-validate --quality --git       # with dates from git, so outdated translations are found
+cms-schema-validate --quality --git       # with the git history, so outdated translations are found
 ```
 
-`--git` reads when each file last changed from the git history of the
-path (`git log`, at most 5000 commits, 30 seconds; a file changed and
-not committed counts as changed now) and passes the dates to the
-quality checks. Package `gitlog` does it; the checking packages never
-run a program.
+`--git` reads the git history of the path (`git log` and `git cat-file`,
+at most 5000 commits, 30 seconds) so `quality.translation_outdated` can
+compare each language version's source with what it said when the
+version was last current (see "Outdated translations" under [Content quality](#content-quality)).
+Package `gitlog` does it; the checking packages never run a program.
 
 Exit codes: `0` clean, `1` findings at error severity, `2` usage or I/O
 error, `3` not a CMS site.
@@ -113,7 +113,7 @@ for _, f := range res.Findings {
 | `quality`  | The content quality rules, their specs and `Check`.                                               |
 | `validate` | `Schema`, `Page`, `Links`, `Quality` and the `Site` runner.                                       |
 | `fact`     | Writing schema facts (a role, a localized group, an image's alt text, expected languages, `optimizedAtBuild`, `usedByCode`) into the schema files, keeping their formatting. See [Writing facts](#writing-facts). |
-| `gitlog`   | When each file last changed, from a checkout's git history (`quality.Options.LastChanged`). The only package that runs a program. |
+| `gitlog`   | A checkout's git history: the source of each language version as it was when the version was last current (`quality.Options.SourceBases`), and when each file last changed. The only package that runs a program. |
 
 `schema.Walk` is the one reading of a document against its schema: it
 visits every field with its definition and its path (`a.b[2].c`),
@@ -601,7 +601,7 @@ carries, besides file, path, rule, message and hint:
 | `quality.link_text_empty` | accessibility | medium | A link in a text with no text, no `aria-label` and no image alt text inside | WCAG 2.2 2.4.4, level A [7] |
 | `quality.link_text_generic` | accessibility | low | Link text that is only a generic phrase (click here, read more, zde, více, hier, mehr…), in a text or a button label beside a link field | WCAG 2.2 2.4.4 [7]; Lighthouse `link-text` |
 | `quality.translation_missing` | languages | medium | A page with no version in a language its collection expects (`translations.locales`, else every site language); a version that is a draft is listed as not published yet (info) |  |
-| `quality.translation_outdated` | languages | medium | A version last changed more than 7 days before the newest version of the same page | A convention |
+| `quality.translation_outdated` | languages | medium | A language version whose source (the version in the default language) changed a translatable text since the version was last current with it; a link, image, number or choice never counts ("Outdated translations" below) |  |
 | `quality.translation_incomplete` | languages | low | A page that holds every language in one file leaves a language's texts empty, or the same as the language they fall back to |  |
 | `quality.image_heavy` | media | medium | A raster image content uses over 200 KB (low impact) or over 1 MB (medium), or over the site's `quality.limits.imageKB`; images in a folder the build optimizes are skipped | Lighthouse flags any image that could be smaller [8]; crawlers flag 100 KB, a number Sitebulb calls relatively arbitrary [9], so 200 KB flags only clear cases |
 | `quality.media_unused` | media | info | A file in a read-write repository storage that no content and no schema refers to, and that its storage's `usedByCode` does not name (listed, not scored) |  |
@@ -687,19 +687,57 @@ something else (a title it composes, or one for the whole site). A
 search engines may then pick their own snippet, so writing one per page
 is still worth it where it matters.
 
+**Outdated translations.** A page's source is its published version
+in the site's default language (`preview.defaultLocale`); every other
+published version is judged against it, and a page without a version in
+the default language is not judged. A version's **base** is the source
+as it was when the version was last current with it: the source's blob a
+**translation mark** in the version's sidecar names, while the version's
+own file is still the one marked, else the source as it was at the
+newest commit that changed the version. The rule compares the
+translatable texts of the source at its base with the source now, path
+by path (`resolve.ChangedTexts`: the texts `resolve.TranslatableTexts`
+lists, after trimming and joining white space), and reports the version
+when any text was changed, added or removed. A link, an image, a number,
+a boolean, a select's value, a slug, a text with a `regex` and a field
+with `translatable: false` are never compared, so a link fix or an image
+swap in the source leaves every translation current. Dates never count:
+a version whose base can't be read (a file older than the history read,
+a source added after the version last changed, no history at all) is
+not judged. The finding is on the version, at the first changed text's
+path, names the texts, counts them (`measure`, unit `changedTexts`), and
+its `value` is the source's path and blob as judged
+(`quality.OutdatedValue`, `ParseOutdatedValue`): what a "mark up to
+date" names.
+
+A mark is written by Norcube CMS when a person confirms that a version
+still says what its source says (the module only reads it):
+
+```yaml
+# .norcube/cms/meta/src/content/pages/cs/about.yml
+schemaVersion: 1
+translation:
+  source: src/content/pages/en/about.md   # the source's path
+  sourceBlob: 3b18e512dba79e4c8300dd08aeb37f8e728b8dad  # the source's git blob id, as checked
+  blob: 9daeafb9864cf43055ae93beb0afd6c7d144bfa4        # this version's git blob id, as checked
+```
+
 **What the caller supplies.** The checking packages never read git or
 the network. `quality.Options` carries what only the caller knows;
-package `gitlog` reads the dates from a local checkout (the newest of
-the last 5000 commits touching each file, relative to the directory
-asked about, a file changed and not committed as now; at most 64 MB of
-output per command and a 30 second deadline; on any error, no dates):
+package `gitlog` reads the source bases from a local checkout (the
+newest of the last 5000 commits touching each version, relative to the
+directory asked about; a version changed and not committed is current;
+one `git cat-file --batch` for every base; at most 64 MB of output per
+command, 4 MB per file and a 30 second deadline; on any error, no
+answers and the rule is skipped):
 
 ```go
-lastChanged, err := gitlog.LastChanged(ctx, dir, gitlog.Options{}) // or the caller's own dates
+bases, cancel := gitlog.SourceBases(ctx, dir, gitlog.Options{}) // or the caller's own quality.BaseReader
+defer cancel()
 res, err := validate.Site(fsys, validate.Options{
     Only: []string{validate.ScopeSchema, validate.ScopeContent, validate.ScopeLinks, validate.ScopeQuality},
     Quality: quality.Options{
-        LastChanged: lastChanged,            // path → when it last changed; nil skips translation_outdated
+        SourceBases: bases,                  // what each version's source said at its base; nil skips translation_outdated
         ListMedia:   quality.FSMedia(fsys),  // lists files under quality.MediaRoots(cfg) with sizes; nil skips the media rules
         RootFiles:   quality.FSRootFiles(fsys), // file names at the repository root, to guess the build framework; nil guesses nothing
         Framework:   "",                     // or quality.FrameworkAstro when the caller knows; wins over RootFiles

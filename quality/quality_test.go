@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
-	"time"
 
 	"github.com/norcubeplatform/cms-schema/quality"
 	"github.com/norcubeplatform/cms-schema/report"
@@ -306,7 +305,6 @@ func TestLanguages(t *testing.T) {
 		"src/content/nav/cs.yml":    "items: []\n",
 	})
 	fsys[casesFile] = &fstest.MapFile{Data: []byte("label: Cases\npath: src/content/cases\ntranslations: {by: path, locales: [cs]}\nfields: [{key: slug, type: text, label: Slug}]\n")}
-	now := time.Date(2026, 11, 22, 0, 0, 0, 0, time.UTC)
 	t.Run("missing", func(t *testing.T) {
 		res := run(t, fsys, quality.Options{})
 		want := []string{"src/content/pages/cs/b.md# quality.translation_missing medium", "src/content/pages/en/c.md# quality.translation_missing medium"}
@@ -324,29 +322,6 @@ func TestLanguages(t *testing.T) {
 			if f.Rule == report.RuleQualityTranslationMissing && f.File == "src/content/pages/cs/b.md" && f.Value != "en" {
 				t.Errorf("value %q", f.Value)
 			}
-		}
-	})
-	t.Run("outdated", func(t *testing.T) {
-		res := run(t, fsys, quality.Options{LastChanged: map[string]time.Time{
-			"src/content/pages/cs/a.md": now,
-			"src/content/pages/en/a.md": now.Add(-30 * 24 * time.Hour),
-		}})
-		want := []string{"src/content/pages/en/a.md# quality.translation_outdated medium"}
-		if got := keys(res, report.RuleQualityTranslationOutdated); !slices.Equal(got, want) {
-			t.Errorf("got %v, want %v", got, want)
-		}
-		if n := res.Quality.Checked[report.RuleQualityTranslationOutdated]; n != 2 {
-			t.Errorf("checked %d", n)
-		}
-	})
-	t.Run("within the limit or undated", func(t *testing.T) {
-		res := run(t, fsys, quality.Options{LastChanged: map[string]time.Time{
-			"src/content/pages/cs/a.md": now,
-			"src/content/pages/en/a.md": now.Add(-6 * 24 * time.Hour),
-			"src/content/pages/cs/b.md": now.Add(-300 * 24 * time.Hour),
-		}})
-		if got := keys(res, report.RuleQualityTranslationOutdated); len(got) != 0 {
-			t.Errorf("got %v", got)
 		}
 	})
 }
