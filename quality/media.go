@@ -2,7 +2,6 @@ package quality
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"net/url"
 	"path"
@@ -97,15 +96,15 @@ func (r *run) media(pages []Page) {
 		return
 	}
 	if r.opts.ListMedia == nil {
-		r.skip(report.RuleQualityImageHeavy, "the media files were not listed")
-		r.skip(report.RuleQualityMediaUnused, "the media files were not listed")
+		r.skip(report.RuleQualityImageHeavy, SkipMediaNotListed, nil)
+		r.skip(report.RuleQualityMediaUnused, SkipMediaNotListed, nil)
 		return
 	}
 	files, err := r.opts.ListMedia(roots)
 	if err != nil {
-		reason := "the media files could not be listed: " + err.Error()
-		r.skip(report.RuleQualityImageHeavy, reason)
-		r.skip(report.RuleQualityMediaUnused, reason)
+		detail := &report.Params{Detail: err.Error()}
+		r.skip(report.RuleQualityImageHeavy, SkipMediaUnlistable, detail)
+		r.skip(report.RuleQualityMediaUnused, SkipMediaUnlistable, detail)
 		return
 	}
 	if len(files) > MaxMediaFiles {
@@ -127,9 +126,7 @@ func (r *run) media(pages []Page) {
 		if !used[p] {
 			if unusedOn {
 				r.emit(report.Finding{File: p, Rule: report.RuleQualityMediaUnused,
-					Message: "No content and no schema refers to this file.",
-					Hint:    "If the site's code does not use it either, delete it to keep the media library tidy. If the code does use it, list it in the storage's `usedByCode`.",
-					Value:   p, Measure: &report.Measure{Value: f.Size, Unit: report.UnitBytes}}, report.ImpactInfo)
+					Value: p, Measure: &report.Measure{Value: f.Size, Unit: report.UnitBytes}}, report.ImpactInfo)
 			}
 			continue
 		}
@@ -145,27 +142,25 @@ func (r *run) media(pages []Page) {
 			continue
 		}
 		r.count(report.RuleQualityImageHeavy)
-		limit, impact := veryHeavy, report.ImpactMedium
+		limit, impact, cause := veryHeavy, report.ImpactMedium, report.CauseOverUpperLimit
 		switch {
 		case f.Size > veryHeavy:
 		case f.Size > heavy:
-			limit, impact = heavy, report.ImpactLow
+			limit, impact, cause = heavy, report.ImpactLow, report.CauseOverLowerLimit
 		default:
 			continue
 		}
-		hint := "A large image makes the page slow to load, above all on a phone. Save it smaller (about 2000 pixels wide is plenty) or as WebP, and upload it again."
+		params := &report.Params{Bytes: report.Int(f.Size), LimitBytes: report.Int(limit)}
 		if folder.Guessed {
-			hint += " The folder is taken to be served as is, a guess from the site's framework: say `optimizedAtBuild: false` on its storage to confirm it, or `true` if the build resizes its images."
-		} else {
-			hint += " If the site's build resizes the images of this folder, say `optimizedAtBuild: true` on its storage."
+			// The folder is taken to be served as is, a guess from the
+			// framework the hint asks the site to confirm.
+			params.Framework = folder.Framework
 		}
 		// Full weight even when "served as is" is a guess: guessing it
 		// changes nothing against no guess at all. Only a guessed
 		// "optimized" changes the outcome, and it skips the image.
-		r.emit(report.Finding{File: p, Rule: report.RuleQualityImageHeavy,
-			Message: fmt.Sprintf("The image is %s, over %s.", humanBytes(f.Size), humanBytes(limit)),
-			Hint:    hint,
-			Value:   p, Measure: &report.Measure{Value: f.Size, Unit: report.UnitBytes, Max: &limit}}, impact)
+		r.emit(report.Finding{File: p, Rule: report.RuleQualityImageHeavy, Cause: cause, Params: params,
+			Value: p, Measure: &report.Measure{Value: f.Size, Unit: report.UnitBytes, Max: &limit}}, impact)
 	}
 }
 
@@ -307,14 +302,4 @@ func underAny(p string, roots []string) bool {
 		}
 	}
 	return false
-}
-
-func humanBytes(n int64) string {
-	switch {
-	case n >= 1024*1024:
-		return fmt.Sprintf("%.1f MB", float64(n)/(1024*1024))
-	case n >= 1024:
-		return fmt.Sprintf("%d KB", n/1024)
-	}
-	return fmt.Sprintf("%d bytes", n)
 }

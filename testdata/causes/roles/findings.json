@@ -8,6 +8,11 @@
           "path": "fields.i1",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "decorative_not_boolean",
+          "params": {
+            "field": "I1",
+            "value": "maybe"
+          },
           "message": "image \"I1\" has decorative maybe; it is true or false"
         },
         {
@@ -15,6 +20,11 @@
           "path": "fields.i10",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_field_missing",
+          "params": {
+            "field": "I10",
+            "key": "ghost"
+          },
           "message": "image \"I10\" takes its alt text from \"ghost\", but no field in the same list has that key",
           "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
         },
@@ -23,6 +33,10 @@
           "path": "fields.i11",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_names_nothing",
+          "params": {
+            "field": "I11"
+          },
           "message": "image \"I11\" has alt , which names no field",
           "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
         },
@@ -31,6 +45,10 @@
           "path": "fields.i2",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "decorative_with_alt",
+          "params": {
+            "field": "I2"
+          },
           "message": "image \"I2\" is decorative and also says where its alt text is",
           "hint": "A decorative image needs no alt text: keep one of the two."
         },
@@ -39,6 +57,11 @@
           "path": "fields.i3",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_key_unknown",
+          "params": {
+            "field": "I3",
+            "key": "foo"
+          },
           "message": "image \"I3\" has alt.foo, which a composed alt text does not read",
           "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
         },
@@ -47,6 +70,12 @@
           "path": "fields.i4",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_from_count",
+          "params": {
+            "field": "I4",
+            "value": "[]",
+            "max": 10
+          },
           "message": "image \"I4\" composes its alt text from []; alt.from lists 1 to 10 fields",
           "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
         },
@@ -55,6 +84,11 @@
           "path": "fields.i5",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_from_twice",
+          "params": {
+            "field": "I5",
+            "key": "cap"
+          },
           "message": "image \"I5\" lists \"cap\" twice in alt.from",
           "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
         },
@@ -63,6 +97,12 @@
           "path": "fields.i6",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_separator_invalid",
+          "params": {
+            "field": "I6",
+            "value": "5",
+            "max": 20
+          },
           "message": "image \"I6\" has alt.separator 5; it is text of at most 20 bytes",
           "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
         },
@@ -71,6 +111,11 @@
           "path": "fields.i7",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_names_nothing",
+          "params": {
+            "field": "I7",
+            "value": "5"
+          },
           "message": "image \"I7\" has alt 5, which names no field",
           "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
         },
@@ -79,6 +124,10 @@
           "path": "fields.i8",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_names_itself",
+          "params": {
+            "field": "I8"
+          },
           "message": "image \"I8\" names itself as its alt text",
           "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
         },
@@ -87,6 +136,12 @@
           "path": "fields.i9",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_field_not_text",
+          "params": {
+            "field": "I9",
+            "key": "num",
+            "type": "number"
+          },
           "message": "image \"I9\" takes its alt text from \"num\", which is a number field",
           "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
         },
@@ -95,6 +150,12 @@
           "path": "fields.both.fields.words",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_role_and_alt_knob",
+          "params": {
+            "field": "Words",
+            "key": "p1",
+            "other": "other"
+          },
           "message": "field \"Words\" has role alt, but image \"p1\" names \"other\" as its alt text",
           "hint": "Keep one of the two declarations."
         },
@@ -103,6 +164,11 @@
           "path": "fields.decor.fields.words",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_role_decorative_image",
+          "params": {
+            "field": "Words",
+            "key": "p1"
+          },
           "message": "field \"Words\" has role alt, but image \"p1\" is decorative",
           "hint": "A decorative image has no alt text: remove the role, or `decorative: true` from the image."
         },
@@ -111,6 +177,12 @@
           "path": "fields.desc2",
           "severity": "error",
           "rule": "schema.duplicate_role",
+          "cause": "page_role",
+          "params": {
+            "field": "Description again",
+            "role": "seoDescription",
+            "other": "fields.desc"
+          },
           "message": "field \"Description again\" has role seoDescription, which fields.desc already declares",
           "hint": "A page has one field per role; keep the role on one of them."
         },
@@ -119,6 +191,11 @@
           "path": "fields.grp",
           "severity": "error",
           "rule": "schema.role_type_mismatch",
+          "cause": "group_not_localized",
+          "params": {
+            "field": "Group",
+            "role": "seoTitle"
+          },
           "message": "group \"Group\" has role seoTitle; a group holds a role only when it is localized",
           "hint": "When the group's fields are the site's languages, mark it `localized: true` and keep the role on the group; else put the role on the field inside it."
         },
@@ -127,6 +204,11 @@
           "path": "fields.items.items[__entry_0].fields.heading",
           "severity": "error",
           "rule": "schema.misplaced_role",
+          "cause": "page_role_in_list",
+          "params": {
+            "field": "Heading",
+            "role": "seoTitle"
+          },
           "message": "field \"Heading\" has role seoTitle inside a list, where it repeats per item; a page has one seoTitle",
           "hint": "Declare it on a field at the top level of the collection or inside a group, not inside a list."
         },
@@ -135,6 +217,15 @@
           "path": "fields.name",
           "severity": "error",
           "rule": "schema.role_type_mismatch",
+          "cause": "localized_type_cannot_hold",
+          "params": {
+            "field": "Name",
+            "type": "text",
+            "role": "shareImage",
+            "allowed": [
+              "image"
+            ]
+          },
           "message": "field \"Name\" has role shareImage, which a localized group of text fields cannot hold",
           "hint": "shareImage goes on a field of type image."
         },
@@ -143,6 +234,10 @@
           "path": "fields.noimage.fields.words",
           "severity": "error",
           "rule": "schema.misplaced_role",
+          "cause": "alt_without_image",
+          "params": {
+            "field": "Words"
+          },
           "message": "field \"Words\" has role alt, but its fields list holds no image",
           "hint": "role: alt marks the alt text of the image next to it, in the same group or list item."
         },
@@ -151,6 +246,10 @@
           "path": "fields.odd",
           "severity": "error",
           "rule": "schema.unknown_role",
+          "params": {
+            "field": "Odd",
+            "value": "bogus"
+          },
           "message": "field \"Odd\" has role bogus, which is not a role",
           "hint": "Roles: seoTitle, seoDescription, shareImage, noindex, canonical, draft, alt, or none (no role, never guessed)."
         },
@@ -159,6 +258,15 @@
           "path": "fields.picture",
           "severity": "error",
           "rule": "schema.role_type_mismatch",
+          "cause": "type_cannot_hold",
+          "params": {
+            "field": "Picture",
+            "type": "text",
+            "role": "shareImage",
+            "allowed": [
+              "image"
+            ]
+          },
           "message": "field \"Picture\" has role shareImage, which a text field cannot hold",
           "hint": "shareImage goes on a field of type image."
         },
@@ -167,6 +275,11 @@
           "path": "fields.sections",
           "severity": "error",
           "rule": "schema.misplaced_role",
+          "cause": "page_role_in_listed_block",
+          "params": {
+            "key": "seoblock",
+            "role": "seoTitle"
+          },
           "message": "block \"seoblock\", an item of this list, has a field with role seoTitle, which would repeat per item; a page has one seoTitle",
           "hint": "Declare page roles at the top level of the collection or inside a group, not inside a list."
         },
@@ -175,6 +288,11 @@
           "path": "fields.twoalts.fields.alt2",
           "severity": "error",
           "rule": "schema.duplicate_role",
+          "cause": "alt_role",
+          "params": {
+            "field": "Alt two",
+            "other": "fields.twoalts.fields.alt1"
+          },
           "message": "field \"Alt two\" has role alt, which fields.twoalts.fields.alt1 already declares in the same list",
           "hint": "One field holds an image's alt text."
         },
@@ -183,6 +301,12 @@
           "path": "fields.twoimages.fields.words",
           "severity": "error",
           "rule": "schema.invalid_alt",
+          "cause": "alt_role_many_images",
+          "params": {
+            "field": "Words",
+            "key": "words",
+            "count": 2
+          },
           "message": "field \"Words\" has role alt, but its fields list holds 2 images",
           "hint": "Say which image it describes with `alt: words` on that image instead."
         },
@@ -191,6 +315,11 @@
           "path": "fields.w1",
           "severity": "error",
           "rule": "schema.invalid_when_empty",
+          "cause": "unknown_value",
+          "params": {
+            "field": "W1",
+            "value": "sometimes"
+          },
           "message": "field \"W1\" has whenEmpty sometimes, which is not a value it takes",
           "hint": "whenEmpty is generated (the site makes the value per page in code, such as a share card rendered at build time) or siteDefault (the site falls back to one site-wide value)."
         },
@@ -199,6 +328,15 @@
           "path": "fields.w2",
           "severity": "error",
           "rule": "schema.invalid_when_empty",
+          "cause": "no_role",
+          "params": {
+            "field": "W2",
+            "allowed": [
+              "seoTitle",
+              "seoDescription",
+              "shareImage"
+            ]
+          },
           "message": "field \"W2\" has whenEmpty but no role",
           "hint": "whenEmpty says what the site does when a role field is empty; give the field its role (seoTitle, seoDescription, shareImage) or remove whenEmpty."
         },
@@ -207,6 +345,16 @@
           "path": "fields.w3",
           "severity": "error",
           "rule": "schema.invalid_when_empty",
+          "cause": "role_not_filled_in_code",
+          "params": {
+            "field": "W3",
+            "role": "canonical",
+            "allowed": [
+              "seoTitle",
+              "seoDescription",
+              "shareImage"
+            ]
+          },
           "message": "field \"W3\" has whenEmpty on role canonical, whose empty value a site does not fill in code",
           "hint": "whenEmpty goes on a field with role seoTitle, seoDescription, shareImage."
         },
@@ -214,6 +362,12 @@
           "file": "src/content/pages/index.md",
           "severity": "warning",
           "rule": "content.extra_keys",
+          "cause": "not_in_schema",
+          "params": {
+            "names": [
+              "title"
+            ]
+          },
           "message": "keys title are not in the schema",
           "hint": "They show in the editor's out-of-schema panel. Add them to the schema or remove them."
         }

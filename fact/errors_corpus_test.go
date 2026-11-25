@@ -2,6 +2,7 @@ package fact_test
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/norcubeplatform/cms-schema/fact"
 	"github.com/norcubeplatform/cms-schema/load"
+	"github.com/norcubeplatform/cms-schema/report"
 	"github.com/norcubeplatform/cms-schema/schema"
 )
 
@@ -253,17 +255,38 @@ func errorCases() []errorCase {
 	}
 }
 
-// TestErrorCorpusEnglish pins the text of every refusal in the corpus:
-// what fact.Make returns and the CMS shows when it refuses facts.
+// refusal is what the golden file pins of one refusal: its code and
+// params, and the English Error() text.
+type refusal struct {
+	Kind   fact.ErrorKind `json:"kind"`
+	Code   fact.ErrorCode `json:"code"`
+	Params *report.Params `json:"params,omitempty"`
+	Error  string         `json:"error"`
+}
+
+// TestErrorCorpusEnglish pins every refusal in the corpus: its code and
+// params, and the text fact.Make returns and the CMS shows when it
+// refuses facts.
 func TestErrorCorpusEnglish(t *testing.T) {
-	got := map[string]string{}
+	got := map[string]refusal{}
 	for _, c := range errorCases() {
 		err := c.run()
 		if err == nil {
 			t.Errorf("%s: no error", c.name)
 			continue
 		}
-		got[c.name] = err.Error()
+		var fe *fact.Error
+		if !errors.As(err, &fe) {
+			t.Errorf("%s: %v is not a *fact.Error", c.name, err)
+			continue
+		}
+		if !errors.Is(err, fe.Kind.Sentinel()) {
+			t.Errorf("%s: does not match its kind %s", c.name, fe.Kind)
+		}
+		if cerr := fact.CheckError(fe); cerr != nil {
+			t.Errorf("%s: %v", c.name, cerr)
+		}
+		got[c.name] = refusal{Kind: fe.Kind, Code: fe.Code, Params: fe.Params, Error: err.Error()}
 	}
 	golden := filepath.Join("testdata", "errors.golden.json")
 	keys := make([]string, 0, len(got))
@@ -286,16 +309,90 @@ func TestErrorCorpusEnglish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var want map[string]string
+	var want map[string]refusal
 	if err := json.Unmarshal(raw, &want); err != nil {
 		t.Fatal(err)
 	}
 	for _, k := range keys {
-		if got[k] != want[k] {
-			t.Errorf("%s:\n got %q\nwant %q", k, got[k], want[k])
+		g, _ := json.Marshal(got[k])
+		w, _ := json.Marshal(want[k])
+		if string(g) != string(w) {
+			t.Errorf("%s:\n got %s\nwant %s", k, g, w)
 		}
 	}
 	if len(want) != len(got) {
 		t.Errorf("%d cases, golden has %d", len(got), len(want))
+	}
+}
+
+// defensiveCodes are refusals no fact in the corpus reaches: the
+// locator and the editor check them for layouts the loader already
+// refuses or yaml.v3 never produces. TestDefensiveCodesEnglish words
+// each.
+var defensiveCodes = []fact.ErrorCode{
+	fact.CodeTooDeep, fact.CodeRefNotFound, fact.CodeNoFileDeclares, fact.CodeNoPosition, fact.CodeEmptyValue,
+	fact.CodeUnterminatedValue, fact.CodeNoFlowCollection, fact.CodeUnterminatedFlow, fact.CodeNoColon, fact.CodeFollowedOnLine,
+}
+
+// Every code is reached by a refusal of the corpus, or is a defensive
+// one with its own English test.
+func TestEveryErrorCodeIsCovered(t *testing.T) {
+	reached := map[fact.ErrorCode]bool{}
+	for _, c := range defensiveCodes {
+		reached[c] = true
+	}
+	for _, c := range errorCases() {
+		var fe *fact.Error
+		if errors.As(c.run(), &fe) {
+			reached[fe.Code] = true
+		}
+	}
+	seen := map[fact.ErrorCode]bool{}
+	for _, s := range fact.ErrorCodes() {
+		if seen[s.Code] {
+			t.Errorf("code %s is listed twice", s.Code)
+		}
+		seen[s.Code] = true
+		if !reached[s.Code] {
+			t.Errorf("code %s is neither in the corpus nor in defensiveCodes", s.Code)
+		}
+	}
+}
+
+func TestDefensiveCodesEnglish(t *testing.T) {
+	cases := []struct {
+		code fact.ErrorCode
+		p    *report.Params
+		want string
+	}{
+		{fact.CodeTooDeep, &report.Params{Field: "a.b", Max: report.Num(12)}, `invalid fact: "a.b" nests deeper than 12`},
+		{fact.CodeRefNotFound, &report.Params{Key: "seo"}, `not in the schema: block or input "seo"`},
+		{fact.CodeNoFileDeclares, &report.Params{Kind: "collection", Key: "pages"}, `not in the schema: no file declares collection "pages"`},
+		{fact.CodeNoPosition, &report.Params{Path: "x.yml"}, `x.yml: cannot be placed: no position`},
+		{fact.CodeNoPosition, nil, `cannot be placed: no position`},
+		{fact.CodeEmptyValue, nil, `cannot be placed: an empty value`},
+		{fact.CodeUnterminatedValue, nil, `cannot be placed: an unterminated value`},
+		{fact.CodeNoFlowCollection, nil, `cannot be placed: no flow collection`},
+		{fact.CodeUnterminatedFlow, nil, `cannot be placed: an unterminated flow collection`},
+		{fact.CodeNoColon, &report.Params{Knob: "role"}, `cannot be placed: no colon after role`},
+		{fact.CodeFollowedOnLine, &report.Params{Knob: "role"}, `cannot be placed: something follows role on its line`},
+	}
+	for _, c := range cases {
+		var kind fact.ErrorKind
+		for _, s := range fact.ErrorCodes() {
+			if s.Code == c.code {
+				kind = s.Kind
+			}
+		}
+		e := &fact.Error{Kind: kind, Code: c.code, Params: c.p}
+		if got := e.Error(); got != c.want {
+			t.Errorf("%s: %q, want %q", c.code, got, c.want)
+		}
+		if err := fact.CheckError(e); err != nil {
+			t.Errorf("%s: %v", c.code, err)
+		}
+		if !errors.Is(e, kind.Sentinel()) {
+			t.Errorf("%s does not match %v", c.code, kind.Sentinel())
+		}
 	}
 }

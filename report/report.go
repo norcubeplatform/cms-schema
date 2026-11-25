@@ -9,6 +9,7 @@
 package report
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -91,10 +92,19 @@ type Finding struct {
 	Severity Severity `json:"severity"`
 	// Rule is the frozen identifier of the check (see rules.go).
 	Rule Rule `json:"rule"`
-	// Message says what is wrong, in one sentence.
+	// Cause names which of the rule's causes this is; empty for a rule
+	// with one cause. Frozen like rule ids: never renamed or reused.
+	Cause Cause `json:"cause,omitempty"`
+	// Params are the facts the finding's sentence is made of, typed.
+	// Which keys a rule and cause set is in Catalog().
+	Params *Params `json:"params,omitempty"`
+	// Message says what is wrong, in one English sentence; Hint how to
+	// fix it, when the check knows. Both are made from Rule, Cause and
+	// Params by English(), for terminals, logs and readers of the JSON.
+	// A client that shows findings in another language builds its own
+	// sentence from Rule, Cause and Params.
 	Message string `json:"message"`
-	// Hint says how to fix it, when the check knows.
-	Hint string `json:"hint,omitempty"`
+	Hint    string `json:"hint,omitempty"`
 
 	// Impact, Value and Measure are set on `quality.` findings only.
 	Impact Impact `json:"impact,omitempty"`
@@ -158,8 +168,10 @@ func severityRank(s Severity) int {
 	return 2
 }
 
-// Sort orders findings by file, path, severity (errors first), rule and
-// message, so two runs over the same site print the same list.
+// Sort orders findings by file, path, severity (errors first), rule,
+// message and Key, so two runs over the same site print the same list.
+// The message, made from the Key, keeps the order a terminal has always
+// printed; the Key orders findings whose English is the same.
 func Sort(findings []Finding) {
 	sort.SliceStable(findings, func(i, j int) bool {
 		a, b := findings[i], findings[j]
@@ -175,8 +187,39 @@ func Sort(findings []Finding) {
 		if a.Rule != b.Rule {
 			return a.Rule < b.Rule
 		}
-		return a.Message < b.Message
+		if a.Message != b.Message {
+			return a.Message < b.Message
+		}
+		return a.Key() < b.Key()
 	})
+}
+
+// Key is a finding's identity: its file, path, rule, cause and params.
+// Two findings with one Key say the same thing about the same place, in
+// any language; the English sentence takes no part. Severity, Impact,
+// Value and Measure are left out: they weigh a finding, not name it.
+func (f Finding) Key() string {
+	var b strings.Builder
+	b.WriteString(f.File)
+	b.WriteByte(0)
+	b.WriteString(f.Path)
+	b.WriteByte(0)
+	b.WriteString(string(f.Rule))
+	b.WriteByte(0)
+	b.WriteString(string(f.Cause))
+	b.WriteByte(0)
+	if f.Params != nil {
+		// A struct marshals its keys in one order, so the same params
+		// always give the same text.
+		raw, _ := json.Marshal(f.Params)
+		b.Write(raw)
+	}
+	if _, ok := Lookup(f.Rule, f.Cause); !ok {
+		// A finding the catalog does not word is told apart by its text.
+		b.WriteByte(0)
+		b.WriteString(f.Message)
+	}
+	return b.String()
 }
 
 // Count returns how many findings are errors and how many are warnings.

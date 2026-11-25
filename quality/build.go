@@ -111,6 +111,9 @@ type MediaFolder struct {
 	// from the framework table (Summary.Guessed names it when content
 	// uses images there).
 	Guessed bool `json:"guessed,omitempty"`
+	// Framework is the build framework a guess comes from; empty when
+	// the schema says.
+	Framework string `json:"framework,omitempty"`
 	// Images counts the raster images content uses in the folder: skipped
 	// by quality.image_heavy when OptimizedAtBuild, checked otherwise.
 	// Zero when the media files were not listed.
@@ -172,9 +175,9 @@ func mediaFolders(cfg *schema.Config, roots []string, opts Options) ([]MediaFold
 		case declared != nil:
 			f.OptimizedAtBuild = *declared
 		case fw != nil && underAnyDir(root, fw.Optimized):
-			f.OptimizedAtBuild, f.Guessed = true, true
+			f.OptimizedAtBuild, f.Guessed, f.Framework = true, true, fw.Name
 		case fw != nil && underAnyDir(root, fw.AsIs):
-			f.Guessed = true
+			f.Guessed, f.Framework = true, fw.Name
 		}
 		if f.Guessed {
 			guesses = append(guesses, Guess{Kind: GuessOptimizedAtBuild, Storage: storage, Path: root, Value: f.OptimizedAtBuild, Framework: fw.Name, Basis: basis})

@@ -1,8 +1,6 @@
 package load
 
 import (
-	"fmt"
-
 	"gopkg.in/yaml.v3"
 
 	"github.com/norcubeplatform/cms-schema/report"
@@ -78,12 +76,12 @@ func resolveOrRecurse(n *yaml.Node, registry *yaml.Node, depth int, file string,
 		return
 	}
 	if depth >= maxRefDepth {
-		*findings = append(*findings, report.Finding{File: file, Severity: report.SeverityError, Rule: report.RuleSchemaRefCycle, Message: fmt.Sprintf("$ref %q nests deeper than %d levels; the blocks reference each other in a cycle", name, maxRefDepth)})
+		*findings = append(*findings, report.New(file, "", report.RuleSchemaRefCycle, "", &report.Params{Key: name, Max: report.Num(maxRefDepth)}))
 		return
 	}
 	target := lookup(registry, name)
 	if target == nil {
-		*findings = append(*findings, report.Finding{File: file, Severity: report.SeverityError, Rule: report.RuleSchemaUnresolvedRef, Message: fmt.Sprintf("$ref %q names no block and no input", name), Hint: fmt.Sprintf("Add %s or %s, or fix the name.", BlockFile(name), InputFile(name))})
+		*findings = append(*findings, report.New(file, "", report.RuleSchemaUnresolvedRef, "", &report.Params{Key: name, Path: BlockFile(name), Other: InputFile(name)}))
 		return
 	}
 	replacement := clone(target)

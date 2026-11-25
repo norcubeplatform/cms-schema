@@ -1,7 +1,6 @@
 package quality
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/norcubeplatform/cms-schema/report"
@@ -89,10 +88,8 @@ func (r *run) imageAlt(p Page, v schema.Visit, value string) {
 	if len(src.Keys) == 0 {
 		if r.on(report.RuleQualityImageAltMissing, coll) {
 			r.count(report.RuleQualityImageAltMissing)
-			r.emit(report.Finding{File: p.Path, Path: v.Path, Rule: report.RuleQualityImageAltMissing,
-				Message: "The image has no alt text, and the schema gives it no field for one.",
-				Hint:    "Ask a developer to name the field that holds its alt text (`alt:` on the image field) or to mark the image `decorative: true`.",
-				Value:   value}, report.ImpactLow)
+			r.emit(report.Finding{File: p.Path, Path: v.Path, Rule: report.RuleQualityImageAltMissing, Cause: report.CauseNoAltField,
+				Value: value}, report.ImpactLow)
 		}
 		return
 	}
@@ -127,15 +124,14 @@ func (r *run) imageAlt(p Page, v schema.Visit, value string) {
 	if alt == "" {
 		if r.on(report.RuleQualityImageAltMissing, coll) {
 			r.count(report.RuleQualityImageAltMissing)
-			msg := "The image has no alt text."
+			cause := report.CauseEmpty
 			switch {
 			case src.Composed:
-				msg = "The image has no alt text: every field it is made of is empty."
+				cause = report.CauseComposedEmpty
 			case !src.Declared:
-				msg = "The image has no alt text (the field for it was guessed from field names)."
+				cause = report.CauseGuessedEmpty
 			}
-			r.emit(report.Finding{File: p.Path, Path: altPath, Rule: report.RuleQualityImageAltMissing, Message: msg,
-				Hint:  "Describe what the image shows, for people who cannot see it. If it is only decoration, a developer can mark it `decorative: true`.",
+			r.emit(report.Finding{File: p.Path, Path: altPath, Rule: report.RuleQualityImageAltMissing, Cause: cause,
 				Value: value}, lowered(report.ImpactHigh, !src.Declared))
 		}
 		return
@@ -163,11 +159,10 @@ func (r *run) altPoor(p Page, path, alt, src string, guessed bool, basis string)
 		return
 	}
 	r.count(report.RuleQualityImageAltPoor)
-	if why := PoorAlt(alt, src); why != "" {
-		r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityImageAltPoor,
-			Message: fmt.Sprintf("The image's alt text %q is %s.", alt, why),
-			Hint:    "Say what the image shows or why it is there, in a few words.",
-			Value:   alt, Basis: basis}, lowered(report.ImpactLow, guessed))
+	if cause := PoorAlt(alt, src); cause != "" {
+		r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityImageAltPoor, Cause: cause,
+			Params: &report.Params{Value: alt},
+			Value:  alt, Basis: basis}, lowered(report.ImpactLow, guessed))
 	}
 }
 
@@ -226,10 +221,9 @@ func (r *run) linkLabel(p Page, v schema.Visit) {
 	}
 	r.count(report.RuleQualityLinkTextGeneric)
 	if GenericLinkText(text) {
-		r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityLinkTextGeneric,
-			Message: fmt.Sprintf("The link's text %q does not say where it leads.", strings.TrimSpace(text)),
-			Hint:    "People using a screen reader often jump from link to link. Say what they get (\"See our pricing\") instead.",
-			Value:   strings.TrimSpace(text)}, report.ImpactLow)
+		r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityLinkTextGeneric, Cause: report.CauseLabel,
+			Params: &report.Params{Value: strings.TrimSpace(text)},
+			Value:  strings.TrimSpace(text)}, report.ImpactLow)
 	}
 }
 
@@ -247,9 +241,8 @@ func (r *run) text(p Page, path, value string, isHTML bool) {
 			}
 			want := int64(prev.level + 1)
 			r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityHeadingSkip,
-				Message: fmt.Sprintf("The heading %q is level %d right after a level %d heading.", cutRunes(cur.text, 80), cur.level, prev.level),
-				Hint:    fmt.Sprintf("Make it a level %d heading, so people who move through a page by its headings do not miss a level.", want),
-				Value:   cur.text, Measure: &report.Measure{Value: int64(cur.level), Unit: report.UnitLevel, Max: &want}}, report.ImpactLow)
+				Params: &report.Params{Value: cutRunes(cur.text, 80), Level: report.Int(int64(cur.level)), ExpectedLevel: report.Int(want)},
+				Value:  cur.text, Measure: &report.Measure{Value: int64(cur.level), Unit: report.UnitLevel, Max: &want}}, report.ImpactLow)
 			break
 		}
 	}
@@ -258,9 +251,8 @@ func (r *run) text(p Page, path, value string, isHTML bool) {
 			if r.on(report.RuleQualityLinkTextEmpty, coll) {
 				r.count(report.RuleQualityLinkTextEmpty)
 				r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityLinkTextEmpty,
-					Message: fmt.Sprintf("A link to %s has no text.", orNothing(l.href)),
-					Hint:    "A screen reader announces such a link by its address, or not at all. Give it words that say where it leads.",
-					Value:   l.href}, report.ImpactMedium)
+					Params: &report.Params{Path: strings.TrimSpace(l.href)},
+					Value:  l.href}, report.ImpactMedium)
 			}
 			continue
 		}
@@ -270,10 +262,9 @@ func (r *run) text(p Page, path, value string, isHTML bool) {
 		if r.on(report.RuleQualityLinkTextGeneric, coll) {
 			r.count(report.RuleQualityLinkTextGeneric)
 			if GenericLinkText(l.text) {
-				r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityLinkTextGeneric,
-					Message: fmt.Sprintf("The link %q to %s does not say where it leads.", l.text, orNothing(l.href)),
-					Hint:    "People using a screen reader often jump from link to link. Say what they get (\"See our pricing\") instead.",
-					Value:   l.text}, report.ImpactLow)
+				r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityLinkTextGeneric, Cause: report.CauseInText,
+					Params: &report.Params{Value: l.text, Path: strings.TrimSpace(l.href)},
+					Value:  l.text}, report.ImpactLow)
 			}
 		}
 	}
@@ -288,10 +279,9 @@ func (r *run) text(p Page, path, value string, isHTML bool) {
 		if im.alt == "" {
 			if r.on(report.RuleQualityImageAltMissing, coll) {
 				r.count(report.RuleQualityImageAltMissing)
-				r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityImageAltMissing,
-					Message: fmt.Sprintf("The image %s in the text has no alt text.", orNothing(im.src)),
-					Hint:    "Describe what the image shows between the square brackets: ![a team at work](...).",
-					Value:   im.src}, report.ImpactHigh)
+				r.emit(report.Finding{File: p.Path, Path: path, Rule: report.RuleQualityImageAltMissing, Cause: report.CauseInText,
+					Params: &report.Params{Path: strings.TrimSpace(im.src)},
+					Value:  im.src}, report.ImpactHigh)
 			}
 			continue
 		}
@@ -304,13 +294,6 @@ func (r *run) text(p Page, path, value string, isHTML bool) {
 
 func richTextIsHTML(f schema.Field) bool {
 	return f.Format == schema.RichTextFormatHTML || (f.Format == "" && f.Type == schema.TypeHTML)
-}
-
-func orNothing(s string) string {
-	if strings.TrimSpace(s) == "" {
-		return "nowhere"
-	}
-	return s
 }
 
 // normalKey keeps the lowercase letters and digits of a key.

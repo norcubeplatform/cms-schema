@@ -2,6 +2,32 @@
 
 Notable changes, newest first.
 
+## 0.12.0 (2026-11-25)
+
+Findings, skipped rules and refused facts are codes with typed
+parameters, so a client can word them in any language. The English a
+terminal prints is unchanged.
+
+### New
+
+- **`Finding.Cause` and `Finding.Params`** (JSON `cause`, `params`, both additive). `cause` names which of the rule's causes a finding is (empty for a rule with one cause); `params` (`report.Params`) carries the facts its sentence is made of, typed: `field`, `key`, `value`, `names`/`more`, `type`, `expected`, `actual`, `knob`, `role`, `allowed`, `locale`/`locales`, `path`, `other`, `min`/`max`/`current`, counts, positions, sizes in bytes, `customMessage` (the schema's own message) and `detail` (a parser's error text). Strings at most 300 characters, `names` at most 10 plus `more`. `message` and `hint` stay, in English.
+- **The catalog**: `report.Catalog()`, `Lookup`, `CausesOf`: 207 rules and causes (141 named causes under the 89 frozen rule ids), each with its severity and the params keys it sets. `report.ParamSpecs()` gives each key's type and class. Causes are frozen like rule ids. **`report/catalog.json`** is the catalog as a file, with `quality.SkipReasons()` and `fact.ErrorCodes()`, for clients generated from it; `go generate ./report` writes it and a test fails when it is stale.
+- **`report.English(f)`**: a finding's message and hint from its rule, cause and params. **`report.New`** makes a finding of a rule and cause, worded; `Finding.Worded`; **`report.CheckFinding`** and **`report.CheckParams`** report a finding that breaks its entry. `report.FlowValue`, `FormatNumber`, `FormatFloat`, `HumanBytes`, `Int`, `Num`.
+- **Identity**: `Finding.Key()` (file, path, rule, cause, params). `fact.Plan.NewErrors` compares keys instead of messages; `report.Sort` orders by key after the message.
+- **`report.Problem`**: a cause with its params for a problem of one value. `schema.TemplateError` and `schema.CodePatternError` (matching `ErrTemplate` and `ErrCodePattern`) hold one; `report.TemplateCauses`, `PatternCauses`, `StorageCauses`.
+- **Skipped rules are codes**: `quality.Skipped{Rule, Reason, Params, Message}`, `Reason` a `quality.SkipReason` (`history_not_given`, `history_unreadable`, `languages_capped`, `media_not_listed`, `media_unlistable`); `Skipped.English()`.
+- **Refused facts are codes**: `fact.Error{Kind, Code, Params}` (`fact.ErrorKind`: `invalid_fact`, `not_in_schema`, `ambiguous`, `cannot_be_placed`; 92 `fact.ErrorCode`s, `fact.ErrorCodes()`), inside `FactError` as before. `errors.Is` still matches `ErrInvalid`, `ErrNotFound`, `ErrAmbiguous`, `ErrUnplaceable`; `Error()` is the same English. `ErrorKind.Sentinel`, `fact.CheckError`.
+- `quality.MediaFolder.Framework`: the framework a guess comes from.
+- `testdata/causes/*`: sites that make every rule fire for each of its causes, with the findings pinned (`findings.json`); a test fails when a cause of the catalog has no fixture.
+
+### Behaviour changes
+
+- `quality.Skipped.Reason` is a code (`history_not_given`…), no longer an English sentence; the sentence is `Skipped.Message` (JSON `message`).
+- `resolve.ValidStorage` returns `[]report.Problem` instead of English strings; `quality.PoorAlt` returns a `report.Cause` (`generic_word`, `camera_file_name`, `file_name`) instead of an English phrase.
+- `quality.RuleSpec.Threshold` and `.Source` are removed (the README's table holds them).
+- A value printed in a message is no longer Go syntax: a list is `[a, b]` (was `[a b]`), null is `null` (was `<nil>`), a mapping `{k: v}` (was `map[k:v]`). Only values the schema writes in an unexpected type print this way.
+- A text in a message over 300 characters is cut with "…" (a `usedByCode` entry over 300 bytes, a schema's own message), and a list of more than 10 names (extra keys, unknown tokens) ends "and N more". Every other message and hint is word for word what 0.11 printed: the causes sites pin it.
+
 ## 0.11.1 (2026-11-25)
 
 ### Fixes

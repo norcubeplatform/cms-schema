@@ -7,6 +7,12 @@
           "file": "public/images/heavy.jpg",
           "severity": "notice",
           "rule": "quality.image_heavy",
+          "cause": "over_lower_limit",
+          "params": {
+            "framework": "astro",
+            "bytes": 307200,
+            "limitBytes": 204800
+          },
           "message": "The image is 300 KB, over 200 KB.",
           "hint": "A large image makes the page slow to load, above all on a phone. Save it smaller (about 2000 pixels wide is plenty) or as WebP, and upload it again. The folder is taken to be served as is, a guess from the site's framework: say `optimizedAtBuild: false` on its storage to confirm it, or `true` if the build resizes its images.",
           "impact": "low",
@@ -21,6 +27,12 @@
           "file": "public/images/huge.jpg",
           "severity": "warning",
           "rule": "quality.image_heavy",
+          "cause": "over_upper_limit",
+          "params": {
+            "framework": "astro",
+            "bytes": 2097152,
+            "limitBytes": 1048576
+          },
           "message": "The image is 2.0 MB, over 1.0 MB.",
           "hint": "A large image makes the page slow to load, above all on a phone. Save it smaller (about 2000 pixels wide is plenty) or as WebP, and upload it again. The folder is taken to be served as is, a guess from the site's framework: say `optimizedAtBuild: false` on its storage to confirm it, or `true` if the build resizes its images.",
           "impact": "medium",
@@ -49,6 +61,7 @@
           "path": "body",
           "severity": "warning",
           "rule": "quality.description_missing",
+          "cause": "excerpt_empty",
           "message": "The page has no meta description: the first paragraph of its text is empty.",
           "hint": "Search engines then pick a snippet from the page. Write one or two sentences that make someone want to open it. If the site writes descriptions in code, say so in the schema with `whenEmpty` on the field.",
           "impact": "medium"
@@ -58,6 +71,12 @@
           "path": "body",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_short",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 6
+          },
           "message": "The description (the first paragraph of the text) has 6 characters, fewer than the recommended 70 to 160.",
           "hint": "A longer description says more about the page in search results.",
           "impact": "low",
@@ -75,6 +94,7 @@
           "path": "painter",
           "severity": "warning",
           "rule": "quality.image_alt_missing",
+          "cause": "composed_empty",
           "message": "The image has no alt text: every field it is made of is empty.",
           "hint": "Describe what the image shows, for people who cannot see it. If it is only decoration, a developer can mark it `decorative: true`.",
           "impact": "high",
@@ -85,6 +105,7 @@
           "path": "blocks[0].photo_alt",
           "severity": "warning",
           "rule": "quality.image_alt_missing",
+          "cause": "empty",
           "message": "The image has no alt text.",
           "hint": "Describe what the image shows, for people who cannot see it. If it is only decoration, a developer can mark it `decorative: true`.",
           "impact": "high",
@@ -95,6 +116,7 @@
           "path": "blocks[1].loose",
           "severity": "notice",
           "rule": "quality.image_alt_missing",
+          "cause": "no_alt_field",
           "message": "The image has no alt text, and the schema gives it no field for one.",
           "hint": "Ask a developer to name the field that holds its alt text (`alt:` on the image field) or to mark the image `decorative: true`.",
           "impact": "low",
@@ -105,6 +127,10 @@
           "path": "blocks[2].photo_alt",
           "severity": "notice",
           "rule": "quality.image_alt_poor",
+          "cause": "generic_word",
+          "params": {
+            "value": "Obrázek"
+          },
           "message": "The image's alt text \"Obrázek\" is a generic word.",
           "hint": "Say what the image shows or why it is there, in a few words.",
           "impact": "low",
@@ -115,6 +141,10 @@
           "path": "blocks[3].photo_alt",
           "severity": "notice",
           "rule": "quality.image_alt_poor",
+          "cause": "camera_file_name",
+          "params": {
+            "value": "IMG_1234"
+          },
           "message": "The image's alt text \"IMG_1234\" is a camera's file name.",
           "hint": "Say what the image shows or why it is there, in a few words.",
           "impact": "low",
@@ -125,6 +155,10 @@
           "path": "blocks[4].photo_alt",
           "severity": "notice",
           "rule": "quality.image_alt_poor",
+          "cause": "file_name",
+          "params": {
+            "value": "team-photo-2"
+          },
           "message": "The image's alt text \"team-photo-2\" is the file name.",
           "hint": "Say what the image shows or why it is there, in a few words.",
           "impact": "low",
@@ -135,6 +169,10 @@
           "path": "blocks[5].label",
           "severity": "notice",
           "rule": "quality.link_text_generic",
+          "cause": "label",
+          "params": {
+            "value": "Klikněte zde"
+          },
           "message": "The link's text \"Klikněte zde\" does not say where it leads.",
           "hint": "People using a screen reader often jump from link to link. Say what they get (\"See our pricing\") instead.",
           "impact": "low",
@@ -145,6 +183,7 @@
           "path": "blocks[6].list[1].name",
           "severity": "notice",
           "rule": "quality.image_alt_missing",
+          "cause": "guessed_empty",
           "message": "The image has no alt text (the field for it was guessed from field names).",
           "hint": "Describe what the image shows, for people who cannot see it. If it is only decoration, a developer can mark it `decorative: true`.",
           "impact": "low",
@@ -155,6 +194,10 @@
           "path": "body",
           "severity": "warning",
           "rule": "quality.image_alt_missing",
+          "cause": "in_text",
+          "params": {
+            "path": "/images/q.jpg"
+          },
           "message": "The image /images/q.jpg in the text has no alt text.",
           "hint": "Describe what the image shows between the square brackets: ![a team at work](...).",
           "impact": "high",
@@ -165,6 +208,9 @@
           "path": "body",
           "severity": "warning",
           "rule": "quality.link_text_empty",
+          "params": {
+            "path": "/cs/c/"
+          },
           "message": "A link to /cs/c/ has no text.",
           "hint": "A screen reader announces such a link by its address, or not at all. Give it words that say where it leads.",
           "impact": "medium",
@@ -175,6 +221,11 @@
           "path": "body",
           "severity": "notice",
           "rule": "quality.heading_skip",
+          "params": {
+            "value": "Skipped",
+            "level": 3,
+            "expectedLevel": 2
+          },
           "message": "The heading \"Skipped\" is level 3 right after a level 1 heading.",
           "hint": "Make it a level 2 heading, so people who move through a page by its headings do not miss a level.",
           "impact": "low",
@@ -190,6 +241,11 @@
           "path": "body",
           "severity": "notice",
           "rule": "quality.link_text_generic",
+          "cause": "in_text",
+          "params": {
+            "value": "click here",
+            "path": "/cs/b/"
+          },
           "message": "The link \"click here\" to /cs/b/ does not say where it leads.",
           "hint": "People using a screen reader often jump from link to link. Say what they get (\"See our pricing\") instead.",
           "impact": "low",
@@ -200,6 +256,12 @@
           "path": "seo.page_description",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_short",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 10
+          },
           "message": "The description has 10 characters, fewer than the recommended 70 to 160.",
           "hint": "A longer description says more about the page in search results.",
           "impact": "low",
@@ -216,6 +278,12 @@
           "path": "title",
           "severity": "notice",
           "rule": "quality.title_length",
+          "cause": "too_short",
+          "params": {
+            "min": 30,
+            "max": 60,
+            "current": 5
+          },
           "message": "The title has 5 characters, fewer than the recommended 30 to 60.",
           "hint": "A longer title says more about the page in search results.",
           "impact": "low",
@@ -231,6 +299,10 @@
           "file": "src/content/pages/cs/b.md",
           "severity": "warning",
           "rule": "quality.translation_missing",
+          "cause": "missing",
+          "params": {
+            "locale": "en"
+          },
           "message": "The page has no version in \"en\".",
           "hint": "Create the version in that language, or, if the collection is not meant to have one, list its languages in `translations.locales`.",
           "impact": "medium",
@@ -250,6 +322,7 @@
           "path": "seo.page_description",
           "severity": "warning",
           "rule": "quality.description_missing",
+          "cause": "empty",
           "message": "The page has no meta description.",
           "hint": "Search engines then pick a snippet from the page. Write one or two sentences that make someone want to open it. If the site writes descriptions in code, say so in the schema with `whenEmpty` on the field.",
           "impact": "medium"
@@ -268,6 +341,12 @@
           "path": "seo.page_description",
           "severity": "warning",
           "rule": "quality.description_duplicate",
+          "params": {
+            "names": [
+              "src/content/pages/cs/d.md"
+            ],
+            "count": 2
+          },
           "message": "2 pages share this description: src/content/pages/cs/d.md.",
           "hint": "Give each page a description of its own, so people can tell them apart in search results.",
           "impact": "medium",
@@ -282,6 +361,12 @@
           "path": "seo.page_description",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_short",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 45
+          },
           "message": "The description has 45 characters, fewer than the recommended 70 to 160.",
           "hint": "A longer description says more about the page in search results.",
           "impact": "low",
@@ -298,6 +383,12 @@
           "path": "title",
           "severity": "warning",
           "rule": "quality.title_duplicate",
+          "params": {
+            "names": [
+              "src/content/pages/cs/d.md"
+            ],
+            "count": 2
+          },
           "message": "2 pages share this title: src/content/pages/cs/d.md.",
           "hint": "Give each page a title of its own, so people can tell them apart in search results.",
           "impact": "medium",
@@ -312,6 +403,12 @@
           "path": "seo.page_description",
           "severity": "warning",
           "rule": "quality.description_duplicate",
+          "params": {
+            "names": [
+              "src/content/pages/cs/c.md"
+            ],
+            "count": 2
+          },
           "message": "2 pages share this description: src/content/pages/cs/c.md.",
           "hint": "Give each page a description of its own, so people can tell them apart in search results.",
           "impact": "medium",
@@ -326,6 +423,12 @@
           "path": "seo.page_description",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_short",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 45
+          },
           "message": "The description has 45 characters, fewer than the recommended 70 to 160.",
           "hint": "A longer description says more about the page in search results.",
           "impact": "low",
@@ -342,6 +445,12 @@
           "path": "title",
           "severity": "warning",
           "rule": "quality.title_duplicate",
+          "params": {
+            "names": [
+              "src/content/pages/cs/c.md"
+            ],
+            "count": 2
+          },
           "message": "2 pages share this title: src/content/pages/cs/c.md.",
           "hint": "Give each page a title of its own, so people can tell them apart in search results.",
           "impact": "medium",
@@ -356,6 +465,10 @@
           "path": "seo.no_index",
           "severity": "notice",
           "rule": "quality.noindex",
+          "cause": "flag",
+          "params": {
+            "field": "Hide"
+          },
           "message": "The page is hidden from search engines.",
           "hint": "That is fine for a thank-you page or a draft; turn off “Hide” if people should find it in search.",
           "impact": "info",
@@ -366,6 +479,12 @@
           "path": "seo.page_description",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_short",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 61
+          },
           "message": "The description has 61 characters, fewer than the recommended 70 to 160.",
           "hint": "A longer description says more about the page in search results.",
           "impact": "low",
@@ -382,6 +501,12 @@
           "path": "seo.page_description",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_short",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 62
+          },
           "message": "The description has 62 characters, fewer than the recommended 70 to 160.",
           "hint": "A longer description says more about the page in search results.",
           "impact": "low",
@@ -398,6 +523,12 @@
           "path": "seo.page_description",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_long",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 169
+          },
           "message": "The description has 169 characters, more than the recommended 70 to 160.",
           "hint": "Search results cut a long description off; put what matters first or shorten it.",
           "impact": "low",
@@ -414,6 +545,12 @@
           "path": "title",
           "severity": "notice",
           "rule": "quality.title_length",
+          "cause": "too_long",
+          "params": {
+            "min": 30,
+            "max": 60,
+            "current": 79
+          },
           "message": "The title has 79 characters, more than the recommended 30 to 60.",
           "hint": "Search results cut a long title off; put what matters first or shorten it.",
           "impact": "low",
@@ -430,6 +567,12 @@
           "path": "seo.page_description",
           "severity": "warning",
           "rule": "quality.description_duplicate",
+          "params": {
+            "names": [
+              "src/content/pages/en/d.md"
+            ],
+            "count": 2
+          },
           "message": "2 pages share this description: src/content/pages/en/d.md.",
           "hint": "Give each page a description of its own, so people can tell them apart in search results.",
           "impact": "medium",
@@ -444,6 +587,12 @@
           "path": "seo.page_description",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_short",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 45
+          },
           "message": "The description has 45 characters, fewer than the recommended 70 to 160.",
           "hint": "A longer description says more about the page in search results.",
           "impact": "low",
@@ -460,6 +609,12 @@
           "path": "title",
           "severity": "warning",
           "rule": "quality.title_duplicate",
+          "params": {
+            "names": [
+              "src/content/pages/en/d.md"
+            ],
+            "count": 2
+          },
           "message": "2 pages share this title: src/content/pages/en/d.md.",
           "hint": "Give each page a title of its own, so people can tell them apart in search results.",
           "impact": "medium",
@@ -474,6 +629,12 @@
           "path": "seo.page_description",
           "severity": "warning",
           "rule": "quality.description_duplicate",
+          "params": {
+            "names": [
+              "src/content/pages/en/c.md"
+            ],
+            "count": 2
+          },
           "message": "2 pages share this description: src/content/pages/en/c.md.",
           "hint": "Give each page a description of its own, so people can tell them apart in search results.",
           "impact": "medium",
@@ -488,6 +649,12 @@
           "path": "seo.page_description",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_short",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 45
+          },
           "message": "The description has 45 characters, fewer than the recommended 70 to 160.",
           "hint": "A longer description says more about the page in search results.",
           "impact": "low",
@@ -504,6 +671,12 @@
           "path": "title",
           "severity": "warning",
           "rule": "quality.title_duplicate",
+          "params": {
+            "names": [
+              "src/content/pages/en/c.md"
+            ],
+            "count": 2
+          },
           "message": "2 pages share this title: src/content/pages/en/c.md.",
           "hint": "Give each page a title of its own, so people can tell them apart in search results.",
           "impact": "medium",
@@ -518,6 +691,10 @@
           "path": "seo.no_index",
           "severity": "notice",
           "rule": "quality.noindex",
+          "cause": "flag",
+          "params": {
+            "field": "Hide"
+          },
           "message": "The page is hidden from search engines.",
           "hint": "That is fine for a thank-you page or a draft; turn off “Hide” if people should find it in search.",
           "impact": "info",
@@ -528,6 +705,12 @@
           "path": "seo.page_description",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_short",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 65
+          },
           "message": "The description has 65 characters, fewer than the recommended 70 to 160.",
           "hint": "A longer description says more about the page in search results.",
           "impact": "low",
@@ -544,6 +727,14 @@
           "path": "title",
           "severity": "warning",
           "rule": "quality.translation_outdated",
+          "params": {
+            "names": [
+              "Title"
+            ],
+            "locale": "cs",
+            "path": "src/content/pages/cs/f.md",
+            "count": 1
+          },
           "message": "The \"cs\" version (src/content/pages/cs/f.md) changed 1 text since this version was last current with it: Title.",
           "hint": "Check whether this version still says what the source says now. If it does, mark it up to date; if not, update the texts that changed.",
           "impact": "medium",
@@ -559,6 +750,12 @@
           "path": "seo.page_description",
           "severity": "notice",
           "rule": "quality.description_length",
+          "cause": "too_short",
+          "params": {
+            "min": 70,
+            "max": 160,
+            "current": 62
+          },
           "message": "The description has 62 characters, fewer than the recommended 70 to 160.",
           "hint": "A longer description says more about the page in search results.",
           "impact": "low",
@@ -575,6 +772,11 @@
           "path": "robots",
           "severity": "notice",
           "rule": "quality.noindex",
+          "cause": "value",
+          "params": {
+            "field": "Robots",
+            "value": "hide"
+          },
           "message": "The page is hidden from search engines (hide).",
           "hint": "That is fine for a thank-you page; pick a value of “Robots” that lets search engines index it if people should find it in search.",
           "impact": "info",
@@ -584,6 +786,10 @@
           "file": "src/content/posts/en/x.md",
           "severity": "notice",
           "rule": "quality.translation_missing",
+          "cause": "draft",
+          "params": {
+            "locale": "en"
+          },
           "message": "The \"en\" version is a draft, not published yet.",
           "hint": "Publish it when it is ready (turn its draft field off); until then readers of that language do not see the page.",
           "impact": "info",
@@ -594,6 +800,12 @@
           "path": "name.cs",
           "severity": "notice",
           "rule": "quality.title_length",
+          "cause": "too_short",
+          "params": {
+            "min": 30,
+            "max": 60,
+            "current": 5
+          },
           "message": "The title has 5 characters, fewer than the recommended 30 to 60.",
           "hint": "A longer title says more about the page in search results.",
           "impact": "low",
@@ -621,6 +833,19 @@
           "path": "name.en",
           "severity": "notice",
           "rule": "quality.translation_incomplete",
+          "params": {
+            "names": [
+              "Name",
+              "About"
+            ],
+            "sameAs": [
+              "",
+              "cs"
+            ],
+            "locale": "en",
+            "count": 2,
+            "total": 2
+          },
           "message": "The \"en\" version leaves 2 of 2 texts untranslated: Name (empty), About (same as cs).",
           "hint": "Write these texts in that language. Until then its readers see them empty or in the fallback language.",
           "impact": "low",
@@ -635,6 +860,11 @@
           "file": "uploads/big.jpg",
           "severity": "notice",
           "rule": "quality.image_heavy",
+          "cause": "over_lower_limit",
+          "params": {
+            "bytes": 307200,
+            "limitBytes": 204800
+          },
           "message": "The image is 300 KB, over 200 KB.",
           "hint": "A large image makes the page slow to load, above all on a phone. Save it smaller (about 2000 pixels wide is plenty) or as WebP, and upload it again. If the site's build resizes the images of this folder, say `optimizedAtBuild: true` on its storage.",
           "impact": "low",
@@ -653,15 +883,18 @@
       "skipped": [
         {
           "rule": "quality.translation_outdated",
-          "reason": "the history of the content files was not given"
+          "reason": "history_not_given",
+          "message": "the history of the content files was not given"
         },
         {
           "rule": "quality.image_heavy",
-          "reason": "the media files were not listed"
+          "reason": "media_not_listed",
+          "message": "the media files were not listed"
         },
         {
           "rule": "quality.media_unused",
-          "reason": "the media files were not listed"
+          "reason": "media_not_listed",
+          "message": "the media files were not listed"
         }
       ]
     },
@@ -671,15 +904,24 @@
       "skipped": [
         {
           "rule": "quality.translation_outdated",
-          "reason": "the history of the content files could not be read"
+          "reason": "history_unreadable",
+          "message": "the history of the content files could not be read"
         },
         {
           "rule": "quality.image_heavy",
-          "reason": "the media files could not be listed: the reader failed"
+          "reason": "media_unlistable",
+          "params": {
+            "detail": "the reader failed"
+          },
+          "message": "the media files could not be listed: the reader failed"
         },
         {
           "rule": "quality.media_unused",
-          "reason": "the media files could not be listed: the reader failed"
+          "reason": "media_unlistable",
+          "params": {
+            "detail": "the reader failed"
+          },
+          "message": "the media files could not be listed: the reader failed"
         }
       ]
     }

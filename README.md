@@ -105,6 +105,72 @@ other findings of that check are missing; in `Site` a panic in one
 content file skips that file and the run goes on. Seeing one of these
 is worth a bug report.
 
+## Findings in any language
+
+A finding is a code and typed facts, not a sentence. `rule` names the
+check; `cause` names which of the rule's causes it is (empty for a rule
+with one cause: `content.max_length`, but `schema.invalid_alt` has 13);
+`params` carries the facts its sentence is made of, typed: numbers as
+numbers, lists as lists, the field's label and other text the site
+wrote as written.
+
+```json
+{"rule": "content.max_length", "params": {"field": "Perex", "max": 160, "current": 214},
+ "message": "Perex must be at most 160 characters (currently 214).", "severity": "error"}
+{"rule": "schema.invalid_alt", "cause": "alt_field_missing", "params": {"field": "Hero", "key": "heroAlt"},
+ "message": "image \"Hero\" takes its alt text from \"heroAlt\", but no field in the same list has that key", "severity": "error"}
+{"rule": "content.required", "params": {"field": "Titulek", "customMessage": "Vyplňte titulek stránky."},
+ "message": "Vyplňte titulek stránky.", "severity": "error"}
+```
+
+`message` and `hint` are this module's English, made from `rule`,
+`cause` and `params` by `report.English`, for terminals, logs and
+readers that want English (`cms-schema-validate` and `nrc cms validate`
+print it). A client that shows findings in another language words each
+rule and cause itself from `params` and never parses `message`. Where
+the schema gives its own message (`requiredMessage`, `regexMessage`, a
+custom validator's `message`…), it is `params.customMessage` and
+replaces the sentence.
+
+- **`report.Catalog()`** lists every rule and cause with the severity of
+  its findings and the `params` keys it sets (required, and optional
+  ones a run sets when it knows them). Causes are frozen like rule ids:
+  never renamed, never reused. `report.Lookup`, `report.CausesOf`.
+- **`report.Params`** holds the keys; `report.ParamSpecs()` gives each
+  key's type and class: `customer` (text the site wrote: shown as
+  written, never translated, may be empty), `vocabulary` (field types,
+  roles, schema keys), `code` (languages), `derived` (paths, URLs),
+  `number`, `technical` (a parser's or the runtime's own error text).
+  Every string is at most 300 characters (`report.MaxParamRunes`, cut
+  with "…"); `names` lists at most 10 (`report.MaxParamNames`) and
+  `more` counts the rest. `value` is a value as written: text as is,
+  anything else in YAML flow style (`null`, `[a, b]`), never Go syntax.
+- **[`report/catalog.json`](report/catalog.json)** is the catalog as a
+  file, with the reasons a quality rule is skipped and the codes of a
+  refused fact: what the dashboard's message tables and the CMS's
+  Swagger are generated from, so a new cause is a type error there until
+  it has words. `go generate ./report` writes it; a test fails when it
+  is stale.
+- **`report.New(file, path, rule, cause, params)`** makes a finding:
+  the catalog's severity, the params held to their bounds, `Message` and
+  `Hint` in English. `report.CheckFinding(f)` reports a finding that
+  breaks its entry (a cause or key not declared, a required key missing,
+  a message other than `English(f)`), for tests and for readers that
+  store findings.
+- **Identity.** `Finding.Key()` is file, path, rule, cause and params:
+  two findings with one key say the same thing about the same place, in
+  any language. `fact.Plan.NewErrors` compares keys, and `report.Sort`
+  orders by them after the message.
+- Problems of one value that also appear in errors (a storage entry, a
+  `usedByCode` path, a `titleTemplate`) are `report.Problem{Cause,
+  Params}`: `resolve.ValidStorage` returns them, and
+  `schema.ParseTemplate` and `schema.CheckCodePattern` return a
+  `*schema.TemplateError` or `*schema.CodePatternError` holding one.
+- A rule that did not run is `quality.Skipped{Rule, Reason, Params,
+  Message}`, `Reason` one of `quality.SkipReasons()`
+  (`history_not_given`, `history_unreadable`, `languages_capped`,
+  `media_not_listed`, `media_unlistable`).
+
 ## As a library
 
 ```go
@@ -116,7 +182,7 @@ for _, f := range res.Findings {
 
 | Package    | What it holds                                                                                     |
 | ---------- | ------------------------------------------------------------------------------------------------- |
-| `report`   | `Finding`, severities, impacts and measures, the frozen rule ids.                                 |
+| `report`   | `Finding`, severities, impacts and measures, the frozen rule ids, the catalog of causes and params, `English`. |
 | `schema`   | The typed model (`Config`, `Collection`, `Field`, `Storage`…), `Parse`, array item shapes, conditions, `Walk`. |
 | `load`     | `Load(fs.FS)`: directory or legacy single file, merge, `$ref`, schema version.                     |
 | `content`  | Markdown-with-frontmatter and YAML data files to plain values; identity sidecars.                 |
@@ -760,12 +826,14 @@ res, err := validate.Site(fsys, validate.Options{
 ```
 
 A rule whose data is missing is skipped and named in
-`res.Quality.Skipped` with the reason. `res.Quality.Checked` counts, per
+`res.Quality.Skipped` with the reason, a code (`quality.SkipReason`)
+with its params and English. `res.Quality.Checked` counts, per
 rule, the instances it looked at (each indexable page for a title rule,
 each image for alt text, each expected language version, each raster
 image in use): what a score divides by. `quality.Specs()` gives each
-rule's area, impact and threshold; `quality.Check` runs the rules on
-pages a caller already holds.
+rule's area, impact and the data it needs (the thresholds are in the
+table above); `quality.Check` runs the rules on pages a caller already
+holds.
 
 **Images the build optimizes.** Some frameworks resize and re-encode
 images at build time and never serve the original: Astro does it for
@@ -810,7 +878,8 @@ full weight; the hint says how to confirm the folder. Only a guessed
 storage says otherwise.
 
 `res.Quality.MediaFolders` lists every media root with its storage,
-whether its images are optimized at build, whether that was guessed, and
+whether its images are optimized at build, whether that was guessed
+(and from which framework), and
 how many raster images content uses there (skipped or checked; zero when
 the files were not listed), so a report can say "src/assets/images:
 optimized at build, 12 images". `res.Quality.Guessed` lists what the run
@@ -967,7 +1036,14 @@ alt text from a field that cannot hold one, a language the site lacks, at most
 (`ErrNotFound`), a path or definition in more than one place (two
 fields with one key, a collection both inline and in a file:
 `ErrAmbiguous`), and a layout with no safe place for the line
-(`ErrUnplaceable`). A `*fact.FactError` names the fact by index.
+(`ErrUnplaceable`). A `*fact.FactError` names the fact by index; its
+error is a `*fact.Error{Kind, Code, Params}`: the kind (`invalid_fact`,
+`not_in_schema`, `ambiguous`, `cannot_be_placed`, matching the four
+sentinels with `errors.Is`), a code from `fact.ErrorCodes()` and the
+params its sentence is made of, so a client words a refusal as it words
+a finding. A `titleTemplate` or `usedByCode` path that cannot be read
+has the code of the finding's cause (`template_lone_close`,
+`pattern_absolute`…). `Error()` is the English.
 `fact.Apply(src, edit)` is the edit on one file's bytes.
 
 ## Fixtures
@@ -976,6 +1052,13 @@ fields with one key, a collection both inline and in a file:
 findings a run must produce. They pin the rules for every implementation
 of them: the dashboard's validators run the same fixtures. Regenerate
 with `go test ./validate -run TestFixtures -update` and read the diff.
+
+`testdata/causes/*` are sites built to make every rule fire for each of
+its causes; each `findings.json` pins the findings with their cause,
+params and English. A test holds every finding to its catalog entry and
+fails when the sites miss a cause of the catalog, so a new cause cannot
+ship without a fixture. `fact/testdata/errors.golden.json` does the same
+for refused facts. Regenerate with `go test ./validate ./fact -update`.
 
 ## Regular expressions
 

@@ -14,30 +14,51 @@
           "file": ".norcube/cms/blocks/loop-a.yml",
           "severity": "error",
           "rule": "schema.ref_cycle",
+          "params": {
+            "key": "loop-b",
+            "max": 10
+          },
           "message": "$ref \"loop-b\" nests deeper than 10 levels; the blocks reference each other in a cycle"
         },
         {
           "file": ".norcube/cms/blocks/loop-b.yml",
           "severity": "error",
           "rule": "schema.ref_cycle",
+          "params": {
+            "key": "loop-a",
+            "max": 10
+          },
           "message": "$ref \"loop-a\" nests deeper than 10 levels; the blocks reference each other in a cycle"
         },
         {
           "file": ".norcube/cms/collections/broken.yml",
           "severity": "error",
           "rule": "schema.parse_error",
+          "cause": "not_yaml",
+          "params": {
+            "detail": "line 1: did not find expected ',' or ']'"
+          },
           "message": "not valid YAML: line 1: did not find expected ',' or ']'"
         },
         {
           "file": ".norcube/cms/collections/pages.yml",
           "severity": "error",
           "rule": "schema.ref_cycle",
+          "params": {
+            "key": "loop-a",
+            "max": 10
+          },
           "message": "$ref \"loop-a\" nests deeper than 10 levels; the blocks reference each other in a cycle"
         },
         {
           "file": ".norcube/cms/collections/pages.yml",
           "severity": "error",
           "rule": "schema.unresolved_ref",
+          "params": {
+            "key": "nowhere",
+            "path": ".norcube/cms/blocks/nowhere.yml",
+            "other": ".norcube/cms/inputs/nowhere.yml"
+          },
           "message": "$ref \"nowhere\" names no block and no input",
           "hint": "Add .norcube/cms/blocks/nowhere.yml or .norcube/cms/inputs/nowhere.yml, or fix the name."
         },
@@ -46,6 +67,9 @@
           "path": "schemaVersion",
           "severity": "error",
           "rule": "schema.unsupported_version",
+          "params": {
+            "value": "2"
+          },
           "message": "schemaVersion \"2\" is not supported (supported: 1)"
         },
         {
@@ -53,6 +77,9 @@
           "path": "inputsFromGlob",
           "severity": "warning",
           "rule": "schema.inputs_glob_unsupported",
+          "params": {
+            "path": "shared/**/*.yml"
+          },
           "message": "pattern \"shared/**/*.yml\" is not supported and is ignored",
           "hint": "Only `\u003cdir\u003e/*.yml` and `\u003cdir\u003e/*.yaml` patterns are read."
         }

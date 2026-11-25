@@ -3,6 +3,7 @@ package fact
 import (
 	"bytes"
 	"fmt"
+	"github.com/norcubeplatform/cms-schema/report"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -47,7 +48,7 @@ func Apply(src []byte, e Edit) ([]byte, error) {
 		}
 		return apply(src, e, nil, set{key: schema.StorageKeyUsedByCode, value: listValue(merged), after: []string{"optimizedAtBuild", "publicUrl", "path", "type"}})
 	}
-	return nil, fmt.Errorf("%w: kind %q", ErrInvalid, f.Kind)
+	return nil, refuse(CodeKindNotPlaced, &report.Params{Value: f.Kind})
 }
 
 // applyRole writes a role and the knobs that go with it. A knob the fact
@@ -115,12 +116,12 @@ func altFromValue(from []string, sep string) value {
 func mergedCodePaths(src []byte, e Edit) ([]string, error) {
 	doc, err := topMapping(src)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", e.File, err)
+		return nil, inFile(e.File, err)
 	}
 	m := doc
 	for _, k := range e.In {
 		if m = child(m, k); m == nil || m.Kind != yaml.MappingNode {
-			return nil, fmt.Errorf("%w: %s has no mapping at %s", ErrNotFound, e.File, strings.Join(e.In, "."))
+			return nil, refuse(CodeNoMappingAt, &report.Params{Path: e.File, Knob: strings.Join(e.In, ".")})
 		}
 	}
 	var merged []string
@@ -137,7 +138,7 @@ func mergedCodePaths(src []byte, e Edit) ([]string, error) {
 		}
 	}
 	if len(merged) > schema.MaxUsedByCode {
-		return nil, fmt.Errorf("%w: storage %q would list %d paths in usedByCode, at most %d", ErrInvalid, e.Fact.Storage, len(merged), schema.MaxUsedByCode)
+		return nil, refuse(CodeUsedByCodeTooMany, &report.Params{Key: e.Fact.Storage, Count: report.Int(int64(len(merged))), Max: report.Num(schema.MaxUsedByCode)})
 	}
 	return merged, nil
 }
@@ -218,22 +219,22 @@ type set struct {
 func apply(src []byte, e Edit, within []string, op set) ([]byte, error) {
 	doc, err := topMapping(src)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", e.File, err)
+		return nil, inFile(e.File, err)
 	}
 	m := doc
 	for _, k := range e.In {
 		if m = child(m, k); m == nil || m.Kind != yaml.MappingNode {
-			return nil, fmt.Errorf("%w: %s has no mapping at %s", ErrNotFound, e.File, strings.Join(e.In, "."))
+			return nil, refuse(CodeNoMappingAt, &report.Params{Path: e.File, Knob: strings.Join(e.In, ".")})
 		}
 	}
 	for _, st := range e.Steps {
 		if m, err = step(m, st); err != nil {
-			return nil, fmt.Errorf("%s: %w", e.File, err)
+			return nil, inFile(e.File, err)
 		}
 	}
 	for _, k := range within {
 		if m = child(m, k); m == nil || m.Kind != yaml.MappingNode {
-			return nil, fmt.Errorf("%w: %s has no %s mapping there", ErrUnplaceable, e.File, k)
+			return nil, refuse(CodeWithinNotMapping, &report.Params{Path: e.File, Knob: k})
 		}
 	}
 	t := newText(src)
@@ -249,7 +250,7 @@ func step(m *yaml.Node, st Step) (*yaml.Node, error) {
 	if !st.Item {
 		fields := child(m, "fields")
 		if fields == nil || fields.Kind != yaml.SequenceNode {
-			return nil, fmt.Errorf("%w: no fields list holds %q", ErrNotFound, st.Key)
+			return nil, refuse(CodeNoFieldsList, &report.Params{Key: st.Key})
 		}
 		var found []*yaml.Node
 		for _, item := range fields.Content {
@@ -259,13 +260,13 @@ func step(m *yaml.Node, st Step) (*yaml.Node, error) {
 		}
 		switch len(found) {
 		case 0:
-			return nil, fmt.Errorf("%w: no field has the key %q", ErrNotFound, st.Key)
+			return nil, refuse(CodeNoFieldWithKey, &report.Params{Key: st.Key})
 		case 1:
 		default:
-			return nil, fmt.Errorf("%w: %d fields have the key %q", ErrAmbiguous, len(found), st.Key)
+			return nil, refuse(CodeFieldsShareKey, &report.Params{Count: report.Int(int64(len(found))), Key: st.Key})
 		}
 		if child(found[0], schema.RefKey) != nil {
-			return nil, fmt.Errorf("%w: field %q is a $ref", ErrAmbiguous, st.Key)
+			return nil, refuse(CodeFieldIsRef, &report.Params{Key: st.Key})
 		}
 		return found[0], nil
 	}
@@ -273,13 +274,13 @@ func step(m *yaml.Node, st Step) (*yaml.Node, error) {
 	var entries []*yaml.Node
 	switch {
 	case items == nil:
-		return nil, fmt.Errorf("%w: the list declares no items", ErrNotFound)
+		return nil, refuse(CodeNoItems, nil)
 	case items.Kind == yaml.MappingNode:
 		entries = []*yaml.Node{items}
 	case items.Kind == yaml.SequenceNode:
 		entries = items.Content
 	default:
-		return nil, fmt.Errorf("%w: items is not a list", ErrNotFound)
+		return nil, refuse(CodeItemsNotList, nil)
 	}
 	var found []*yaml.Node
 	for i, it := range entries {
@@ -296,11 +297,11 @@ func step(m *yaml.Node, st Step) (*yaml.Node, error) {
 	}
 	switch {
 	case len(found) == 0:
-		return nil, fmt.Errorf("%w: item shape %q", ErrNotFound, st.Shape)
+		return nil, refuse(CodeShapeNotFound, &report.Params{Key: st.Shape})
 	case len(found) > 1:
-		return nil, fmt.Errorf("%w: %d item shapes fit %q", ErrAmbiguous, len(found), st.Shape)
+		return nil, refuse(CodeShapesFit, &report.Params{Count: report.Int(int64(len(found))), Key: st.Shape})
 	case found[0].Kind != yaml.MappingNode || child(found[0], schema.RefKey) != nil:
-		return nil, fmt.Errorf("%w: item shape %q is a $ref", ErrAmbiguous, st.Shape)
+		return nil, refuse(CodeShapeIsRef, &report.Params{Key: st.Shape})
 	}
 	return found[0], nil
 }
@@ -326,12 +327,12 @@ func newText(src []byte) text {
 // count characters, as yaml.v3 does).
 func (t text) at(n *yaml.Node) (int, error) {
 	if n.Line < 1 || n.Line > len(t.lines) {
-		return 0, fmt.Errorf("%w: no position", ErrUnplaceable)
+		return 0, refuse(CodeNoPosition, nil)
 	}
 	off := t.lines[n.Line-1]
 	for c := 1; c < n.Column; c++ {
 		if off >= len(t.src) || t.src[off] == '\n' {
-			return 0, fmt.Errorf("%w: no position", ErrUnplaceable)
+			return 0, refuse(CodeNoPosition, nil)
 		}
 		_, w := utf8.DecodeRune(t.src[off:])
 		off += w
@@ -353,14 +354,14 @@ func (t text) end(n *yaml.Node) (int, error) {
 	case len(n.Content) > 0:
 		return t.end(n.Content[len(n.Content)-1])
 	}
-	return 0, fmt.Errorf("%w: an empty value", ErrUnplaceable)
+	return 0, refuse(CodeEmptyValue, nil)
 }
 
 func (t text) scalarEnd(n *yaml.Node, start int) (int, error) {
 	s := t.src
 	switch {
 	case n.Style&(yaml.LiteralStyle|yaml.FoldedStyle|yaml.TaggedStyle) != 0:
-		return 0, fmt.Errorf("%w: a value over several lines", ErrUnplaceable)
+		return 0, refuse(CodeMultilineValue, nil)
 	case n.Style&yaml.DoubleQuotedStyle != 0:
 		for i := start + 1; i < len(s); i++ {
 			switch s[i] {
@@ -369,7 +370,7 @@ func (t text) scalarEnd(n *yaml.Node, start int) (int, error) {
 			case '"':
 				return i + 1, nil
 			case '\n':
-				return 0, fmt.Errorf("%w: a value over several lines", ErrUnplaceable)
+				return 0, refuse(CodeMultilineValue, nil)
 			}
 		}
 	case n.Style&yaml.SingleQuotedStyle != 0:
@@ -380,16 +381,16 @@ func (t text) scalarEnd(n *yaml.Node, start int) (int, error) {
 			case s[i] == '\'':
 				return i + 1, nil
 			case s[i] == '\n':
-				return 0, fmt.Errorf("%w: a value over several lines", ErrUnplaceable)
+				return 0, refuse(CodeMultilineValue, nil)
 			}
 		}
 	default:
 		if n.Value != "" && bytes.HasPrefix(s[start:], []byte(n.Value)) {
 			return start + len(n.Value), nil
 		}
-		return 0, fmt.Errorf("%w: a value over several lines", ErrUnplaceable)
+		return 0, refuse(CodeMultilineValue, nil)
 	}
-	return 0, fmt.Errorf("%w: an unterminated value", ErrUnplaceable)
+	return 0, refuse(CodeUnterminatedValue, nil)
 }
 
 // flowEnd is the offset after the bracket that closes the flow
@@ -397,7 +398,7 @@ func (t text) scalarEnd(n *yaml.Node, start int) (int, error) {
 func (t text) flowEnd(start int) (int, error) {
 	s := t.src
 	if start >= len(s) || (s[start] != '[' && s[start] != '{') {
-		return 0, fmt.Errorf("%w: no flow collection", ErrUnplaceable)
+		return 0, refuse(CodeNoFlowCollection, nil)
 	}
 	depth := 0
 	for i := start; i < len(s); i++ {
@@ -433,7 +434,7 @@ func (t text) flowEnd(start int) (int, error) {
 			}
 		}
 	}
-	return 0, fmt.Errorf("%w: an unterminated flow collection", ErrUnplaceable)
+	return 0, refuse(CodeUnterminatedFlow, nil)
 }
 
 // restIsBlank reports whether nothing but spaces or a comment follows
@@ -477,7 +478,7 @@ func (t text) set(m *yaml.Node, op set) ([]byte, error) {
 			}
 			colon := bytes.IndexByte(t.src[kEnd:], ':')
 			if colon < 0 {
-				return nil, fmt.Errorf("%w: no colon after %s", ErrUnplaceable, op.key)
+				return nil, refuse(CodeNoColon, &report.Params{Knob: op.key})
 			}
 			at := kEnd + colon + 1
 			return splice(t.src, at, at, " "+op.value.text), nil
@@ -506,7 +507,7 @@ func (t text) set(m *yaml.Node, op set) ([]byte, error) {
 // insert adds key: value to a mapping that lacks the key.
 func (t text) insert(m *yaml.Node, op set) ([]byte, error) {
 	if len(m.Content) == 0 {
-		return nil, fmt.Errorf("%w: an empty mapping", ErrUnplaceable)
+		return nil, refuse(CodeEmptyMapping, nil)
 	}
 	order := []int{}
 	for _, a := range op.after {
@@ -547,7 +548,7 @@ func (t text) insert(m *yaml.Node, op set) ([]byte, error) {
 		}
 		return splice(src, next, next, line), nil
 	}
-	return nil, fmt.Errorf("%w: no key on a line of its own to put %s after", ErrUnplaceable, op.key)
+	return nil, refuse(CodeNoLineForKey, &report.Params{Knob: op.key})
 }
 
 func (t text) remove(m *yaml.Node, key string) ([]byte, error) {
@@ -593,11 +594,11 @@ func (t text) remove(m *yaml.Node, key string) ([]byte, error) {
 		}
 		lineStart := t.lines[k.Line-1]
 		if strings.TrimLeft(string(t.src[lineStart:kStart]), " ") != "" {
-			return nil, fmt.Errorf("%w: %s shares its line with another key", ErrUnplaceable, key)
+			return nil, refuse(CodeSharesLine, &report.Params{Knob: key})
 		}
 		blank, next := t.restIsBlank(vEnd)
 		if !blank {
-			return nil, fmt.Errorf("%w: something follows %s on its line", ErrUnplaceable, key)
+			return nil, refuse(CodeFollowedOnLine, &report.Params{Knob: key})
 		}
 		return splice(t.src, lineStart, next, ""), nil
 	}
@@ -608,12 +609,12 @@ func (t text) remove(m *yaml.Node, key string) ([]byte, error) {
 func topMapping(src []byte) (*yaml.Node, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal(src, &doc); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrUnplaceable, err)
+		return nil, refuse(CodeNotYAML, &report.Params{Detail: err.Error()})
 	}
 	if doc.Kind == yaml.DocumentNode && len(doc.Content) == 1 && doc.Content[0].Kind == yaml.MappingNode {
 		return doc.Content[0], nil
 	}
-	return nil, fmt.Errorf("%w: the file is not a mapping", ErrUnplaceable)
+	return nil, refuse(CodeNotMapping, nil)
 }
 
 // child is the value at key in a mapping, or nil.

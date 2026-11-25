@@ -1,7 +1,6 @@
 package quality
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -79,12 +78,11 @@ func (r *run) search(p Page, hidden map[string]bool) {
 
 	if nx, ok := read(schema.RoleNoindex); ok && !schema.PathHidden(nx.field.Path, hidden) && roleOn(nx.field, nx.raw) {
 		if p.once() && r.on(report.RuleQualityNoindex, coll) {
-			msg, hint := "The page is hidden from search engines.", "That is fine for a thank-you page or a draft; turn off "+labelOr(nx.field.Label, "the no-index field")+" if people should find it in search."
+			cause, params := report.CauseFlag, &report.Params{Field: nx.field.Label}
 			if len(nx.field.When) > 0 {
-				msg = fmt.Sprintf("The page is hidden from search engines (%s).", nx.value)
-				hint = "That is fine for a thank-you page; pick a value of " + labelOr(nx.field.Label, "the indexing field") + " that lets search engines index it if people should find it in search."
+				cause, params.Value = report.CauseValue, nx.value
 			}
-			r.emit(report.Finding{File: p.Path, Path: nx.path, Rule: report.RuleQualityNoindex, Message: msg, Hint: hint, Value: p.URL}, report.ImpactInfo)
+			r.emit(report.Finding{File: p.Path, Path: nx.path, Rule: report.RuleQualityNoindex, Cause: cause, Params: params, Value: p.URL}, report.ImpactInfo)
 		}
 		return
 	}
@@ -105,12 +103,11 @@ func (r *run) search(p Page, hidden map[string]bool) {
 		if r.on(report.RuleQualityDescriptionMissing, coll) {
 			r.count(report.RuleQualityDescriptionMissing)
 			if d.value == "" && !fromCode {
-				msg := "The page has no meta description."
+				cause := report.CauseEmpty
 				if d.field.Excerpt != "" {
-					msg = "The page has no meta description: the first paragraph of its text is empty."
+					cause = report.CauseExcerptEmpty
 				}
-				r.emit(report.Finding{File: p.Path, Path: d.path, Rule: report.RuleQualityDescriptionMissing,
-					Message: msg, Hint: "Search engines then pick a snippet from the page. Write one or two sentences that make someone want to open it. If the site writes descriptions in code, say so in the schema with `whenEmpty` on the field."},
+				r.emit(report.Finding{File: p.Path, Path: d.path, Rule: report.RuleQualityDescriptionMissing, Cause: cause},
 					lowered(report.ImpactMedium, guessed))
 			}
 		}
@@ -139,8 +136,7 @@ func (r *run) search(p Page, hidden map[string]bool) {
 		if r.on(report.RuleQualityShareImageMissing, coll) {
 			r.count(report.RuleQualityShareImageMissing)
 			if img.value == "" && !fromCode {
-				r.emit(report.Finding{File: p.Path, Path: img.path, Rule: report.RuleQualityShareImageMissing,
-					Message: "The page has no share image.", Hint: "A link to it shared on social networks or in chat shows no picture, unless the site adds one in code. Pick an image of at least 1200 x 630 pixels, or, if the site makes these images itself, say so in the schema with `whenEmpty: generated` on the field."},
+				r.emit(report.Finding{File: p.Path, Path: img.path, Rule: report.RuleQualityShareImageMissing},
 					lowered(report.ImpactLow, !img.field.Declared))
 			}
 		}
@@ -186,8 +182,7 @@ func (r *run) searchTitle(p Page, read func(string) (roleValue, bool), canonical
 			if !hasSEO {
 				missingPath = fallbackPath
 			}
-			r.emit(report.Finding{File: p.Path, Path: missingPath, Rule: report.RuleQualityTitleMissing,
-				Message: "The page has no title for search results.", Hint: "Write a title that says what the page is about, in a few words."},
+			r.emit(report.Finding{File: p.Path, Path: missingPath, Rule: report.RuleQualityTitleMissing},
 				lowered(report.ImpactHigh, hasSEO && !seo.field.Declared))
 		}
 	}
@@ -265,22 +260,12 @@ func (r *run) length(p Page, coll schema.Collection, rule report.Rule, what, pat
 	}
 	lo, hi := int64(min), int64(max)
 	m := &report.Measure{Value: int64(n), Unit: report.UnitCharacters, Min: &lo, Max: &hi}
-	msg, hint := "", ""
-	subject := "The " + what
-	switch basis {
-	case report.BasisTitleTemplate:
-		subject = "The title as the site composes it"
-	case report.BasisExcerpt:
-		subject = "The description (the first paragraph of the text)"
-	}
+	cause := report.CauseTooLong
 	if n < min {
-		msg = fmt.Sprintf("%s has %d characters, fewer than the recommended %d to %d.", subject, n, min, max)
-		hint = fmt.Sprintf("A longer %s says more about the page in search results.", what)
-	} else {
-		msg = fmt.Sprintf("%s has %d characters, more than the recommended %d to %d.", subject, n, min, max)
-		hint = fmt.Sprintf("Search results cut a long %s off; put what matters first or shorten it.", what)
+		cause = report.CauseTooShort
 	}
-	r.emit(report.Finding{File: p.Path, Path: path, Rule: rule, Message: msg, Hint: hint, Value: value, Measure: m, Basis: basis}, report.ImpactLow)
+	params := &report.Params{Current: report.Num(float64(n)), Min: report.Num(float64(min)), Max: report.Num(float64(max))}
+	r.emit(report.Finding{File: p.Path, Path: path, Rule: rule, Cause: cause, Params: params, Value: value, Measure: m, Basis: basis}, report.ImpactLow)
 }
 
 // duplicates reports the titles and the descriptions shared by pages of
@@ -308,14 +293,12 @@ func (r *run) dupes(cands []dupCandidate, rule report.Rule, what string) {
 					others = append(others, o.file)
 				}
 			}
-			more := ""
+			params := &report.Params{Count: report.Int(int64(len(g))), Names: others}
 			if rest := len(g) - 1 - len(others); rest > 0 {
-				more = fmt.Sprintf(" and %d more", rest)
+				params.More = report.Int(int64(rest))
 			}
-			r.emit(report.Finding{File: c.file, Path: c.path, Rule: rule,
-				Message: fmt.Sprintf("%d pages share this %s: %s%s.", len(g), what, strings.Join(others, ", "), more),
-				Hint:    fmt.Sprintf("Give each page a %s of its own, so people can tell them apart in search results.", what),
-				Value:   c.value, Measure: &report.Measure{Value: int64(len(g)), Unit: report.UnitPages}, Basis: c.basis, Locale: c.view},
+			r.emit(report.Finding{File: c.file, Path: c.path, Rule: rule, Params: params,
+				Value: c.value, Measure: &report.Measure{Value: int64(len(g)), Unit: report.UnitPages}, Basis: c.basis, Locale: c.view},
 				lowered(report.ImpactMedium, c.guessed))
 		}
 	}
@@ -428,13 +411,6 @@ func fieldAt(cfg *schema.Config, fields []schema.Field, path string) (schema.Fie
 // dupKey is what two titles or descriptions share when they are the
 // same: the text with its white space collapsed, in lowercase.
 func dupKey(s string) string { return strings.ToLower(collapse(s)) }
-
-func labelOr(label, fallback string) string {
-	if strings.TrimSpace(label) == "" {
-		return fallback
-	}
-	return "“" + label + "”"
-}
 
 // stripOrigin turns an absolute address into its path.
 func stripOrigin(s string) string {

@@ -2,45 +2,56 @@ package schema
 
 import (
 	"errors"
-	"fmt"
 	"path"
 	"strings"
 	"unicode"
+
+	"github.com/norcubeplatform/cms-schema/report"
 )
 
 // ErrCodePattern marks a usedByCode entry that is not a path pattern.
 var ErrCodePattern = errors.New("not a usedByCode path")
+
+// CodePatternError is a usedByCode entry that is not a path pattern:
+// why, as a cause of report.PatternCauses with the entry as Params.Path.
+// It matches ErrCodePattern.
+type CodePatternError struct{ report.Problem }
+
+func (e *CodePatternError) Error() string { return ErrCodePattern.Error() + ": " + e.Problem.String() }
+func (e *CodePatternError) Unwrap() error { return ErrCodePattern }
 
 // CheckCodePattern reports what is wrong with one usedByCode entry: a
 // path relative to its storage folder, where `*`, `?` and `[...]` match
 // within a name (as path.Match) and a `**` name any number of folders.
 // Nil when it is one.
 func CheckCodePattern(p string) error {
-	bad := func(why string) error { return fmt.Errorf("%w: %q %s", ErrCodePattern, p, why) }
+	bad := func(c report.Cause) error {
+		return &CodePatternError{report.Problem{Cause: c, Params: &report.Params{Path: p}}}
+	}
 	switch {
 	case p == "":
-		return bad("is empty")
+		return bad(report.CausePatternEmpty)
 	case len(p) > MaxUsedByCodePattern:
-		return bad(fmt.Sprintf("is longer than %d bytes", MaxUsedByCodePattern))
+		return &CodePatternError{report.Problem{Cause: report.CausePatternTooLong, Params: &report.Params{Path: p, Max: report.Num(MaxUsedByCodePattern)}}}
 	case strings.HasPrefix(p, "/"):
-		return bad("starts with /: write it relative to the storage's path")
+		return bad(report.CausePatternAbsolute)
 	case strings.ContainsRune(p, '\\'):
-		return bad("holds a backslash")
+		return bad(report.CausePatternBackslash)
 	case strings.ContainsFunc(p, unicode.IsControl):
-		return bad("holds a control character")
+		return bad(report.CausePatternControl)
 	}
 	for _, seg := range strings.Split(p, "/") {
 		switch {
 		case seg == "":
-			return bad("has an empty name between slashes")
+			return bad(report.CausePatternEmptyName)
 		case seg == "." || seg == "..":
-			return bad("names . or ..")
+			return bad(report.CausePatternDotName)
 		case seg == "**":
 		case strings.Contains(seg, "**"):
-			return bad("uses ** inside a name: ** stands alone between slashes")
+			return bad(report.CausePatternDoubleStarName)
 		default:
 			if _, err := path.Match(seg, ""); err != nil {
-				return bad("is not a valid pattern")
+				return bad(report.CausePatternInvalid)
 			}
 		}
 	}

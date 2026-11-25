@@ -1,100 +1,829 @@
 {
-  "apply/empty-mapping": "cannot be placed: an empty mapping",
-  "apply/field-ref": "x.yml: ambiguous: field \"seo\" is a $ref",
-  "apply/items-not-list": "x.yml: not in the schema: items is not a list",
-  "apply/kind": "invalid fact: kind \"x\"",
-  "apply/no-field": "x.yml: not in the schema: no field has the key \"b\"",
-  "apply/no-fields": "x.yml: not in the schema: no fields list holds \"a\"",
-  "apply/no-items": "x.yml: not in the schema: the list declares no items",
-  "apply/no-key-line": "cannot be placed: no key on a line of its own to put role after",
-  "apply/no-mapping-at": "not in the schema: x.yml has no mapping at collections.a",
-  "apply/not-mapping": "x.yml: cannot be placed: the file is not a mapping",
-  "apply/not-yaml": "x.yml: cannot be placed: yaml: line 1: did not find expected node content",
-  "apply/several-lines": "cannot be placed: a value over several lines",
-  "apply/shape": "x.yml: not in the schema: item shape \"b\"",
-  "apply/shape-ref": "x.yml: ambiguous: item shape \"\" is a $ref",
-  "apply/shapes": "x.yml: ambiguous: 2 item shapes fit \"\"",
-  "apply/shares-line": "cannot be placed: whenEmpty shares its line with another key",
-  "apply/two-fields": "x.yml: ambiguous: 2 fields have the key \"a\"",
-  "apply/used-by-code-no-mapping": "not in the schema: x.yml has no mapping at storages.s",
-  "apply/used-by-code-too-many": "invalid fact: storage \"s\" would list 501 paths in usedByCode, at most 500",
-  "apply/within": "cannot be placed: x.yml has no translations mapping there",
-  "check/alt-field": "invalid fact: an alt fact names an image field (at most 500 bytes)",
-  "check/alt-from-blank": "invalid fact: a field is blank or longer than 200 bytes",
-  "check/alt-from-key": "invalid fact: \"a b\" is not a field key",
-  "check/alt-from-too-many": "invalid fact: at most 10 entries",
-  "check/alt-from-twice": "invalid fact: \"a\" is listed twice",
-  "check/alt-key": "invalid fact: \"a b\" is not a field key",
-  "check/alt-one": "invalid fact: an alt fact names one field (alt) or the fields it is composed of (altFrom), one of them",
-  "check/alt-owner": "invalid fact: an alt fact names a collection or a block, one of them",
-  "check/excerpt": "invalid fact: excerpt \"firstParagraph\" does not go with role seoTitle",
-  "check/fallback-code": "invalid fact: \"c s\" is not a language code",
-  "check/kind": "invalid fact: kind \"x\" is not one of role, translationLocales, optimizedAtBuild, usedByCode, localized, alt",
-  "check/locales-code": "invalid fact: \"c s\" is not a language code",
-  "check/locales-count": "invalid fact: a translationLocales fact lists 1 to 50 languages",
-  "check/locales-owner": "invalid fact: a translationLocales fact names a collection",
-  "check/locales-twice": "invalid fact: \"cs\" is listed twice",
-  "check/localized-field": "invalid fact: a localized fact names a group (at most 500 bytes)",
-  "check/localized-owner": "invalid fact: a localized fact names a collection or a block, one of them",
-  "check/name": "invalid fact: \"a b\" is not a name",
-  "check/optimized": "invalid fact: an optimizedAtBuild fact names a storage and a value",
-  "check/paths-twice": "invalid fact: \"a.svg\" is listed twice",
-  "check/pattern-absolute": "invalid fact: \"/a.svg\" starts with /: write it relative to the storage's path",
-  "check/pattern-backslash": "invalid fact: \"a\\\\b.svg\" holds a backslash",
-  "check/pattern-control": "invalid fact: \"a\\x01b.svg\" holds a control character",
-  "check/pattern-dot-name": "invalid fact: \"../a.svg\" names . or ..",
-  "check/pattern-double-star": "invalid fact: \"a**b/c.svg\" uses ** inside a name: ** stands alone between slashes",
-  "check/pattern-empty": "invalid fact: \"\" is empty",
-  "check/pattern-empty-name": "invalid fact: \"a//b.svg\" has an empty name between slashes",
-  "check/pattern-invalid": "invalid fact: \"[\" is not a valid pattern",
-  "check/pattern-too-long": "invalid fact: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" is longer than 300 bytes",
-  "check/role-extra": "invalid fact: a role fact takes no fallback or alt",
-  "check/role-field": "invalid fact: a role fact names a field (at most 500 bytes)",
-  "check/role-owner": "invalid fact: a role fact names a collection or a block, one of them",
-  "check/role-unknown": "invalid fact: role \"bogus\" is not one of seoTitle, seoDescription, shareImage, noindex, canonical, draft, alt, none",
-  "check/separator": "invalid fact: a separator (at most 20 bytes) goes with altFrom",
-  "check/template-empty": "invalid fact: invalid titleTemplate: it is empty",
-  "check/template-field-path": "invalid fact: invalid titleTemplate: {field:a b} does not name a field (keys joined by dots)",
-  "check/template-lone-close": "invalid fact: invalid titleTemplate: a lone } at byte 8",
-  "check/template-no-value": "invalid fact: invalid titleTemplate: it does not use {value}, the field's own text",
-  "check/template-parts": "invalid fact: invalid titleTemplate: more than 50 parts",
-  "check/template-placeholder": "invalid fact: invalid titleTemplate: {foo} is not a placeholder; use {value}, {field:\u003ckey\u003e}, {field:\u003ckey\u003e|label} or {{variable}}",
-  "check/template-too-long": "invalid fact: invalid titleTemplate: it is longer than 300 bytes",
-  "check/template-unclosed": "invalid fact: invalid titleTemplate: a { at byte 8 is never closed",
-  "check/title-template-role": "invalid fact: titleTemplate goes with role seoTitle",
-  "check/used-by-code": "invalid fact: a usedByCode fact names a storage and 1 to 100 paths",
-  "check/when-blank": "invalid fact: a value is blank or longer than 200 bytes",
-  "check/when-empty": "invalid fact: whenEmpty \"generated\" does not go with role canonical",
-  "check/when-role": "invalid fact: values that switch a role on go with role noindex or draft",
-  "check/when-too-many": "invalid fact: at most 100 entries",
-  "check/when-twice": "invalid fact: \"a\" is listed twice",
-  "make/alt-cannot-hold": "fact 0: invalid fact: field \"count\" cannot hold alt text",
-  "make/alt-no-field": "fact 0: not in the schema: no field \"ghost\" beside image \"photo\"",
-  "make/alt-not-image": "fact 0: invalid fact: \"title\" is a text field, not an image",
-  "make/block": "fact 0: not in the schema: block \"nope\"",
-  "make/block-in-list": "fact 0: not in the schema: block \"hero\" in \"sections[hero].title\"",
-  "make/collection": "fact 0: not in the schema: collection \"nope\"",
-  "make/count": "invalid fact: 1 to 50 facts",
-  "make/declared-twice": "fact 0: ambiguous: collection \"cases\" is declared in .norcube/cms/collections/cases.yml and .norcube/cms/config.yml",
-  "make/field": "fact 0: not in the schema: field \"seo\" of \"seo.nope\"",
-  "make/item-of-scalar": "fact 0: not in the schema: \"title[].a\" steps into a list item of a field that is not a list",
-  "make/locales-collection": "fact 0: not in the schema: collection \"nope\"",
-  "make/locales-language": "fact 0: invalid fact: \"de\" is not a language of the site (preview.locales)",
-  "make/locales-no-versions": "fact 0: invalid fact: collection \"pages\" has no language versions (no translations)",
-  "make/localized-count": "fact 0: invalid fact: group \"name\" has 1 fields, the site 2 languages",
-  "make/localized-field": "fact 0: invalid fact: field \"de\" of \"names\" is not a language of the site",
-  "make/localized-not-group": "fact 0: invalid fact: \"title\" is a text field, not a group",
-  "make/optimized-storage": "fact 0: not in the schema: storage \"nope\"",
-  "make/path": "fact 0: invalid fact: \"seo..title\" is not a field path (keys joined by dots, [] or [shape] for a list item, ending at a field)",
-  "make/path-list-first": "fact 0: invalid fact: field path \"[a].b\" starts with a list item",
-  "make/role-cannot-hold": "fact 0: invalid fact: a number field cannot hold role shareImage as the fact says it",
-  "make/role-localized-cannot-hold": "fact 0: invalid fact: a localized group of text fields cannot hold role shareImage as the fact says it",
-  "make/role-when-option": "fact 0: invalid fact: \"gone\" is not an option of \"robots\"",
-  "make/shape": "fact 0: \"list[c].a\": not in the schema: item shape \"c\"",
-  "make/shapes-named-twice": "fact 0: \"same[a].b\": ambiguous: 2 item shapes are named \"a\"",
-  "make/two-fields": "fact 0: ambiguous: 2 fields have the key \"twice\"",
-  "make/unnamed-shape": "fact 0: \"list[].a\": ambiguous: the list has 2 item shapes; name one",
-  "make/used-by-code-no-file": "fact 0: not in the schema: no file nope.svg in storage \"images\"",
-  "make/used-by-code-no-files": "fact 0: invalid fact: storage \"cloud\" keeps no files in the repository",
-  "make/used-by-code-storage": "fact 0: not in the schema: storage \"nope\""
+  "apply/empty-mapping": {
+    "kind": "cannot_be_placed",
+    "code": "empty_mapping",
+    "error": "cannot be placed: an empty mapping"
+  },
+  "apply/field-ref": {
+    "kind": "ambiguous",
+    "code": "field_is_ref",
+    "params": {
+      "key": "seo",
+      "path": "x.yml"
+    },
+    "error": "x.yml: ambiguous: field \"seo\" is a $ref"
+  },
+  "apply/items-not-list": {
+    "kind": "not_in_schema",
+    "code": "items_not_list",
+    "params": {
+      "path": "x.yml"
+    },
+    "error": "x.yml: not in the schema: items is not a list"
+  },
+  "apply/kind": {
+    "kind": "invalid_fact",
+    "code": "kind_not_placed",
+    "params": {
+      "value": "x"
+    },
+    "error": "invalid fact: kind \"x\""
+  },
+  "apply/no-field": {
+    "kind": "not_in_schema",
+    "code": "no_field_with_key",
+    "params": {
+      "key": "b",
+      "path": "x.yml"
+    },
+    "error": "x.yml: not in the schema: no field has the key \"b\""
+  },
+  "apply/no-fields": {
+    "kind": "not_in_schema",
+    "code": "no_fields_list",
+    "params": {
+      "key": "a",
+      "path": "x.yml"
+    },
+    "error": "x.yml: not in the schema: no fields list holds \"a\""
+  },
+  "apply/no-items": {
+    "kind": "not_in_schema",
+    "code": "no_items",
+    "params": {
+      "path": "x.yml"
+    },
+    "error": "x.yml: not in the schema: the list declares no items"
+  },
+  "apply/no-key-line": {
+    "kind": "cannot_be_placed",
+    "code": "no_line_for_key",
+    "params": {
+      "knob": "role"
+    },
+    "error": "cannot be placed: no key on a line of its own to put role after"
+  },
+  "apply/no-mapping-at": {
+    "kind": "not_in_schema",
+    "code": "no_mapping_at",
+    "params": {
+      "knob": "collections.a",
+      "path": "x.yml"
+    },
+    "error": "not in the schema: x.yml has no mapping at collections.a"
+  },
+  "apply/not-mapping": {
+    "kind": "cannot_be_placed",
+    "code": "not_mapping",
+    "params": {
+      "path": "x.yml"
+    },
+    "error": "x.yml: cannot be placed: the file is not a mapping"
+  },
+  "apply/not-yaml": {
+    "kind": "cannot_be_placed",
+    "code": "not_yaml",
+    "params": {
+      "path": "x.yml",
+      "detail": "yaml: line 1: did not find expected node content"
+    },
+    "error": "x.yml: cannot be placed: yaml: line 1: did not find expected node content"
+  },
+  "apply/several-lines": {
+    "kind": "cannot_be_placed",
+    "code": "multiline_value",
+    "error": "cannot be placed: a value over several lines"
+  },
+  "apply/shape": {
+    "kind": "not_in_schema",
+    "code": "shape_not_found",
+    "params": {
+      "key": "b",
+      "path": "x.yml"
+    },
+    "error": "x.yml: not in the schema: item shape \"b\""
+  },
+  "apply/shape-ref": {
+    "kind": "ambiguous",
+    "code": "shape_is_ref",
+    "params": {
+      "path": "x.yml"
+    },
+    "error": "x.yml: ambiguous: item shape \"\" is a $ref"
+  },
+  "apply/shapes": {
+    "kind": "ambiguous",
+    "code": "shapes_fit",
+    "params": {
+      "path": "x.yml",
+      "count": 2
+    },
+    "error": "x.yml: ambiguous: 2 item shapes fit \"\""
+  },
+  "apply/shares-line": {
+    "kind": "cannot_be_placed",
+    "code": "shares_line",
+    "params": {
+      "knob": "whenEmpty"
+    },
+    "error": "cannot be placed: whenEmpty shares its line with another key"
+  },
+  "apply/two-fields": {
+    "kind": "ambiguous",
+    "code": "fields_share_key",
+    "params": {
+      "key": "a",
+      "path": "x.yml",
+      "count": 2
+    },
+    "error": "x.yml: ambiguous: 2 fields have the key \"a\""
+  },
+  "apply/used-by-code-no-mapping": {
+    "kind": "not_in_schema",
+    "code": "no_mapping_at",
+    "params": {
+      "knob": "storages.s",
+      "path": "x.yml"
+    },
+    "error": "not in the schema: x.yml has no mapping at storages.s"
+  },
+  "apply/used-by-code-too-many": {
+    "kind": "invalid_fact",
+    "code": "used_by_code_too_many",
+    "params": {
+      "key": "s",
+      "max": 500,
+      "count": 501
+    },
+    "error": "invalid fact: storage \"s\" would list 501 paths in usedByCode, at most 500"
+  },
+  "apply/within": {
+    "kind": "cannot_be_placed",
+    "code": "within_not_mapping",
+    "params": {
+      "knob": "translations",
+      "path": "x.yml"
+    },
+    "error": "cannot be placed: x.yml has no translations mapping there"
+  },
+  "check/alt-field": {
+    "kind": "invalid_fact",
+    "code": "field_missing",
+    "params": {
+      "kind": "alt",
+      "max": 500
+    },
+    "error": "invalid fact: an alt fact names an image field (at most 500 bytes)"
+  },
+  "check/alt-from-blank": {
+    "kind": "invalid_fact",
+    "code": "entry_blank",
+    "params": {
+      "knob": "altFrom",
+      "max": 200
+    },
+    "error": "invalid fact: a field is blank or longer than 200 bytes"
+  },
+  "check/alt-from-key": {
+    "kind": "invalid_fact",
+    "code": "not_field_key",
+    "params": {
+      "value": "a b"
+    },
+    "error": "invalid fact: \"a b\" is not a field key"
+  },
+  "check/alt-from-too-many": {
+    "kind": "invalid_fact",
+    "code": "too_many",
+    "params": {
+      "knob": "altFrom",
+      "max": 10
+    },
+    "error": "invalid fact: at most 10 entries"
+  },
+  "check/alt-from-twice": {
+    "kind": "invalid_fact",
+    "code": "listed_twice",
+    "params": {
+      "value": "a",
+      "knob": "altFrom"
+    },
+    "error": "invalid fact: \"a\" is listed twice"
+  },
+  "check/alt-key": {
+    "kind": "invalid_fact",
+    "code": "not_field_key",
+    "params": {
+      "value": "a b"
+    },
+    "error": "invalid fact: \"a b\" is not a field key"
+  },
+  "check/alt-one": {
+    "kind": "invalid_fact",
+    "code": "alt_one_of",
+    "error": "invalid fact: an alt fact names one field (alt) or the fields it is composed of (altFrom), one of them"
+  },
+  "check/alt-owner": {
+    "kind": "invalid_fact",
+    "code": "owner_not_one",
+    "params": {
+      "kind": "alt"
+    },
+    "error": "invalid fact: an alt fact names a collection or a block, one of them"
+  },
+  "check/excerpt": {
+    "kind": "invalid_fact",
+    "code": "excerpt_mismatch",
+    "params": {
+      "value": "firstParagraph",
+      "role": "seoTitle"
+    },
+    "error": "invalid fact: excerpt \"firstParagraph\" does not go with role seoTitle"
+  },
+  "check/fallback-code": {
+    "kind": "invalid_fact",
+    "code": "not_language_code",
+    "params": {
+      "value": "c s"
+    },
+    "error": "invalid fact: \"c s\" is not a language code"
+  },
+  "check/kind": {
+    "kind": "invalid_fact",
+    "code": "kind_unknown",
+    "params": {
+      "value": "x",
+      "allowed": [
+        "role",
+        "translationLocales",
+        "optimizedAtBuild",
+        "usedByCode",
+        "localized",
+        "alt"
+      ]
+    },
+    "error": "invalid fact: kind \"x\" is not one of role, translationLocales, optimizedAtBuild, usedByCode, localized, alt"
+  },
+  "check/locales-code": {
+    "kind": "invalid_fact",
+    "code": "not_language_code",
+    "params": {
+      "value": "c s"
+    },
+    "error": "invalid fact: \"c s\" is not a language code"
+  },
+  "check/locales-count": {
+    "kind": "invalid_fact",
+    "code": "locales_count",
+    "params": {
+      "max": 50
+    },
+    "error": "invalid fact: a translationLocales fact lists 1 to 50 languages"
+  },
+  "check/locales-owner": {
+    "kind": "invalid_fact",
+    "code": "locales_owner",
+    "error": "invalid fact: a translationLocales fact names a collection"
+  },
+  "check/locales-twice": {
+    "kind": "invalid_fact",
+    "code": "listed_twice",
+    "params": {
+      "value": "cs",
+      "knob": "locales"
+    },
+    "error": "invalid fact: \"cs\" is listed twice"
+  },
+  "check/localized-field": {
+    "kind": "invalid_fact",
+    "code": "field_missing",
+    "params": {
+      "kind": "localized",
+      "max": 500
+    },
+    "error": "invalid fact: a localized fact names a group (at most 500 bytes)"
+  },
+  "check/localized-owner": {
+    "kind": "invalid_fact",
+    "code": "owner_not_one",
+    "params": {
+      "kind": "localized"
+    },
+    "error": "invalid fact: a localized fact names a collection or a block, one of them"
+  },
+  "check/name": {
+    "kind": "invalid_fact",
+    "code": "not_name",
+    "params": {
+      "value": "a b"
+    },
+    "error": "invalid fact: \"a b\" is not a name"
+  },
+  "check/optimized": {
+    "kind": "invalid_fact",
+    "code": "optimized_owner",
+    "error": "invalid fact: an optimizedAtBuild fact names a storage and a value"
+  },
+  "check/paths-twice": {
+    "kind": "invalid_fact",
+    "code": "listed_twice",
+    "params": {
+      "value": "a.svg",
+      "knob": "paths"
+    },
+    "error": "invalid fact: \"a.svg\" is listed twice"
+  },
+  "check/pattern-absolute": {
+    "kind": "invalid_fact",
+    "code": "pattern_absolute",
+    "params": {
+      "path": "/a.svg"
+    },
+    "error": "invalid fact: \"/a.svg\" starts with /: write it relative to the storage's path"
+  },
+  "check/pattern-backslash": {
+    "kind": "invalid_fact",
+    "code": "pattern_backslash",
+    "params": {
+      "path": "a\\b.svg"
+    },
+    "error": "invalid fact: \"a\\\\b.svg\" holds a backslash"
+  },
+  "check/pattern-control": {
+    "kind": "invalid_fact",
+    "code": "pattern_control_character",
+    "params": {
+      "path": "a\u0001b.svg"
+    },
+    "error": "invalid fact: \"a\\x01b.svg\" holds a control character"
+  },
+  "check/pattern-dot-name": {
+    "kind": "invalid_fact",
+    "code": "pattern_dot_name",
+    "params": {
+      "path": "../a.svg"
+    },
+    "error": "invalid fact: \"../a.svg\" names . or .."
+  },
+  "check/pattern-double-star": {
+    "kind": "invalid_fact",
+    "code": "pattern_double_star_in_name",
+    "params": {
+      "path": "a**b/c.svg"
+    },
+    "error": "invalid fact: \"a**b/c.svg\" uses ** inside a name: ** stands alone between slashes"
+  },
+  "check/pattern-empty": {
+    "kind": "invalid_fact",
+    "code": "pattern_empty",
+    "error": "invalid fact: \"\" is empty"
+  },
+  "check/pattern-empty-name": {
+    "kind": "invalid_fact",
+    "code": "pattern_empty_name",
+    "params": {
+      "path": "a//b.svg"
+    },
+    "error": "invalid fact: \"a//b.svg\" has an empty name between slashes"
+  },
+  "check/pattern-invalid": {
+    "kind": "invalid_fact",
+    "code": "pattern_invalid",
+    "params": {
+      "path": "["
+    },
+    "error": "invalid fact: \"[\" is not a valid pattern"
+  },
+  "check/pattern-too-long": {
+    "kind": "invalid_fact",
+    "code": "pattern_too_long",
+    "params": {
+      "path": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…",
+      "max": 300
+    },
+    "error": "invalid fact: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…\" is longer than 300 bytes"
+  },
+  "check/role-extra": {
+    "kind": "invalid_fact",
+    "code": "role_takes_no_alt",
+    "error": "invalid fact: a role fact takes no fallback or alt"
+  },
+  "check/role-field": {
+    "kind": "invalid_fact",
+    "code": "field_missing",
+    "params": {
+      "kind": "role",
+      "max": 500
+    },
+    "error": "invalid fact: a role fact names a field (at most 500 bytes)"
+  },
+  "check/role-owner": {
+    "kind": "invalid_fact",
+    "code": "owner_not_one",
+    "params": {
+      "kind": "role"
+    },
+    "error": "invalid fact: a role fact names a collection or a block, one of them"
+  },
+  "check/role-unknown": {
+    "kind": "invalid_fact",
+    "code": "role_unknown",
+    "params": {
+      "value": "bogus",
+      "allowed": [
+        "seoTitle",
+        "seoDescription",
+        "shareImage",
+        "noindex",
+        "canonical",
+        "draft",
+        "alt",
+        "none"
+      ]
+    },
+    "error": "invalid fact: role \"bogus\" is not one of seoTitle, seoDescription, shareImage, noindex, canonical, draft, alt, none"
+  },
+  "check/separator": {
+    "kind": "invalid_fact",
+    "code": "separator",
+    "params": {
+      "max": 20
+    },
+    "error": "invalid fact: a separator (at most 20 bytes) goes with altFrom"
+  },
+  "check/template-empty": {
+    "kind": "invalid_fact",
+    "code": "template_empty",
+    "error": "invalid fact: invalid titleTemplate: it is empty"
+  },
+  "check/template-field-path": {
+    "kind": "invalid_fact",
+    "code": "template_field_path",
+    "params": {
+      "value": "{field:a b}"
+    },
+    "error": "invalid fact: invalid titleTemplate: {field:a b} does not name a field (keys joined by dots)"
+  },
+  "check/template-lone-close": {
+    "kind": "invalid_fact",
+    "code": "template_lone_close",
+    "params": {
+      "offset": 8
+    },
+    "error": "invalid fact: invalid titleTemplate: a lone } at byte 8"
+  },
+  "check/template-no-value": {
+    "kind": "invalid_fact",
+    "code": "template_no_value",
+    "error": "invalid fact: invalid titleTemplate: it does not use {value}, the field's own text"
+  },
+  "check/template-parts": {
+    "kind": "invalid_fact",
+    "code": "template_too_many_parts",
+    "params": {
+      "max": 50
+    },
+    "error": "invalid fact: invalid titleTemplate: more than 50 parts"
+  },
+  "check/template-placeholder": {
+    "kind": "invalid_fact",
+    "code": "template_unknown_placeholder",
+    "params": {
+      "value": "{foo}"
+    },
+    "error": "invalid fact: invalid titleTemplate: {foo} is not a placeholder; use {value}, {field:\u003ckey\u003e}, {field:\u003ckey\u003e|label} or {{variable}}"
+  },
+  "check/template-too-long": {
+    "kind": "invalid_fact",
+    "code": "template_too_long",
+    "params": {
+      "max": 300
+    },
+    "error": "invalid fact: invalid titleTemplate: it is longer than 300 bytes"
+  },
+  "check/template-unclosed": {
+    "kind": "invalid_fact",
+    "code": "template_unclosed",
+    "params": {
+      "offset": 8
+    },
+    "error": "invalid fact: invalid titleTemplate: a { at byte 8 is never closed"
+  },
+  "check/title-template-role": {
+    "kind": "invalid_fact",
+    "code": "title_template_role",
+    "params": {
+      "role": "seoTitle"
+    },
+    "error": "invalid fact: titleTemplate goes with role seoTitle"
+  },
+  "check/used-by-code": {
+    "kind": "invalid_fact",
+    "code": "paths_count",
+    "params": {
+      "max": 100
+    },
+    "error": "invalid fact: a usedByCode fact names a storage and 1 to 100 paths"
+  },
+  "check/when-blank": {
+    "kind": "invalid_fact",
+    "code": "entry_blank",
+    "params": {
+      "knob": "when",
+      "max": 200
+    },
+    "error": "invalid fact: a value is blank or longer than 200 bytes"
+  },
+  "check/when-empty": {
+    "kind": "invalid_fact",
+    "code": "when_empty_mismatch",
+    "params": {
+      "value": "generated",
+      "role": "canonical"
+    },
+    "error": "invalid fact: whenEmpty \"generated\" does not go with role canonical"
+  },
+  "check/when-role": {
+    "kind": "invalid_fact",
+    "code": "when_role",
+    "params": {
+      "allowed": [
+        "noindex",
+        "draft"
+      ]
+    },
+    "error": "invalid fact: values that switch a role on go with role noindex or draft"
+  },
+  "check/when-too-many": {
+    "kind": "invalid_fact",
+    "code": "too_many",
+    "params": {
+      "knob": "when",
+      "max": 100
+    },
+    "error": "invalid fact: at most 100 entries"
+  },
+  "check/when-twice": {
+    "kind": "invalid_fact",
+    "code": "listed_twice",
+    "params": {
+      "value": "a",
+      "knob": "when"
+    },
+    "error": "invalid fact: \"a\" is listed twice"
+  },
+  "make/alt-cannot-hold": {
+    "kind": "invalid_fact",
+    "code": "cannot_hold_alt",
+    "params": {
+      "key": "count"
+    },
+    "error": "fact 0: invalid fact: field \"count\" cannot hold alt text"
+  },
+  "make/alt-no-field": {
+    "kind": "not_in_schema",
+    "code": "alt_field_not_found",
+    "params": {
+      "field": "photo",
+      "key": "ghost"
+    },
+    "error": "fact 0: not in the schema: no field \"ghost\" beside image \"photo\""
+  },
+  "make/alt-not-image": {
+    "kind": "invalid_fact",
+    "code": "not_image",
+    "params": {
+      "field": "title",
+      "type": "text"
+    },
+    "error": "fact 0: invalid fact: \"title\" is a text field, not an image"
+  },
+  "make/block": {
+    "kind": "not_in_schema",
+    "code": "block_not_found",
+    "params": {
+      "key": "nope"
+    },
+    "error": "fact 0: not in the schema: block \"nope\""
+  },
+  "make/block-in-list": {
+    "kind": "not_in_schema",
+    "code": "list_block_not_found",
+    "params": {
+      "field": "sections[hero].title",
+      "key": "hero"
+    },
+    "error": "fact 0: not in the schema: block \"hero\" in \"sections[hero].title\""
+  },
+  "make/collection": {
+    "kind": "not_in_schema",
+    "code": "collection_not_found",
+    "params": {
+      "key": "nope"
+    },
+    "error": "fact 0: not in the schema: collection \"nope\""
+  },
+  "make/count": {
+    "kind": "invalid_fact",
+    "code": "facts_count",
+    "params": {
+      "max": 50
+    },
+    "error": "invalid fact: 1 to 50 facts"
+  },
+  "make/declared-twice": {
+    "kind": "ambiguous",
+    "code": "declared_twice",
+    "params": {
+      "key": "cases",
+      "names": [
+        ".norcube/cms/collections/cases.yml",
+        ".norcube/cms/config.yml"
+      ],
+      "kind": "collection"
+    },
+    "error": "fact 0: ambiguous: collection \"cases\" is declared in .norcube/cms/collections/cases.yml and .norcube/cms/config.yml"
+  },
+  "make/field": {
+    "kind": "not_in_schema",
+    "code": "field_not_found",
+    "params": {
+      "field": "seo.nope",
+      "key": "seo"
+    },
+    "error": "fact 0: not in the schema: field \"seo\" of \"seo.nope\""
+  },
+  "make/item-of-scalar": {
+    "kind": "not_in_schema",
+    "code": "item_of_non_list",
+    "params": {
+      "field": "title[].a"
+    },
+    "error": "fact 0: not in the schema: \"title[].a\" steps into a list item of a field that is not a list"
+  },
+  "make/locales-collection": {
+    "kind": "not_in_schema",
+    "code": "collection_not_found",
+    "params": {
+      "key": "nope"
+    },
+    "error": "fact 0: not in the schema: collection \"nope\""
+  },
+  "make/locales-language": {
+    "kind": "invalid_fact",
+    "code": "not_site_locale",
+    "params": {
+      "locale": "de"
+    },
+    "error": "fact 0: invalid fact: \"de\" is not a language of the site (preview.locales)"
+  },
+  "make/locales-no-versions": {
+    "kind": "invalid_fact",
+    "code": "no_language_versions",
+    "params": {
+      "key": "pages"
+    },
+    "error": "fact 0: invalid fact: collection \"pages\" has no language versions (no translations)"
+  },
+  "make/localized-count": {
+    "kind": "invalid_fact",
+    "code": "group_field_count",
+    "params": {
+      "field": "name",
+      "count": 1,
+      "total": 2
+    },
+    "error": "fact 0: invalid fact: group \"name\" has 1 fields, the site 2 languages"
+  },
+  "make/localized-field": {
+    "kind": "invalid_fact",
+    "code": "group_field_not_locale",
+    "params": {
+      "field": "names",
+      "key": "de"
+    },
+    "error": "fact 0: invalid fact: field \"de\" of \"names\" is not a language of the site"
+  },
+  "make/localized-not-group": {
+    "kind": "invalid_fact",
+    "code": "not_group",
+    "params": {
+      "field": "title",
+      "type": "text"
+    },
+    "error": "fact 0: invalid fact: \"title\" is a text field, not a group"
+  },
+  "make/optimized-storage": {
+    "kind": "not_in_schema",
+    "code": "storage_not_found",
+    "params": {
+      "key": "nope"
+    },
+    "error": "fact 0: not in the schema: storage \"nope\""
+  },
+  "make/path": {
+    "kind": "invalid_fact",
+    "code": "not_field_path",
+    "params": {
+      "field": "seo..title"
+    },
+    "error": "fact 0: invalid fact: \"seo..title\" is not a field path (keys joined by dots, [] or [shape] for a list item, ending at a field)"
+  },
+  "make/path-list-first": {
+    "kind": "invalid_fact",
+    "code": "path_starts_with_item",
+    "params": {
+      "field": "[a].b"
+    },
+    "error": "fact 0: invalid fact: field path \"[a].b\" starts with a list item"
+  },
+  "make/role-cannot-hold": {
+    "kind": "invalid_fact",
+    "code": "role_cannot_hold",
+    "params": {
+      "type": "number",
+      "role": "shareImage"
+    },
+    "error": "fact 0: invalid fact: a number field cannot hold role shareImage as the fact says it"
+  },
+  "make/role-localized-cannot-hold": {
+    "kind": "invalid_fact",
+    "code": "localized_role_cannot_hold",
+    "params": {
+      "type": "text",
+      "role": "shareImage"
+    },
+    "error": "fact 0: invalid fact: a localized group of text fields cannot hold role shareImage as the fact says it"
+  },
+  "make/role-when-option": {
+    "kind": "invalid_fact",
+    "code": "when_not_option",
+    "params": {
+      "field": "robots",
+      "value": "gone"
+    },
+    "error": "fact 0: invalid fact: \"gone\" is not an option of \"robots\""
+  },
+  "make/shape": {
+    "kind": "not_in_schema",
+    "code": "shape_not_found",
+    "params": {
+      "field": "list[c].a",
+      "key": "c"
+    },
+    "error": "fact 0: \"list[c].a\": not in the schema: item shape \"c\""
+  },
+  "make/shapes-named-twice": {
+    "kind": "ambiguous",
+    "code": "shapes_named_twice",
+    "params": {
+      "field": "same[a].b",
+      "key": "a",
+      "count": 2
+    },
+    "error": "fact 0: \"same[a].b\": ambiguous: 2 item shapes are named \"a\""
+  },
+  "make/two-fields": {
+    "kind": "ambiguous",
+    "code": "fields_share_key",
+    "params": {
+      "key": "twice",
+      "count": 2
+    },
+    "error": "fact 0: ambiguous: 2 fields have the key \"twice\""
+  },
+  "make/unnamed-shape": {
+    "kind": "ambiguous",
+    "code": "shape_unnamed",
+    "params": {
+      "field": "list[].a",
+      "count": 2
+    },
+    "error": "fact 0: \"list[].a\": ambiguous: the list has 2 item shapes; name one"
+  },
+  "make/used-by-code-no-file": {
+    "kind": "not_in_schema",
+    "code": "storage_file_not_found",
+    "params": {
+      "key": "images",
+      "path": "nope.svg"
+    },
+    "error": "fact 0: not in the schema: no file nope.svg in storage \"images\""
+  },
+  "make/used-by-code-no-files": {
+    "kind": "invalid_fact",
+    "code": "storage_keeps_no_files",
+    "params": {
+      "key": "cloud"
+    },
+    "error": "fact 0: invalid fact: storage \"cloud\" keeps no files in the repository"
+  },
+  "make/used-by-code-storage": {
+    "kind": "not_in_schema",
+    "code": "storage_not_found",
+    "params": {
+      "key": "nope"
+    },
+    "error": "fact 0: not in the schema: storage \"nope\""
+  }
 }

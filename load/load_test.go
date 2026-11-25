@@ -2,6 +2,7 @@ package load
 
 import (
 	"errors"
+	"io/fs"
 	"testing"
 	"testing/fstest"
 
@@ -93,5 +94,53 @@ func TestLoadLegacyAndMissing(t *testing.T) {
 	}
 	if _, _, err := Load(site(map[string]string{"README.md": "x"})); !errors.Is(err, ErrNotASite) {
 		t.Fatalf("want ErrNotASite, got %v", err)
+	}
+}
+
+// failingFS fails to open one file, as a disk or a network mount can.
+type failingFS struct {
+	fstest.MapFS
+	fail string
+}
+
+func (f failingFS) Open(name string) (fs.File, error) {
+	if name == f.fail {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: errors.New("disk gone")}
+	}
+	return f.MapFS.Open(name)
+}
+
+func (f failingFS) ReadFile(name string) ([]byte, error) {
+	if name == f.fail {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: errors.New("disk gone")}
+	}
+	return f.MapFS.ReadFile(name)
+}
+
+// A schema file that cannot be read is schema.parse_error, cause
+// unreadable, with the file system's error as its detail.
+func TestLoadUnreadableFile(t *testing.T) {
+	fsys := failingFS{MapFS: site(map[string]string{
+		ConfigFile:                    "pagesDir: src/content/pages\n",
+		CollectionsDir + "/pages.yml": "label: Pages\npath: src/content/pages\nfields: []\n",
+	}), fail: CollectionsDir + "/pages.yml"}
+	_, findings, err := Load(fsys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []report.Finding
+	for _, f := range findings {
+		if f.Rule == report.RuleSchemaParseError {
+			got = append(got, f)
+		}
+	}
+	if len(got) != 1 || got[0].Cause != report.CauseUnreadable || got[0].File != CollectionsDir+"/pages.yml" {
+		t.Fatalf("got %+v", got)
+	}
+	if err := report.CheckFinding(got[0]); err != nil {
+		t.Error(err)
+	}
+	if want := "cannot read: open " + CollectionsDir + "/pages.yml: disk gone"; got[0].Message != want {
+		t.Errorf("message %q, want %q", got[0].Message, want)
 	}
 }

@@ -1,7 +1,8 @@
 package resolve
 
 import (
-	"fmt"
+	"errors"
+	"github.com/norcubeplatform/cms-schema/report"
 	"strings"
 
 	"github.com/norcubeplatform/cms-schema/schema"
@@ -92,45 +93,50 @@ func AssetRepoPath(cfg *schema.Config, value string) string {
 	return CleanPath(value)
 }
 
-// ValidStorage reports what is wrong with a storage entry, in the words
-// the service uses when it refuses the config. Empty when it is fine.
-func ValidStorage(s schema.Storage) []string {
-	var problems []string
+// ValidStorage reports what is wrong with a storage entry: one problem
+// per cause, with its params (report.StorageCauses and, for a usedByCode
+// entry, report.PatternCauses). Empty when it is fine. The finding is
+// schema.invalid_storage with the storage's name as Params.Key.
+func ValidStorage(s schema.Storage) []report.Problem {
+	var problems []report.Problem
+	add := func(c report.Cause, p *report.Params) {
+		problems = append(problems, report.Problem{Cause: c, Params: p})
+	}
 	if s.Type == "" {
-		problems = append(problems, "missing `type:` (the only shipped driver is repo)")
+		add(report.CauseTypeMissing, nil)
 	} else if s.Type != schema.StorageTypeRepo {
-		problems = append(problems, "type "+quote(s.Type)+" is not implemented (only repo is)")
+		add(report.CauseTypeUnimplemented, &report.Params{Value: s.Type})
 	}
 	if s.Type == schema.StorageTypeRepo && s.Path == "" {
-		problems = append(problems, "missing `path:`")
+		add(report.CausePathMissing, nil)
 	}
 	switch s.Mode {
 	case schema.StorageModeReadOnly, schema.StorageModeReadWrite:
 	default:
-		problems = append(problems, "invalid mode "+quote(s.Mode)+" (allowed: read-only, read-write)")
+		add(report.CauseModeInvalid, &report.Params{Value: s.Mode, Allowed: []string{schema.StorageModeReadOnly, schema.StorageModeReadWrite}})
 	}
 	switch s.Naming {
 	case schema.StorageNamingOriginal, schema.StorageNamingSlug, schema.StorageNamingSlugHash, schema.StorageNamingUUID:
 	default:
-		problems = append(problems, "invalid naming "+quote(s.Naming)+" (allowed: slug, slug+hash, uuid, or empty for original)")
+		add(report.CauseNamingInvalid, &report.Params{Value: s.Naming, Allowed: []string{schema.StorageNamingSlug, schema.StorageNamingSlugHash, schema.StorageNamingUUID}})
 	}
 	switch s.Inline {
 	case "", schema.StorageInlineRef, schema.StorageInlineSVG:
 	default:
-		problems = append(problems, "invalid inline "+quote(s.Inline)+" (allowed: ref, svg)")
+		add(report.CauseInlineInvalid, &report.Params{Value: s.Inline, Allowed: []string{schema.StorageInlineRef, schema.StorageInlineSVG}})
 	}
 	switch s.Dedup {
 	case "":
 	case schema.StorageDedupHash:
 		if s.Naming != schema.StorageNamingSlugHash {
-			problems = append(problems, "`dedup: hash` requires `naming: slug+hash`")
+			add(report.CauseDedupNeedsSlugHash, nil)
 		}
 	default:
-		problems = append(problems, "invalid dedup "+quote(s.Dedup)+" (allowed: hash)")
+		add(report.CauseDedupInvalid, &report.Params{Value: s.Dedup, Allowed: []string{schema.StorageDedupHash}})
 	}
 	if v, has := s.Raw[schema.StorageKeyOptimizedAtBuild]; has && v != nil {
 		if _, ok := v.(bool); !ok {
-			problems = append(problems, fmt.Sprintf("`%s` is %v, not true or false", schema.StorageKeyOptimizedAtBuild, v))
+			add(report.CauseOptimizedAtBuildNotBoolean, &report.Params{Value: report.FlowValue(v)})
 		}
 	}
 	return append(problems, usedByCodeProblems(s)...)
@@ -139,37 +145,37 @@ func ValidStorage(s schema.Storage) []string {
 // usedByCodeProblems checks `usedByCode`: a list of at most
 // schema.MaxUsedByCode path patterns, each relative to the storage's
 // path and listed once.
-func usedByCodeProblems(s schema.Storage) []string {
+func usedByCodeProblems(s schema.Storage) []report.Problem {
 	v, has := s.Raw[schema.StorageKeyUsedByCode]
 	if !has || v == nil {
 		return nil
 	}
-	key := "`" + schema.StorageKeyUsedByCode + "`"
 	list, ok := v.([]any)
 	if !ok {
-		return []string{key + " is not a list of paths"}
+		return []report.Problem{{Cause: report.CauseUsedByCodeNotList}}
 	}
 	if len(list) > schema.MaxUsedByCode {
-		return []string{fmt.Sprintf("%s lists %d paths, at most %d", key, len(list), schema.MaxUsedByCode)}
+		return []report.Problem{{Cause: report.CauseUsedByCodeTooMany, Params: &report.Params{Count: report.Int(int64(len(list))), Max: report.Num(schema.MaxUsedByCode)}}}
 	}
-	var problems []string
+	var problems []report.Problem
 	seen := map[string]bool{}
 	for _, item := range list {
 		p, ok := item.(string)
 		if !ok {
-			problems = append(problems, fmt.Sprintf("%s holds %v, not a path", key, item))
+			problems = append(problems, report.Problem{Cause: report.CauseUsedByCodeNotPath, Params: &report.Params{Value: report.FlowValue(item)}})
 			continue
 		}
 		if err := schema.CheckCodePattern(p); err != nil {
-			problems = append(problems, key+": "+strings.TrimPrefix(err.Error(), schema.ErrCodePattern.Error()+": "))
+			var pe *schema.CodePatternError
+			if errors.As(err, &pe) {
+				problems = append(problems, pe.Problem)
+			}
 			continue
 		}
 		if seen[p] {
-			problems = append(problems, fmt.Sprintf("%s lists %q twice", key, p))
+			problems = append(problems, report.Problem{Cause: report.CauseUsedByCodeTwice, Params: &report.Params{Path: p}})
 		}
 		seen[p] = true
 	}
 	return problems
 }
-
-func quote(s string) string { return "\"" + s + "\"" }

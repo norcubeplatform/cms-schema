@@ -373,7 +373,7 @@ func TestMedia(t *testing.T) {
 		if got := keys(res, report.RuleQualityImageHeavy, report.RuleQualityMediaUnused); len(got) != 0 {
 			t.Errorf("got %v", got)
 		}
-		if !slices.ContainsFunc(res.Quality.Skipped, func(s quality.Skipped) bool { return strings.Contains(s.Reason, "disk gone") }) {
+		if !slices.ContainsFunc(res.Quality.Skipped, func(s quality.Skipped) bool { return strings.Contains(s.Message, "disk gone") }) {
 			t.Errorf("skipped %+v", res.Quality.Skipped)
 		}
 	})
@@ -523,7 +523,7 @@ func TestSpecs(t *testing.T) {
 	var rules []report.Rule
 	for _, s := range quality.Specs() {
 		rules = append(rules, s.Rule)
-		if !s.Rule.IsQuality() || !slices.Contains(quality.Areas(), s.Area) || s.Threshold == "" {
+		if !s.Rule.IsQuality() || !slices.Contains(quality.Areas(), s.Area) {
 			t.Errorf("spec %+v", s)
 		}
 		if s.Scored() != (s.Impact != report.ImpactInfo) {
@@ -549,12 +549,15 @@ func TestWords(t *testing.T) {
 			t.Errorf("GenericLinkText(%q) = %v", text, got)
 		}
 	}
-	for _, c := range []struct{ alt, image, want string }{
-		{"Photo", "/images/x.jpg", "a generic word"},
-		{"obrázek", "/images/x.jpg", "a generic word"},
-		{"IMG_2041", "/images/x.jpg", "a camera's file name"},
-		{"hero.jpg", "/images/hero.jpg", "the file name"},
-		{"hero-final", "/images/hero-final.png?v=2", "the file name"},
+	for _, c := range []struct {
+		alt, image string
+		want       report.Cause
+	}{
+		{"Photo", "/images/x.jpg", report.CauseGenericWord},
+		{"obrázek", "/images/x.jpg", report.CauseGenericWord},
+		{"IMG_2041", "/images/x.jpg", report.CauseCameraFileName},
+		{"hero.jpg", "/images/hero.jpg", report.CauseFileName},
+		{"hero-final", "/images/hero-final.png?v=2", report.CauseFileName},
 		{"Acme", "/images/acme.svg", ""},
 		{"Our team at the office", "/images/team.jpg", ""},
 	} {
@@ -696,7 +699,7 @@ func TestOptimizedAtBuild(t *testing.T) {
 			t.Errorf("checked %d; an optimized image is not checked", n)
 		}
 		wantFolders := []quality.MediaFolder{
-			{Path: "public/images", Storage: "images", Guessed: true, Images: 1},
+			{Path: "public/images", Storage: "images", Guessed: true, Framework: quality.FrameworkAstro, Images: 1},
 			{Path: "src/assets/images", Storage: "assets", OptimizedAtBuild: true, Images: 1},
 		}
 		if !slices.Equal(res.Quality.MediaFolders, wantFolders) {

@@ -1,7 +1,6 @@
 package quality
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -42,7 +41,7 @@ func (r *run) languages(pages []Page) {
 
 	outdatedOn := !r.off[report.RuleQualityTranslationOutdated]
 	if outdatedOn && r.opts.SourceBases == nil {
-		r.skip(report.RuleQualityTranslationOutdated, "the history of the content files was not given")
+		r.skip(report.RuleQualityTranslationOutdated, SkipHistoryNotGiven, nil)
 		outdatedOn = false
 	}
 	var pairs []versionPair
@@ -74,10 +73,9 @@ func (r *run) languages(pages []Page) {
 				}
 				if d, ok := drafts[locale]; ok {
 					r.count(report.RuleQualityTranslationMissing)
-					r.emit(report.Finding{File: d.Path, Rule: report.RuleQualityTranslationMissing,
-						Message: fmt.Sprintf("The %q version is a draft, not published yet.", locale),
-						Hint:    "Publish it when it is ready (turn its draft field off); until then readers of that language do not see the page.",
-						Value:   locale}, report.ImpactInfo)
+					r.emit(report.Finding{File: d.Path, Rule: report.RuleQualityTranslationMissing, Cause: report.CauseDraft,
+						Params: &report.Params{Locale: locale},
+						Value:  locale}, report.ImpactInfo)
 					continue
 				}
 				if len(published) == 0 {
@@ -85,10 +83,9 @@ func (r *run) languages(pages []Page) {
 					continue
 				}
 				r.count(report.RuleQualityTranslationMissing)
-				r.emit(report.Finding{File: r.sourceVersion(published).Path, Rule: report.RuleQualityTranslationMissing,
-					Message: fmt.Sprintf("The page has no version in %q.", locale),
-					Hint:    "Create the version in that language, or, if the collection is not meant to have one, list its languages in `translations.locales`.",
-					Value:   locale}, report.ImpactMedium)
+				r.emit(report.Finding{File: r.sourceVersion(published).Path, Rule: report.RuleQualityTranslationMissing, Cause: report.CauseMissing,
+					Params: &report.Params{Locale: locale},
+					Value:  locale}, report.ImpactMedium)
 			}
 		}
 		if outdatedOn && r.on(report.RuleQualityTranslationOutdated, coll) && len(published) > 1 {
@@ -154,8 +151,7 @@ func (r *run) versionPairs(published []Page) []versionPair {
 // MaxBaseQueries.
 func (r *run) outdated(pairs []versionPair) {
 	if len(pairs) > MaxBaseQueries {
-		r.skipped = append(r.skipped, Skipped{Rule: report.RuleQualityTranslationOutdated,
-			Reason: fmt.Sprintf("only the first %d language versions were judged", MaxBaseQueries)})
+		r.skipped = append(r.skipped, newSkipped(report.RuleQualityTranslationOutdated, SkipLanguagesCapped, &report.Params{Max: report.Num(MaxBaseQueries)}))
 		pairs = pairs[:MaxBaseQueries]
 	}
 	queries := make([]BaseQuery, len(pairs))
@@ -164,7 +160,7 @@ func (r *run) outdated(pairs []versionPair) {
 	}
 	answers, err := r.opts.SourceBases(queries)
 	if err != nil && len(answers) == 0 {
-		r.skipped = append(r.skipped, Skipped{Rule: report.RuleQualityTranslationOutdated, Reason: "the history of the content files could not be read"})
+		r.skipped = append(r.skipped, newSkipped(report.RuleQualityTranslationOutdated, SkipHistoryUnreadable, nil))
 		return
 	}
 	for i, p := range pairs {
@@ -239,18 +235,12 @@ func outdatedFinding(p versionPair, changes []resolve.TextChange) report.Finding
 		}
 		named = append(named, c.Label)
 	}
-	more := ""
+	params := &report.Params{Locale: p.source.Locale, Path: p.source.Path, Count: report.Int(int64(len(changes))), Names: named}
 	if len(changes) > MaxNamed {
-		more = fmt.Sprintf(" and %d more", len(changes)-MaxNamed)
-	}
-	noun := "texts"
-	if len(changes) == 1 {
-		noun = "text"
+		params.More = report.Int(int64(len(changes) - MaxNamed))
 	}
 	return report.Finding{File: p.translation.Path, Path: changes[0].Path, Rule: report.RuleQualityTranslationOutdated,
-		Message: fmt.Sprintf("The %q version (%s) changed %d %s since this version was last current with it: %s%s.",
-			p.source.Locale, p.source.Path, len(changes), noun, strings.Join(named, ", "), more),
-		Hint:    "Check whether this version still says what the source says now. If it does, mark it up to date; if not, update the texts that changed.",
+		Params:  params,
 		Value:   OutdatedValue(p.source.Path, p.source.Blob),
 		Locale:  p.translation.Locale,
 		Measure: &report.Measure{Value: int64(len(changes)), Unit: report.UnitChangedTexts}}
@@ -280,59 +270,51 @@ func (r *run) localizedLanguages(pages []Page) {
 		}
 		for _, locale := range resolve.ExpectedLocales(r.cfg, coll) {
 			r.count(report.RuleQualityTranslationIncomplete)
-			var missing []string
+			var names, sameAs []string
 			first := ""
 			for _, t := range texts {
-				why := untranslated(t, locale)
-				if why == "" {
+				why, ok := untranslated(t, locale)
+				if !ok {
 					continue
 				}
 				if first == "" {
 					first = t.path + "." + locale
 				}
-				missing = append(missing, fmt.Sprintf("%s (%s)", labelOrKey(t.field), why))
+				names = append(names, labelOrKey(t.field))
+				sameAs = append(sameAs, why)
 			}
-			if len(missing) == 0 {
+			if len(names) == 0 {
 				continue
 			}
-			named := missing
-			more := ""
-			if len(named) > MaxNamed {
-				more = fmt.Sprintf(" and %d more", len(named)-MaxNamed)
-				named = named[:MaxNamed]
+			params := &report.Params{Locale: locale, Count: report.Int(int64(len(names))), Total: report.Int(int64(len(texts))), Names: names, SameAs: sameAs}
+			if len(names) > MaxNamed {
+				params.More = report.Int(int64(len(names) - MaxNamed))
+				params.Names, params.SameAs = names[:MaxNamed], sameAs[:MaxNamed]
 			}
-			r.emit(report.Finding{File: p.Path, Path: first, Rule: report.RuleQualityTranslationIncomplete,
-				Message: fmt.Sprintf("The %q version leaves %d of %d texts untranslated: %s%s.", locale, len(missing), len(texts), strings.Join(named, ", "), more),
-				Hint:    "Write these texts in that language. Until then its readers see them empty or in the fallback language.",
-				Value:   locale, Locale: locale,
-				Measure: &report.Measure{Value: int64(len(missing)), Unit: report.UnitFields}}, report.ImpactLow)
+			r.emit(report.Finding{File: p.Path, Path: first, Rule: report.RuleQualityTranslationIncomplete, Params: params,
+				Value: locale, Locale: locale,
+				Measure: &report.Measure{Value: int64(len(names)), Unit: report.UnitFields}}, report.ImpactLow)
 		}
 	}
 }
 
-// Reasons a localized text is untranslated in a language.
-const (
-	untranslatedEmpty = "empty"
-	untranslatedCopy  = "same as %s"
-)
-
-// untranslated says why a localized text is not translated into locale,
-// or "" when it is: empty there, or the same as the language it falls
-// back to.
-func untranslated(t localizedText, locale string) string {
+// untranslated says whether a localized text is not translated into
+// locale, and why: "" when it is empty there, else the language it falls
+// back to and is the same as. ok is false when it is translated.
+func untranslated(t localizedText, locale string) (sameAs string, ok bool) {
 	own, _ := t.value[locale].(string)
 	if strings.TrimSpace(own) == "" {
-		return untranslatedEmpty
+		return "", true
 	}
 	fb := t.field.Fallback
 	if fb == "" || fb == locale {
-		return ""
+		return "", false
 	}
 	src, _ := t.value[fb].(string)
 	if resolve.HasWords(src) && collapse(src) == collapse(own) {
-		return fmt.Sprintf(untranslatedCopy, fb)
+		return fb, true
 	}
-	return ""
+	return "", false
 }
 
 // localizedTexts lists the localized groups of a page that hold text in

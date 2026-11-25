@@ -13,7 +13,6 @@ package load
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"path"
 	"sort"
@@ -160,14 +159,14 @@ func InputFile(key string) string      { return FileFor(kindInputs, key) }
 func parseMapping(file string, raw []byte) (*yaml.Node, []report.Finding) {
 	var node yaml.Node
 	if err := yaml.Unmarshal(raw, &node); err != nil {
-		return nil, []report.Finding{{File: file, Severity: report.SeverityError, Rule: report.RuleSchemaParseError, Message: "not valid YAML: " + yamlErr(err)}}
+		return nil, []report.Finding{report.New(file, "", report.RuleSchemaParseError, report.CauseNotYAML, &report.Params{Detail: yamlErr(err)})}
 	}
 	if node.Kind == 0 || len(node.Content) == 0 {
 		return nil, nil
 	}
 	m := topLevelMapping(&node)
 	if m == nil {
-		return nil, []report.Finding{{File: file, Severity: report.SeverityError, Rule: report.RuleSchemaNotMapping, Message: "the document must be a mapping (key: value pairs) at the top level", Hint: "A schema file is a mapping of label, fields and preview; a list or a bare value cannot be loaded."}}
+		return nil, []report.Finding{report.New(file, "", report.RuleSchemaNotMapping, "", nil)}
 	}
 	return m, nil
 }
@@ -228,7 +227,7 @@ func loadDir(fsys fs.FS, dir string) (*yaml.Node, []string, []report.Finding) {
 		files = append(files, it.file)
 		raw, err := fs.ReadFile(fsys, it.file)
 		if err != nil {
-			findings = append(findings, report.Finding{File: it.file, Severity: report.SeverityError, Rule: report.RuleSchemaParseError, Message: "cannot read: " + err.Error()})
+			findings = append(findings, report.New(it.file, "", report.RuleSchemaParseError, report.CauseUnreadable, &report.Params{Detail: err.Error()}))
 			continue
 		}
 		m, f := parseMapping(it.file, raw)
@@ -279,7 +278,7 @@ func loadGlobs(fsys fs.FS, globs []string) (*yaml.Node, []string, []report.Findi
 	for _, g := range globs {
 		dir, ext, ok := splitGlob(g)
 		if !ok {
-			findings = append(findings, report.Finding{File: ConfigFile, Path: "inputsFromGlob", Severity: report.SeverityWarning, Rule: report.RuleSchemaInputsGlobUnsupported, Message: fmt.Sprintf("pattern %q is not supported and is ignored", g), Hint: "Only `<dir>/*.yml` and `<dir>/*.yaml` patterns are read."})
+			findings = append(findings, report.New(ConfigFile, "inputsFromGlob", report.RuleSchemaInputsGlobUnsupported, "", &report.Params{Path: g}))
 			continue
 		}
 		entries, err := fs.ReadDir(fsys, dir)
@@ -430,7 +429,7 @@ func checkVersions(root *yaml.Node) []report.Finding {
 				}
 				var v int
 				if err := entry.Content[k+1].Decode(&v); err != nil || !schema.SupportedVersions[v] {
-					out = append(out, report.Finding{File: FileFor(kind, name), Path: "schemaVersion", Severity: report.SeverityError, Rule: report.RuleSchemaUnsupportedVersion, Message: fmt.Sprintf("schemaVersion %q is not supported (supported: 1)", entry.Content[k+1].Value)})
+					out = append(out, report.New(FileFor(kind, name), "schemaVersion", report.RuleSchemaUnsupportedVersion, "", &report.Params{Value: entry.Content[k+1].Value}))
 				}
 			}
 		}

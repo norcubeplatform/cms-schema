@@ -1,7 +1,7 @@
 package fact
 
 import (
-	"fmt"
+	"github.com/norcubeplatform/cms-schema/report"
 	"io/fs"
 	"path"
 	"regexp"
@@ -60,7 +60,7 @@ func newLocator(fsys fs.FS, doc *load.Document) (*locator, error) {
 	}
 	root, err := topMapping(raw)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", l.configFile, err)
+		return nil, inFile(l.configFile, err)
 	}
 	l.root = root
 	return l, nil
@@ -77,14 +77,14 @@ func (l *locator) locate(f Fact) (Edit, error) {
 	case KindTranslationLocales:
 		coll, ok := l.cfg.Collections[f.Collection]
 		if !ok {
-			return Edit{}, fmt.Errorf("%w: collection %q", ErrNotFound, f.Collection)
+			return Edit{}, refuse(CodeCollectionNotFound, &report.Params{Key: f.Collection})
 		}
 		if coll.Translations == nil {
-			return Edit{}, fmt.Errorf("%w: collection %q has no language versions (no translations)", ErrInvalid, f.Collection)
+			return Edit{}, refuse(CodeNoLanguageVersions, &report.Params{Key: f.Collection})
 		}
 		for _, loc := range f.Locales {
 			if !slices.Contains(l.cfg.Preview.Locales, loc) {
-				return Edit{}, fmt.Errorf("%w: %q is not a language of the site (preview.locales)", ErrInvalid, loc)
+				return Edit{}, refuse(CodeNotSiteLocale, &report.Params{Locale: loc})
 			}
 		}
 		file, in, err := l.source(kindCollections, f.Collection)
@@ -94,28 +94,28 @@ func (l *locator) locate(f Fact) (Edit, error) {
 		return Edit{Fact: f, File: file, In: in}, nil
 	case KindOptimizedAtBuild:
 		if _, ok := l.cfg.Storage(f.Storage); !ok || child(child(l.root, "storages"), f.Storage) == nil {
-			return Edit{}, fmt.Errorf("%w: storage %q", ErrNotFound, f.Storage)
+			return Edit{}, refuse(CodeStorageNotFound, &report.Params{Key: f.Storage})
 		}
 		return Edit{Fact: f, File: l.configFile, In: []string{"storages", f.Storage}}, nil
 	case KindUsedByCode:
 		st, ok := l.cfg.Storage(f.Storage)
 		if !ok || child(child(l.root, "storages"), f.Storage) == nil {
-			return Edit{}, fmt.Errorf("%w: storage %q", ErrNotFound, f.Storage)
+			return Edit{}, refuse(CodeStorageNotFound, &report.Params{Key: f.Storage})
 		}
 		if st.Type != schema.StorageTypeRepo || st.Path == "" {
-			return Edit{}, fmt.Errorf("%w: storage %q keeps no files in the repository", ErrInvalid, f.Storage)
+			return Edit{}, refuse(CodeStorageKeepsNoFiles, &report.Params{Key: f.Storage})
 		}
 		for _, p := range f.Paths {
 			if schema.HasCodeWildcard(p) || strings.Contains(p, "**") {
 				continue
 			}
 			if info, err := fs.Stat(l.fsys, path.Join(st.Path, p)); err != nil || info.IsDir() {
-				return Edit{}, fmt.Errorf("%w: no file %s in storage %q", ErrNotFound, p, f.Storage)
+				return Edit{}, refuse(CodeStorageFileNotFound, &report.Params{Path: p, Key: f.Storage})
 			}
 		}
 		return Edit{Fact: f, File: l.configFile, In: []string{"storages", f.Storage}}, nil
 	}
-	return Edit{}, fmt.Errorf("%w: kind %q", ErrInvalid, f.Kind)
+	return Edit{}, refuse(CodeKindNotPlaced, &report.Params{Value: f.Kind})
 }
 
 const (
@@ -148,16 +148,15 @@ func (l *locator) role(f Fact) (Edit, error) {
 		}
 	}
 	if !after.HoldsRole(f.Role) {
-		what := cur.Type + " field"
 		if cur.IsLocalized() {
-			what = "localized group of " + cur.ValueType() + " fields"
+			return Edit{}, refuse(CodeLocalizedCannotHold, &report.Params{Type: cur.ValueType(), Role: f.Role})
 		}
-		return Edit{}, fmt.Errorf("%w: a %s cannot hold role %s as the fact says it", ErrInvalid, what, f.Role)
+		return Edit{}, refuse(CodeRoleCannotHold, &report.Params{Type: cur.Type, Role: f.Role})
 	}
 	values := schema.OptionValues(cur.Options)
 	for _, v := range f.When {
 		if !slices.Contains(values, v) {
-			return Edit{}, fmt.Errorf("%w: %q is not an option of %q", ErrInvalid, v, f.Field)
+			return Edit{}, refuse(CodeWhenNotOption, &report.Params{Value: v, Field: f.Field})
 		}
 	}
 	return e, nil
@@ -172,18 +171,18 @@ func (l *locator) localized(f Fact) (Edit, error) {
 	}
 	locales := l.cfg.Preview.Locales
 	if !schema.IsGroup(cur.Type) {
-		return Edit{}, fmt.Errorf("%w: %q is a %s field, not a group", ErrInvalid, f.Field, cur.Type)
+		return Edit{}, refuse(CodeNotGroup, &report.Params{Field: f.Field, Type: cur.Type})
 	}
 	if len(cur.Fields) != len(locales) {
-		return Edit{}, fmt.Errorf("%w: group %q has %d fields, the site %d languages", ErrInvalid, f.Field, len(cur.Fields), len(locales))
+		return Edit{}, refuse(CodeGroupFieldCount, &report.Params{Field: f.Field, Count: report.Int(int64(len(cur.Fields))), Total: report.Int(int64(len(locales)))})
 	}
 	for _, c := range cur.Fields {
 		if !slices.Contains(locales, c.Key) {
-			return Edit{}, fmt.Errorf("%w: field %q of %q is not a language of the site", ErrInvalid, c.Key, f.Field)
+			return Edit{}, refuse(CodeGroupFieldNotLocale, &report.Params{Key: c.Key, Field: f.Field})
 		}
 	}
 	if f.Fallback != "" && !slices.Contains(locales, f.Fallback) {
-		return Edit{}, fmt.Errorf("%w: %q is not a language of the site (preview.locales)", ErrInvalid, f.Fallback)
+		return Edit{}, refuse(CodeNotSiteLocale, &report.Params{Locale: f.Fallback})
 	}
 	return e, nil
 }
@@ -196,7 +195,7 @@ func (l *locator) alt(f Fact) (Edit, error) {
 		return Edit{}, err
 	}
 	if schema.Canonical(cur.Type) != schema.TypeImage {
-		return Edit{}, fmt.Errorf("%w: %q is a %s field, not an image", ErrInvalid, f.Field, cur.Type)
+		return Edit{}, refuse(CodeNotImage, &report.Params{Field: f.Field, Type: cur.Type})
 	}
 	keys := f.AltFrom
 	if f.Alt != "" {
@@ -210,11 +209,11 @@ func (l *locator) alt(f Fact) (Edit, error) {
 			}
 		}
 		if found == nil {
-			return Edit{}, fmt.Errorf("%w: no field %q beside image %q", ErrNotFound, k, f.Field)
+			return Edit{}, refuse(CodeAltFieldNotFound, &report.Params{Key: k, Field: f.Field})
 		}
 		t := found.ValueType()
 		if k == cur.Key || (t != schema.TypeText && t != schema.TypeParagraph) || (schema.IsGroup(found.Type) && !found.IsLocalized()) {
-			return Edit{}, fmt.Errorf("%w: field %q cannot hold alt text", ErrInvalid, k)
+			return Edit{}, refuse(CodeCannotHoldAlt, &report.Params{Key: k})
 		}
 	}
 	return e, nil
@@ -235,14 +234,14 @@ func (l *locator) field(f Fact) (Edit, schema.Field, []schema.Field, error) {
 	if f.Collection != "" {
 		coll, ok := l.cfg.Collections[f.Collection]
 		if !ok {
-			return fail(fmt.Errorf("%w: collection %q", ErrNotFound, f.Collection))
+			return fail(refuse(CodeCollectionNotFound, &report.Params{Key: f.Collection}))
 		}
 		fields = coll.Fields
 		file, in, err = l.source(kindCollections, f.Collection)
 	} else {
 		b, ok := l.cfg.Blocks[f.Block]
 		if !ok {
-			return fail(fmt.Errorf("%w: block %q", ErrNotFound, f.Block))
+			return fail(refuse(CodeBlockNotFound, &report.Params{Key: f.Block}))
 		}
 		fields = b.Fields
 		file, in, err = l.source(kindBlocks, f.Block)
@@ -255,7 +254,7 @@ func (l *locator) field(f Fact) (Edit, schema.Field, []schema.Field, error) {
 	var siblings []schema.Field
 	for depth, st := range steps {
 		if depth > schema.MaxWalkDepth {
-			return fail(fmt.Errorf("%w: %q nests deeper than %d", ErrInvalid, f.Field, schema.MaxWalkDepth))
+			return fail(refuse(CodeTooDeep, &report.Params{Field: f.Field, Max: report.Num(schema.MaxWalkDepth)}))
 		}
 		if !st.Item {
 			var found []schema.Field
@@ -266,10 +265,10 @@ func (l *locator) field(f Fact) (Edit, schema.Field, []schema.Field, error) {
 			}
 			switch len(found) {
 			case 0:
-				return fail(fmt.Errorf("%w: field %q of %q", ErrNotFound, st.Key, f.Field))
+				return fail(refuse(CodeFieldNotFound, &report.Params{Key: st.Key, Field: f.Field}))
 			case 1:
 			default:
-				return fail(fmt.Errorf("%w: %d fields have the key %q", ErrAmbiguous, len(found), st.Key))
+				return fail(refuse(CodeFieldsShareKey, &report.Params{Count: report.Int(int64(len(found))), Key: st.Key}))
 			}
 			fd := found[0]
 			siblings = fields
@@ -285,12 +284,12 @@ func (l *locator) field(f Fact) (Edit, schema.Field, []schema.Field, error) {
 			continue
 		}
 		if cur == nil || !schema.IsArray(cur.Type) {
-			return fail(fmt.Errorf("%w: %q steps into a list item of a field that is not a list", ErrNotFound, f.Field))
+			return fail(refuse(CodeItemOfNonList, &report.Params{Field: f.Field}))
 		}
 		if cur.Type == schema.TypeBlocks || len(cur.Components) > 0 {
 			b, ok := l.cfg.Blocks[st.Shape]
 			if !ok || !slices.Contains(cur.Components, st.Shape) {
-				return fail(fmt.Errorf("%w: block %q in %q", ErrNotFound, st.Shape, f.Field))
+				return fail(refuse(CodeListBlockNotFound, &report.Params{Key: st.Shape, Field: f.Field}))
 			}
 			if file, in, err = l.source(kindBlocks, st.Shape); err != nil {
 				return fail(err)
@@ -299,9 +298,9 @@ func (l *locator) field(f Fact) (Edit, schema.Field, []schema.Field, error) {
 			cur = &schema.Field{Type: schema.TypeGroup, Fields: b.Fields}
 			continue
 		}
-		e, err := pickEntry(schema.ItemEntries(*cur), st.Shape)
+		e, err := pickEntry(schema.ItemEntries(*cur), st.Shape, f.Field)
 		if err != nil {
-			return fail(fmt.Errorf("%q: %w", f.Field, err))
+			return fail(err)
 		}
 		item := e.Field
 		// A primitive item stands alone in its list.
@@ -319,10 +318,11 @@ func (l *locator) field(f Fact) (Edit, schema.Field, []schema.Field, error) {
 	return Edit{Fact: f, File: file, In: in, Steps: rel}, *cur, siblings, nil
 }
 
-func pickEntry(entries []schema.Entry, shape string) (schema.Entry, error) {
+// pickEntry picks the item shape a step names in the fact's field path.
+func pickEntry(entries []schema.Entry, shape, field string) (schema.Entry, error) {
 	if shape == "" {
 		if len(entries) != 1 {
-			return schema.Entry{}, fmt.Errorf("%w: the list has %d item shapes; name one", ErrAmbiguous, len(entries))
+			return schema.Entry{}, refuse(CodeShapeUnnamed, &report.Params{Count: report.Int(int64(len(entries))), Field: field})
 		}
 		return entries[0], nil
 	}
@@ -334,11 +334,11 @@ func pickEntry(entries []schema.Entry, shape string) (schema.Entry, error) {
 	}
 	switch len(found) {
 	case 0:
-		return schema.Entry{}, fmt.Errorf("%w: item shape %q", ErrNotFound, shape)
+		return schema.Entry{}, refuse(CodeShapeNotFound, &report.Params{Key: shape, Field: field})
 	case 1:
 		return found[0], nil
 	}
-	return schema.Entry{}, fmt.Errorf("%w: %d item shapes are named %q", ErrAmbiguous, len(found), shape)
+	return schema.Entry{}, refuse(CodeShapesNamedTwice, &report.Params{Count: report.Int(int64(len(found))), Key: shape, Field: field})
 }
 
 // refSource is the file of what a `$ref` names: an input wins over a
@@ -350,7 +350,7 @@ func (l *locator) refSource(name string) (string, []string, error) {
 	if _, ok := l.cfg.Blocks[name]; ok {
 		return l.source(kindBlocks, name)
 	}
-	return "", nil, fmt.Errorf("%w: block or input %q", ErrNotFound, name)
+	return "", nil, refuse(CodeRefNotFound, &report.Params{Key: name})
 }
 
 // source is the one place a collection, block or input is written: its
@@ -384,7 +384,7 @@ func (l *locator) source(kind, name string) (string, []string, error) {
 	}
 	switch len(cands) {
 	case 0:
-		return "", nil, fmt.Errorf("%w: no file declares %s %q", ErrNotFound, strings.TrimSuffix(kind, "s"), name)
+		return "", nil, refuse(CodeNoFileDeclares, &report.Params{Kind: strings.TrimSuffix(kind, "s"), Key: name})
 	case 1:
 		return cands[0].file, cands[0].in, nil
 	}
@@ -392,7 +392,7 @@ func (l *locator) source(kind, name string) (string, []string, error) {
 	for i, c := range cands {
 		files[i] = c.file
 	}
-	return "", nil, fmt.Errorf("%w: %s %q is declared in %s", ErrAmbiguous, strings.TrimSuffix(kind, "s"), name, strings.Join(files, " and "))
+	return "", nil, refuse(CodeDeclaredTwice, &report.Params{Kind: strings.TrimSuffix(kind, "s"), Key: name, Names: files})
 }
 
 var pathToken = regexp.MustCompile(`([^.\[\]]+)|\[([^\[\]]*)\]`)
@@ -413,14 +413,14 @@ func parsePath(p string) ([]Step, error) {
 			continue
 		}
 		if len(out) == 0 {
-			return nil, fmt.Errorf("%w: field path %q starts with a list item", ErrInvalid, p)
+			return nil, refuse(CodePathStartsWithItem, &report.Params{Field: p})
 		}
 		shape := p[m[4]:m[5]]
 		rebuilt.WriteString("[" + shape + "]")
 		out = append(out, Step{Item: true, Shape: shape})
 	}
 	if len(out) == 0 || rebuilt.String() != p || out[len(out)-1].Item {
-		return nil, fmt.Errorf("%w: %q is not a field path (keys joined by dots, [] or [shape] for a list item, ending at a field)", ErrInvalid, p)
+		return nil, refuse(CodeNotFieldPath, &report.Params{Field: p})
 	}
 	return out, nil
 }

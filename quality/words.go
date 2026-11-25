@@ -1,6 +1,7 @@
 package quality
 
 import (
+	"github.com/norcubeplatform/cms-schema/report"
 	"path"
 	"regexp"
 	"strings"
@@ -63,16 +64,16 @@ func GenericLinkText(text string) bool { return genericLinks[normalWords(text)] 
 // image is the image's value (its address); its file name is compared
 // with and without the extension, and a bare name without separators or
 // digits ("acme" for acme.svg, a logo named after its company) passes.
-func PoorAlt(alt, image string) string {
+func PoorAlt(alt, image string) report.Cause {
 	a := strings.TrimSpace(alt)
 	if a == "" {
 		return ""
 	}
 	if genericAlts[normalWords(a)] {
-		return "a generic word"
+		return report.CauseGenericWord
 	}
 	if cameraName.MatchString(a) {
-		return "a camera's file name"
+		return report.CauseCameraFileName
 	}
 	base := path.Base(strings.TrimSpace(image))
 	if i := strings.IndexAny(base, "?#"); i >= 0 {
@@ -84,9 +85,9 @@ func PoorAlt(alt, image string) string {
 	stem := strings.TrimSuffix(base, path.Ext(base))
 	switch {
 	case strings.EqualFold(a, base):
-		return "the file name"
+		return report.CauseFileName
 	case strings.EqualFold(a, stem) && strings.ContainsFunc(a, func(r rune) bool { return r == '-' || r == '_' || unicode.IsDigit(r) }):
-		return "the file name"
+		return report.CauseFileName
 	}
 	return ""
 }

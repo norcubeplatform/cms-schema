@@ -27,11 +27,5 @@ func internalError(file string, rule report.Rule, cause any) report.Finding {
 	if len(text) > maxPanicText {
 		text = append(text[:maxPanicText], '…')
 	}
-	return report.Finding{
-		File:     file,
-		Severity: report.SeverityError,
-		Rule:     rule,
-		Message:  "the check stopped on an internal error: " + string(text),
-		Hint:     "This is a bug in the validator, not necessarily in the site. Its other findings for this check are missing; report the message to Norcube.",
-	}
+	return report.New(file, "", rule, "", &report.Params{Detail: string(text)})
 }

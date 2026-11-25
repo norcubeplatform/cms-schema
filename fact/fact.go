@@ -131,18 +131,21 @@ var (
 	keyRe    = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_-]{0,127}$`)
 )
 
+// maxEntryBytes bounds one entry of a fact's list.
+const maxEntryBytes = 200
+
 // checkNames checks a list of 1 to max distinct, non-blank entries of at
-// most 200 bytes.
-func checkNames(list []string, max int, what string) error {
+// most maxEntryBytes bytes; knob names the list (when, altFrom).
+func checkNames(list []string, max int, knob string) error {
 	if len(list) > max {
-		return fmt.Errorf("at most %d entries", max)
+		return refuse(CodeTooMany, &report.Params{Knob: knob, Max: report.Num(float64(max))})
 	}
 	for i, v := range list {
-		if strings.TrimSpace(v) == "" || len(v) > 200 {
-			return fmt.Errorf("a %s is blank or longer than 200 bytes", what)
+		if strings.TrimSpace(v) == "" || len(v) > maxEntryBytes {
+			return refuse(CodeEntryBlank, &report.Params{Knob: knob, Max: report.Num(maxEntryBytes)})
 		}
 		if slices.Contains(list[:i], v) {
-			return fmt.Errorf("%q is listed twice", v)
+			return refuse(CodeListedTwice, &report.Params{Value: v, Knob: knob})
 		}
 	}
 	return nil
@@ -151,116 +154,116 @@ func checkNames(list []string, max int, what string) error {
 // Check reports what is wrong with a fact on its own, before any file
 // is read.
 func (f Fact) Check() error {
-	bad := func(format string, a ...any) error {
-		return fmt.Errorf("%w: %s", ErrInvalid, fmt.Sprintf(format, a...))
-	}
+	bad := refuse
+	maxField := report.Num(MaxFieldPath)
 	switch f.Kind {
 	case KindRole:
 		if (f.Collection == "") == (f.Block == "") {
-			return bad("a role fact names a collection or a block, one of them")
+			return bad(CodeOwnerNotOne, &report.Params{Kind: f.Kind})
 		}
 		if f.Field == "" || len(f.Field) > MaxFieldPath {
-			return bad("a role fact names a field (at most %d bytes)", MaxFieldPath)
+			return bad(CodeFieldMissing, &report.Params{Kind: f.Kind, Max: maxField})
 		}
 		if !schema.KnownRole(f.Role) {
-			return bad("role %q is not one of %s", f.Role, strings.Join(schema.RoleValues(), ", "))
+			return bad(CodeRoleUnknown, &report.Params{Value: f.Role, Allowed: schema.RoleValues()})
 		}
 		if f.WhenEmpty != "" && (!schema.KnownWhenEmpty(f.WhenEmpty) || !schema.RoleAllowsWhenEmpty(f.Role)) {
-			return bad("whenEmpty %q does not go with role %s", f.WhenEmpty, f.Role)
+			return bad(CodeWhenEmptyMismatch, &report.Params{Value: f.WhenEmpty, Role: f.Role})
 		}
 		if f.TitleTemplate != "" {
 			if f.Role != schema.RoleSEOTitle {
-				return bad("titleTemplate goes with role %s", schema.RoleSEOTitle)
+				return bad(CodeTitleTemplateRole, &report.Params{Role: schema.RoleSEOTitle})
 			}
-			if _, err := schema.ParseTemplate(f.TitleTemplate); err != nil {
-				return bad("%v", err)
+			if err := templateRefusal(f.TitleTemplate); err != nil {
+				return err
 			}
 		}
 		if f.Excerpt != "" && (f.Role != schema.RoleSEODescription || !slices.Contains(schema.ExcerptValues(), f.Excerpt)) {
-			return bad("excerpt %q does not go with role %s", f.Excerpt, f.Role)
+			return bad(CodeExcerptMismatch, &report.Params{Value: f.Excerpt, Role: f.Role})
 		}
 		if len(f.When) > 0 {
 			if schema.RoleWhen(f.Role) == "" {
-				return bad("values that switch a role on go with role %s or %s", schema.RoleNoindex, schema.RoleDraft)
+				return bad(CodeWhenRole, &report.Params{Allowed: []string{schema.RoleNoindex, schema.RoleDraft}})
 			}
-			if err := checkNames(f.When, schema.MaxRoleValues, "value"); err != nil {
-				return bad("%v", err)
+			if err := checkNames(f.When, schema.MaxRoleValues, "when"); err != nil {
+				return err
 			}
 		}
 		if f.Fallback != "" || f.Alt != "" || len(f.AltFrom) > 0 || f.Separator != "" {
-			return bad("a role fact takes no fallback or alt")
+			return bad(CodeRoleTakesNoAlt, nil)
 		}
 	case KindLocalized:
 		if (f.Collection == "") == (f.Block == "") {
-			return bad("a localized fact names a collection or a block, one of them")
+			return bad(CodeOwnerNotOne, &report.Params{Kind: f.Kind})
 		}
 		if f.Field == "" || len(f.Field) > MaxFieldPath {
-			return bad("a localized fact names a group (at most %d bytes)", MaxFieldPath)
+			return bad(CodeFieldMissing, &report.Params{Kind: f.Kind, Max: maxField})
 		}
 		if f.Fallback != "" && !localeRe.MatchString(f.Fallback) {
-			return bad("%q is not a language code", f.Fallback)
+			return bad(CodeNotLanguageCode, &report.Params{Value: f.Fallback})
 		}
 	case KindAlt:
 		if (f.Collection == "") == (f.Block == "") {
-			return bad("an alt fact names a collection or a block, one of them")
+			return bad(CodeOwnerNotOne, &report.Params{Kind: f.Kind})
 		}
 		if f.Field == "" || len(f.Field) > MaxFieldPath {
-			return bad("an alt fact names an image field (at most %d bytes)", MaxFieldPath)
+			return bad(CodeFieldMissing, &report.Params{Kind: f.Kind, Max: maxField})
 		}
 		if (f.Alt == "") == (len(f.AltFrom) == 0) {
-			return bad("an alt fact names one field (alt) or the fields it is composed of (altFrom), one of them")
+			return bad(CodeAltOneOf, nil)
 		}
 		if f.Alt != "" && !keyRe.MatchString(f.Alt) {
-			return bad("%q is not a field key", f.Alt)
+			return bad(CodeNotFieldKey, &report.Params{Value: f.Alt})
 		}
-		if err := checkNames(f.AltFrom, schema.MaxAltParts, "field"); err != nil {
-			return bad("%v", err)
+		if err := checkNames(f.AltFrom, schema.MaxAltParts, "altFrom"); err != nil {
+			return err
 		}
 		for _, k := range f.AltFrom {
 			if !keyRe.MatchString(k) {
-				return bad("%q is not a field key", k)
+				return bad(CodeNotFieldKey, &report.Params{Value: k})
 			}
 		}
 		if len(f.Separator) > schema.MaxSeparatorBytes || (f.Separator != "" && len(f.AltFrom) == 0) {
-			return bad("a separator (at most %d bytes) goes with altFrom", schema.MaxSeparatorBytes)
+			return bad(CodeSeparator, &report.Params{Max: report.Num(schema.MaxSeparatorBytes)})
 		}
 	case KindTranslationLocales:
 		if f.Collection == "" || f.Block != "" {
-			return bad("a translationLocales fact names a collection")
+			return bad(CodeLocalesOwner, nil)
 		}
 		if len(f.Locales) == 0 || len(f.Locales) > MaxLocales {
-			return bad("a translationLocales fact lists 1 to %d languages", MaxLocales)
+			return bad(CodeLocalesCount, &report.Params{Max: report.Num(MaxLocales)})
 		}
 		for i, l := range f.Locales {
 			if !localeRe.MatchString(l) {
-				return bad("%q is not a language code", l)
+				return bad(CodeNotLanguageCode, &report.Params{Value: l})
 			}
 			if slices.Contains(f.Locales[:i], l) {
-				return bad("%q is listed twice", l)
+				return bad(CodeListedTwice, &report.Params{Value: l, Knob: "locales"})
 			}
 		}
 	case KindOptimizedAtBuild:
 		if f.Storage == "" || f.OptimizedAtBuild == nil {
-			return bad("an optimizedAtBuild fact names a storage and a value")
+			return bad(CodeOptimizedOwner, nil)
 		}
 	case KindUsedByCode:
 		if f.Storage == "" || len(f.Paths) == 0 || len(f.Paths) > MaxPaths {
-			return bad("a usedByCode fact names a storage and 1 to %d paths", MaxPaths)
+			return bad(CodePathsCount, &report.Params{Max: report.Num(MaxPaths)})
 		}
 		for i, p := range f.Paths {
-			if err := schema.CheckCodePattern(p); err != nil {
-				return bad("%s", strings.TrimPrefix(err.Error(), schema.ErrCodePattern.Error()+": "))
+			var pe *schema.CodePatternError
+			if err := schema.CheckCodePattern(p); errors.As(err, &pe) {
+				return problemError(pe.Problem)
 			}
 			if slices.Contains(f.Paths[:i], p) {
-				return bad("%q is listed twice", p)
+				return bad(CodeListedTwice, &report.Params{Value: p, Knob: "paths"})
 			}
 		}
 	default:
-		return bad("kind %q is not one of %s", f.Kind, strings.Join(Kinds(), ", "))
+		return bad(CodeKindUnknown, &report.Params{Value: f.Kind, Allowed: Kinds()})
 	}
 	for _, n := range []string{f.Collection, f.Block, f.Storage} {
 		if n != "" && !nameRe.MatchString(n) {
-			return bad("%q is not a name", n)
+			return bad(CodeNotName, &report.Params{Value: n})
 		}
 	}
 	return nil
@@ -351,7 +354,7 @@ type Plan struct {
 // files through fsys and writes nothing.
 func Make(fsys fs.FS, facts []Fact) (*Plan, error) {
 	if len(facts) == 0 || len(facts) > MaxFacts {
-		return nil, fmt.Errorf("%w: 1 to %d facts", ErrInvalid, MaxFacts)
+		return nil, refuse(CodeFactsCount, &report.Params{Max: report.Num(MaxFacts)})
 	}
 	for i, f := range facts {
 		if err := f.Check(); err != nil {
@@ -436,18 +439,17 @@ func (p *Plan) NewErrors(fsys fs.FS) ([]report.Finding, error) {
 	if err != nil {
 		return nil, err
 	}
-	key := func(f report.Finding) string {
-		return f.File + "\x00" + f.Path + "\x00" + string(f.Rule) + "\x00" + f.Message
-	}
+	// A finding is the same one before and after when its file, path,
+	// rule, cause and params are (report.Finding.Key).
 	had := map[string]bool{}
 	for _, f := range before.Findings {
 		if f.Severity == report.SeverityError {
-			had[key(f)] = true
+			had[f.Key()] = true
 		}
 	}
 	var out []report.Finding
 	for _, f := range after.Findings {
-		if f.Severity == report.SeverityError && !had[key(f)] {
+		if f.Severity == report.SeverityError && !had[f.Key()] {
 			out = append(out, f)
 		}
 	}

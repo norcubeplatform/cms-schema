@@ -8,6 +8,7 @@
           "path": "label",
           "severity": "error",
           "rule": "schema.missing_label",
+          "cause": "block_no_label",
           "message": "the block has no `label`"
         },
         {
@@ -15,6 +16,10 @@
           "path": "extraKeysPolicy",
           "severity": "warning",
           "rule": "schema.unknown_knob",
+          "cause": "extra_keys_policy",
+          "params": {
+            "value": "keep"
+          },
           "message": "extraKeysPolicy \"keep\" is not show, hide or strip; show is assumed"
         },
         {
@@ -22,6 +27,12 @@
           "path": "fields.body",
           "severity": "warning",
           "rule": "schema.unknown_knob",
+          "cause": "toolbar_not_options",
+          "params": {
+            "field": "Body",
+            "key": "toolbar",
+            "type": "richtext"
+          },
           "message": "field \"Body\" has key \"toolbar\", which a richtext field does not read",
           "hint": "richtext takes `options:` (a map of flags such as bold: true, headings: [2, 3]), not a `toolbar:` list."
         },
@@ -30,6 +41,12 @@
           "path": "fields.caption",
           "severity": "warning",
           "rule": "schema.unknown_knob",
+          "cause": "alt_knob_not_on_image",
+          "params": {
+            "field": "Caption",
+            "key": "decorative",
+            "type": "text"
+          },
           "message": "field \"Caption\" has key \"decorative\", which a text field does not read",
           "hint": "`decorative` belongs on an image field. To mark a text field as an image's alt text, give it `role: alt` or name it from the image with `alt: \u003ckey\u003e`."
         },
@@ -38,6 +55,10 @@
           "path": "fields.cards.items[__entry_0]",
           "severity": "error",
           "rule": "schema.anonymous_item_shapes",
+          "params": {
+            "field": "Cards",
+            "key": "_type"
+          },
           "message": "a shape of \"Cards\" has no key, so no item can name it in its \"_type\"",
           "hint": "Give each entry under `items:` a key (hero, cta, …); the editor writes that key as the item's discriminator."
         },
@@ -46,6 +67,12 @@
           "path": "fields.code",
           "severity": "warning",
           "rule": "schema.invalid_regex",
+          "cause": "does_not_compile",
+          "params": {
+            "field": "Code",
+            "knob": "customValidators[0].pattern",
+            "detail": "missing closing ]: `[unclosed`"
+          },
           "message": "\"Code\" has a customValidators[0].pattern that does not compile: missing closing ]: `[unclosed`"
         },
         {
@@ -53,6 +80,10 @@
           "path": "fields.code",
           "severity": "warning",
           "rule": "schema.unknown_custom_validator",
+          "params": {
+            "field": "Code",
+            "value": "remote"
+          },
           "message": "\"Code\" has a custom validator of type \"remote\", which nothing implements; it is skipped",
           "hint": "Built-in types: regex, expression."
         },
@@ -61,6 +92,12 @@
           "path": "fields.code",
           "severity": "warning",
           "rule": "schema.unresolved_condition_path",
+          "cause": "path_unknown",
+          "params": {
+            "field": "Code",
+            "knob": "customValidators",
+            "path": "ghost"
+          },
           "message": "\"Code\" has a customValidators on \"ghost\", which names no field here",
           "hint": "Common causes: a typo, a renamed sibling, or a $parent/$root path that walks too far. The field stays hidden while the path does not resolve."
         },
@@ -69,6 +106,10 @@
           "path": "fields.dup",
           "severity": "error",
           "rule": "schema.duplicate_key",
+          "params": {
+            "key": "dup",
+            "other": "fields.dup"
+          },
           "message": "key \"dup\" is also used by fields.dup in the same list",
           "hint": "Keys must be unique inside one fields list; the editor and the content would not know which field a value belongs to."
         },
@@ -77,6 +118,12 @@
           "path": "fields.few",
           "severity": "error",
           "rule": "schema.min_above_max",
+          "cause": "items",
+          "params": {
+            "field": "Few",
+            "min": 3,
+            "max": 2
+          },
           "message": "\"Few\" has minItems 3 above maxItems 2"
         },
         {
@@ -92,6 +139,11 @@
           "path": "fields.fieldless",
           "severity": "error",
           "rule": "schema.unresolved_condition_path",
+          "cause": "no_field",
+          "params": {
+            "field": "Fieldless",
+            "knob": "visibleIf"
+          },
           "message": "\"Fieldless\" has a visibleIf without a `field`"
         },
         {
@@ -99,6 +151,10 @@
           "path": "fields.kind",
           "severity": "error",
           "rule": "schema.empty_options",
+          "params": {
+            "field": "Kind",
+            "type": "select"
+          },
           "message": "select field \"Kind\" has no options"
         },
         {
@@ -106,6 +162,11 @@
           "path": "fields.level",
           "severity": "error",
           "rule": "schema.default_not_option",
+          "params": {
+            "field": "Level",
+            "value": "3",
+            "actual": "number"
+          },
           "message": "default 3 of \"Level\" is not one of its options"
         },
         {
@@ -113,6 +174,12 @@
           "path": "fields.like",
           "severity": "error",
           "rule": "schema.unknown_knob",
+          "cause": "condition_operator",
+          "params": {
+            "field": "Like",
+            "value": "like",
+            "knob": "visibleIf"
+          },
           "message": "\"Like\" has a visibleIf with operator \"like\", which does not exist",
           "hint": "Operators: eq, neq, in, notIn, truthy, falsy, empty, nonEmpty, gt, lt, matches."
         },
@@ -121,6 +188,12 @@
           "path": "fields.look",
           "severity": "warning",
           "rule": "schema.invalid_regex",
+          "cause": "unsupported_syntax",
+          "params": {
+            "field": "Look",
+            "knob": "regex",
+            "detail": "invalid or unsupported Perl syntax: `(?!`"
+          },
           "message": "\"Look\" has a regex that does not compile: invalid or unsupported Perl syntax: `(?!`",
           "hint": "The editor runs patterns in JavaScript, which accepts this; this check uses Go's RE2 and cannot evaluate lookarounds or backreferences, so content checks skip this pattern."
         },
@@ -129,6 +202,12 @@
           "path": "fields.matching",
           "severity": "warning",
           "rule": "schema.invalid_regex",
+          "cause": "does_not_compile",
+          "params": {
+            "field": "Matching",
+            "knob": "visibleIf pattern",
+            "detail": "missing closing ]: `[bad`"
+          },
           "message": "\"Matching\" has a visibleIf pattern that does not compile: missing closing ]: `[bad`"
         },
         {
@@ -136,6 +215,10 @@
           "path": "fields.mystery",
           "severity": "error",
           "rule": "schema.unknown_type",
+          "params": {
+            "field": "Mystery",
+            "type": "wysiwyg"
+          },
           "message": "field \"Mystery\" has type \"wysiwyg\", which the editor does not render",
           "hint": "Types: text, paragraph, richtext, number, boolean, date, color, range, multichoice, link, image, file, reference, select, group, array."
         },
@@ -144,6 +227,10 @@
           "path": "fields.noitems",
           "severity": "error",
           "rule": "schema.missing_type",
+          "cause": "no_items",
+          "params": {
+            "field": "No items"
+          },
           "message": "array \"No items\" declares no `items`",
           "hint": "List one shape for a uniform array or several for a multi-shape array."
         },
@@ -152,6 +239,10 @@
           "path": "fields.nolabel",
           "severity": "error",
           "rule": "schema.missing_label",
+          "cause": "field_no_label",
+          "params": {
+            "field": "nolabel"
+          },
           "message": "field \"nolabel\" has no `label`",
           "hint": "Labels are required; the editor does not fall back to the key."
         },
@@ -160,6 +251,10 @@
           "path": "fields.notype",
           "severity": "error",
           "rule": "schema.missing_type",
+          "cause": "no_type",
+          "params": {
+            "field": "No type"
+          },
           "message": "field \"No type\" has no `type`"
         },
         {
@@ -167,6 +262,12 @@
           "path": "fields.odd",
           "severity": "warning",
           "rule": "schema.unknown_knob",
+          "cause": "unknown_key",
+          "params": {
+            "field": "Odd",
+            "key": "widget",
+            "type": "text"
+          },
           "message": "field \"Odd\" has key \"widget\", which a text field does not read"
         },
         {
@@ -174,6 +275,10 @@
           "path": "fields.photo",
           "severity": "warning",
           "rule": "schema.translatable_ignored",
+          "params": {
+            "field": "Photo",
+            "type": "image"
+          },
           "message": "field \"Photo\" has `translatable`, but a value of type image is never translated",
           "hint": "Only text, paragraph and richtext are translated; on a group or an array the key covers the fields inside. Remove it here."
         },
@@ -182,6 +287,13 @@
           "path": "fields.photo",
           "severity": "warning",
           "rule": "schema.unknown_storage",
+          "params": {
+            "field": "Photo",
+            "key": "pictures",
+            "names": [
+              "images"
+            ]
+          },
           "message": "\"Photo\" uses storage \"pictures\", which config.yml does not declare",
           "hint": "Declared storages: images."
         },
@@ -190,6 +302,12 @@
           "path": "fields.seats",
           "severity": "error",
           "rule": "schema.min_above_max",
+          "cause": "min_max",
+          "params": {
+            "field": "Seats",
+            "min": 10,
+            "max": 1
+          },
           "message": "\"Seats\" has min 10 above max 1"
         },
         {
@@ -197,6 +315,12 @@
           "path": "fields.short",
           "severity": "error",
           "rule": "schema.min_above_max",
+          "cause": "length",
+          "params": {
+            "field": "Short",
+            "min": 10,
+            "max": 5
+          },
           "message": "\"Short\" has minLength 10 above maxLength 5"
         },
         {
@@ -204,6 +328,12 @@
           "path": "fields.shown",
           "severity": "warning",
           "rule": "schema.unresolved_condition_path",
+          "cause": "path_unknown",
+          "params": {
+            "field": "Shown",
+            "knob": "visibleIf",
+            "path": "nothere"
+          },
           "message": "\"Shown\" has a visibleIf on \"nothere\", which names no field here",
           "hint": "Common causes: a typo, a renamed sibling, or a $parent/$root path that walks too far. The field stays hidden while the path does not resolve."
         },
@@ -212,6 +342,10 @@
           "path": "fields.slug",
           "severity": "warning",
           "rule": "schema.unresolved_computed_path",
+          "params": {
+            "field": "Slug",
+            "path": "headline"
+          },
           "message": "\"Slug\" is computed from \"headline\", which names no field here",
           "hint": "The value never fills in while the path does not resolve."
         },
@@ -220,6 +354,10 @@
           "path": "fields.tags",
           "severity": "error",
           "rule": "schema.default_not_option",
+          "params": {
+            "field": "Tags",
+            "value": "z"
+          },
           "message": "default \"z\" of \"Tags\" is not one of its options"
         },
         {
@@ -227,6 +365,10 @@
           "path": "fields.tier",
           "severity": "error",
           "rule": "schema.default_not_option",
+          "params": {
+            "field": "Tier",
+            "value": "enterprise"
+          },
           "message": "default \"enterprise\" of \"Tier\" is not one of its options"
         },
         {
@@ -234,6 +376,14 @@
           "path": "fields.words",
           "severity": "error",
           "rule": "schema.ambiguous_item_shapes",
+          "params": {
+            "field": "Words",
+            "names": [
+              "short",
+              "long"
+            ],
+            "type": "string"
+          },
           "message": "shapes short, long of \"Words\" all hold string values, so items of these shapes cannot be told apart",
           "hint": "Keep at most one primitive shape per value type, or wrap the others in groups so they carry a discriminator."
         },
@@ -249,6 +399,12 @@
           "file": "src/content/pages/index.md",
           "severity": "warning",
           "rule": "content.extra_keys",
+          "cause": "not_in_schema",
+          "params": {
+            "names": [
+              "title"
+            ]
+          },
           "message": "keys title are not in the schema",
           "hint": "They show in the editor's out-of-schema panel. Add them to the schema or remove them."
         },
@@ -257,6 +413,10 @@
           "path": "code",
           "severity": "error",
           "rule": "content.custom",
+          "params": {
+            "field": "Code",
+            "knob": "customValidators[2]"
+          },
           "message": "Code fails the configured rule.",
           "hint": "customValidators[2]"
         }

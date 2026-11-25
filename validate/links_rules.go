@@ -1,7 +1,6 @@
 package validate
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -62,7 +61,7 @@ func checkLinks(cfg *schema.Config, entries []Entry, exists func(string) bool, s
 		if prev, taken := byURL[n]; taken {
 			prevE := byPath[prev]
 			if prevE.Routes && e.Routes {
-				out = append(out, report.Finding{File: e.Path, Severity: report.SeverityError, Rule: report.RuleLinksURLCollision, Message: fmt.Sprintf("resolves to %s, the same URL as %s", e.URL, prev), Hint: "Two files cannot render at one address. Change a slug, move a file, or fix the collection's previewPath."})
+				out = append(out, report.New(e.Path, "", report.RuleLinksURLCollision, "", &report.Params{Path: e.URL, Other: prev}))
 			}
 			if prevE.Routes || !e.Routes {
 				continue
@@ -80,7 +79,7 @@ func checkLinks(cfg *schema.Config, entries []Entry, exists func(string) bool, s
 		}
 		id := e.Collection + "\x00" + e.Locale + "\x00" + e.TranslationKey
 		if prev, taken := versions[id]; taken {
-			out = append(out, report.Finding{File: e.Path, Severity: report.SeverityError, Rule: report.RuleLinksTranslationCollision, Message: fmt.Sprintf("has the translation key %q in %q, the same as %s", e.TranslationKey, e.Locale, prev), Hint: "A page has one version per language. Give one of the two files its own key, or move it to the language it is written in."})
+			out = append(out, report.New(e.Path, "", report.RuleLinksTranslationCollision, "", &report.Params{Key: e.TranslationKey, Locale: e.Locale, Other: prev}))
 			continue
 		}
 		versions[id] = e.Path
@@ -105,7 +104,7 @@ func checkLinks(cfg *schema.Config, entries []Entry, exists func(string) bool, s
 			}
 		}
 		if !found {
-			out = append(out, report.Finding{File: sc, Severity: report.SeverityWarning, Rule: report.RuleLinksOrphanSidecar, Message: "the sidecar belongs to a content file that no longer exists", Hint: "Delete it, or restore the content file; the CMS recovers a renamed file's sidecar through the page's inline _id."})
+			out = append(out, report.New(sc, "", report.RuleLinksOrphanSidecar, "", nil))
 		}
 	}
 	return out
@@ -130,30 +129,33 @@ func resolveRef(cfg *schema.Config, from Entry, r resolve.Reference, byURL map[s
 		if resolve.IsKnownPath(cfg, n) {
 			return nil
 		}
-		return []report.Finding{{File: from.Path, Path: r.Path, Severity: report.SeverityWarning, Rule: report.RuleLinksUnresolvedLink, Message: fmt.Sprintf("links to %s, which no content file produces", r.Value), Hint: "If the site serves this route from code, add it to knownPaths in config.yml; otherwise fix the link."}}
+		return []report.Finding{report.New(from.Path, r.Path, report.RuleLinksUnresolvedLink, "", &report.Params{Path: r.Value})}
 	case resolve.RefKindAsset:
 		p := resolve.AssetRepoPath(cfg, r.Value)
 		if has(p) {
 			return nil
 		}
-		return []report.Finding{{File: from.Path, Path: r.Path, Severity: report.SeverityError, Rule: report.RuleLinksMissingAsset, Message: fmt.Sprintf("points at %s, which the repository does not have (looked for %s)", r.Value, p), Hint: "Pick the file again in the media library, or add the file."}}
+		return []report.Finding{report.New(from.Path, r.Path, report.RuleLinksMissingAsset, "", &report.Params{Path: r.Value, Other: p})}
 	case resolve.RefKindReference:
 		if lookupEntry(byPath, r.Field, r.Value) {
 			return nil
 		}
-		return []report.Finding{{File: from.Path, Path: r.Path, Severity: report.SeverityError, Rule: report.RuleLinksUnresolvedReference, Message: fmt.Sprintf("references %q, which names no entry", r.Value) + byHint(r.Field), Hint: "Pick the entry again, or fix the value."}}
+		return []report.Finding{report.New(from.Path, r.Path, report.RuleLinksUnresolvedReference, "", referenceParams(r))}
 	}
 	return nil
 }
 
-func byHint(f schema.Field) string {
-	if strings.HasPrefix(f.By, schema.ReferenceByFieldPrefix) {
-		return fmt.Sprintf(" by %s", f.By)
+// referenceParams are the params of a reference that names no entry:
+// the value, and where the field looks for it (by a field of the
+// entries, or in a collection).
+func referenceParams(r resolve.Reference) *report.Params {
+	p := &report.Params{Value: r.Value}
+	if strings.HasPrefix(r.Field.By, schema.ReferenceByFieldPrefix) {
+		p.Knob = r.Field.By
+	} else {
+		p.Key = r.Field.Collection
 	}
-	if f.Collection != "" {
-		return " in collection " + f.Collection
-	}
-	return ""
+	return p
 }
 
 func lookupEntry(byPath map[string]Entry, f schema.Field, value string) bool {

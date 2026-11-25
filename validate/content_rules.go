@@ -30,8 +30,8 @@ func Page(cfg *schema.Config, coll schema.Collection, doc content.Document) (out
 func checkPage(cfg *schema.Config, coll schema.Collection, doc content.Document) []report.Finding {
 	var out []report.Finding
 	fm := doc.Frontmatter
-	f := func(path string, sev report.Severity, rule report.Rule, msg, hint string) {
-		out = append(out, report.Finding{File: doc.Path, Path: path, Severity: sev, Rule: rule, Message: msg, Hint: hint})
+	f := func(path string, rule report.Rule, cause report.Cause, p *report.Params) {
+		out = append(out, report.New(doc.Path, path, rule, cause, p))
 	}
 	schema.Walk(cfg, coll.Fields, fm, func(v schema.Visit) bool {
 		// The rules apply to declared fields; the items of a list of
@@ -59,14 +59,14 @@ func checkPage(cfg *schema.Config, coll schema.Collection, doc content.Document)
 			switch coll.ExtraKeysPolicy {
 			case schema.ExtraKeysHide:
 			case schema.ExtraKeysStrip:
-				f("", report.SeverityError, report.RuleContentExtraKeys, fmt.Sprintf("keys %s are not in the schema and the collection's extraKeysPolicy is strip: the next save deletes them", strings.Join(extra, ", ")), "Add the fields to the schema or move the data before an editor saves the file.")
+				f("", report.RuleContentExtraKeys, report.CauseStrippedOnSave, &report.Params{Names: extra})
 			default:
-				f("", report.SeverityWarning, report.RuleContentExtraKeys, fmt.Sprintf("keys %s are not in the schema", strings.Join(extra, ", ")), "They show in the editor's out-of-schema panel. Add them to the schema or remove them.")
+				f("", report.RuleContentExtraKeys, report.CauseNotInSchema, &report.Params{Names: extra})
 			}
 		}
 	}
 	if !coll.HasBody && !doc.IsData && strings.TrimSpace(doc.Body) != "" {
-		f("", report.SeverityWarning, report.RuleContentUnexpectedBody, "the file has a Markdown body but the collection has `hasBody: false`", "The editor does not show the body; set `hasBody: true` or move the text into a field.")
+		f("", report.RuleContentUnexpectedBody, "", nil)
 	}
 
 	hidden := schema.HiddenPaths(cfg, coll.Fields, fm)
@@ -82,7 +82,8 @@ func checkPage(cfg *schema.Config, coll schema.Collection, doc content.Document)
 	return kept
 }
 
-type pageEmit func(path string, sev report.Severity, rule report.Rule, msg, hint string)
+// pageEmit records a finding of a rule and cause in the page.
+type pageEmit func(path string, rule report.Rule, cause report.Cause, p *report.Params)
 
 func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 	fd := v.Field
@@ -94,11 +95,7 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 
 	// required
 	if fd.Required && isBlank(v.Value) {
-		msg := fd.RequiredMessage
-		if msg == "" {
-			msg = label + " is required."
-		}
-		f(v.Path, report.SeverityError, report.RuleContentRequired, msg, "Add a value to clear this error.")
+		f(v.Path, report.RuleContentRequired, "", &report.Params{Field: label, CustomMessage: fd.RequiredMessage})
 	}
 
 	// customValidators run on absent values too (an expression may
@@ -121,11 +118,7 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 				matched = loc != nil && loc[1]-loc[0] == len(s)
 			}
 			if !matched {
-				msg := cv.Message
-				if msg == "" {
-					msg = label + " doesn't match the expected pattern."
-				}
-				f(v.Path, report.SeverityError, report.RuleContentRegex, msg, fmt.Sprintf("customValidators[%d]", i))
+				f(v.Path, report.RuleContentRegex, report.CauseCustomValidator, &report.Params{Field: label, Knob: fmt.Sprintf("customValidators[%d]", i), CustomMessage: cv.Message})
 			}
 		case schema.CustomValidatorExpression:
 			cond, ok := cv.Params["condition"].(map[string]any)
@@ -133,11 +126,7 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 				continue
 			}
 			if !schema.Eval(parseCond(cond), v.Scope) {
-				msg := cv.Message
-				if msg == "" {
-					msg = label + " fails the configured rule."
-				}
-				f(v.Path, report.SeverityError, report.RuleContentCustom, msg, fmt.Sprintf("customValidators[%d]", i))
+				f(v.Path, report.RuleContentCustom, "", &report.Params{Field: label, Knob: fmt.Sprintf("customValidators[%d]", i), CustomMessage: cv.Message})
 			}
 		}
 	}
@@ -149,7 +138,7 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 	// shape
 	actual := describe(v.Value)
 	shape := func(expected string) {
-		f(v.Path, report.SeverityError, report.RuleContentShape, fmt.Sprintf("%s should be a %s but is a %s.", label, expected, actual), "The schema's type was likely changed after this file was saved. Convert the value or clear it.")
+		f(v.Path, report.RuleContentShape, report.CauseWrongType, &report.Params{Field: label, Expected: expected, Actual: actual})
 	}
 	switch t {
 	case schema.TypeText, schema.TypeParagraph, schema.TypeRichText, schema.TypeLink, schema.TypeDate, schema.TypeImage, schema.TypeFile, schema.TypeColor:
@@ -175,10 +164,10 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 			return
 		}
 		if fd.Min != nil && n < *fd.Min {
-			f(v.Path, report.SeverityError, report.RuleContentMin, fmt.Sprintf("%s must be at least %s (currently %s).", label, content.FormatNumber(*fd.Min), content.FormatNumber(n)), "")
+			f(v.Path, report.RuleContentMin, "", &report.Params{Field: label, Min: fd.Min, Current: report.Num(n)})
 		}
 		if fd.Max != nil && n > *fd.Max {
-			f(v.Path, report.SeverityError, report.RuleContentMax, fmt.Sprintf("%s must be at most %s (currently %s).", label, content.FormatNumber(*fd.Max), content.FormatNumber(n)), "")
+			f(v.Path, report.RuleContentMax, "", &report.Params{Field: label, Max: fd.Max, Current: report.Num(n)})
 		}
 	case schema.TypeBoolean:
 		if _, ok := v.Value.(bool); !ok {
@@ -196,7 +185,7 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 			}
 		}
 		if s != "" && !contains(schema.OptionValues(fd.Options), s) {
-			f(v.Path, report.SeverityError, report.RuleContentShape, fmt.Sprintf("%s has a value that's no longer one of the allowed options.", label), "Current value: "+truncate(s)+". Pick a valid option to clear this.")
+			f(v.Path, report.RuleContentShape, report.CauseOptionGone, &report.Params{Field: label, Value: s})
 		}
 	case schema.TypeMultiChoice:
 		list, ok := v.Value.([]any)
@@ -209,17 +198,17 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 		for _, item := range list {
 			s, ok := item.(string)
 			if !ok || !contains(allowed, s) {
-				stray = append(stray, truncate(fmt.Sprint(item)))
+				stray = append(stray, report.FlowValue(item))
 			}
 		}
 		if len(stray) > 0 {
-			f(v.Path, report.SeverityError, report.RuleContentShape, fmt.Sprintf("%s has %d value(s) no longer in the allowed options.", label, len(stray)), "Stray: "+strings.Join(stray, ", ")+". Re-pick from the available options.")
+			f(v.Path, report.RuleContentShape, report.CauseOptionsGone, &report.Params{Field: label, Count: report.Int(int64(len(stray))), Names: stray})
 		}
 		if fd.Min != nil && float64(len(list)) < *fd.Min {
-			f(v.Path, report.SeverityError, report.RuleContentMinItems, fmt.Sprintf("%s needs at least %s selected.", label, content.FormatNumber(*fd.Min)), "")
+			f(v.Path, report.RuleContentMinItems, report.CauseSelected, &report.Params{Field: label, Min: fd.Min})
 		}
 		if fd.Max != nil && float64(len(list)) > *fd.Max {
-			f(v.Path, report.SeverityError, report.RuleContentMaxItems, fmt.Sprintf("%s accepts at most %s selected.", label, content.FormatNumber(*fd.Max)), "")
+			f(v.Path, report.RuleContentMaxItems, report.CauseSelected, &report.Params{Field: label, Max: fd.Max})
 		}
 	case schema.TypeGroup:
 		if _, ok := v.Value.(map[string]any); !ok {
@@ -239,28 +228,16 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 	if s, ok := v.Value.(string); ok {
 		if fd.Regex != "" && (t == schema.TypeText || t == schema.TypeParagraph || t == schema.TypeLink) && strings.TrimSpace(s) != "" {
 			if re, err := regexp.Compile(fd.Regex); err == nil && !re.MatchString(s) {
-				msg := fd.RegexMessage
-				if msg == "" {
-					msg = label + " doesn't match the expected format."
-				}
-				f(v.Path, report.SeverityError, report.RuleContentRegex, msg, "")
+				f(v.Path, report.RuleContentRegex, report.CauseRegex, &report.Params{Field: label, CustomMessage: fd.RegexMessage})
 			}
 		}
 		if (t == schema.TypeText || t == schema.TypeParagraph || t == schema.TypeRichText) && s != "" {
 			n := len([]rune(s))
 			if fd.MinLength != nil && *fd.MinLength > 0 && n < *fd.MinLength {
-				msg := fd.MinLengthMessage
-				if msg == "" {
-					msg = fmt.Sprintf("%s must be at least %d characters (currently %d).", label, *fd.MinLength, n)
-				}
-				f(v.Path, report.SeverityError, report.RuleContentMinLength, msg, "")
+				f(v.Path, report.RuleContentMinLength, "", &report.Params{Field: label, Min: report.Num(float64(*fd.MinLength)), Current: report.Num(float64(n)), CustomMessage: fd.MinLengthMessage})
 			}
 			if fd.MaxLength != nil && *fd.MaxLength > 0 && n > *fd.MaxLength {
-				msg := fd.MaxLengthMessage
-				if msg == "" {
-					msg = fmt.Sprintf("%s must be at most %d characters (currently %d).", label, *fd.MaxLength, n)
-				}
-				f(v.Path, report.SeverityError, report.RuleContentMaxLength, msg, "")
+				f(v.Path, report.RuleContentMaxLength, "", &report.Params{Field: label, Max: report.Num(float64(*fd.MaxLength)), Current: report.Num(float64(n)), CustomMessage: fd.MaxLengthMessage})
 			}
 		}
 	}
@@ -268,18 +245,10 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 
 func checkArray(fd schema.Field, label string, list []any, p string, f pageEmit) {
 	if fd.MinItems != nil && len(list) < *fd.MinItems {
-		msg := fd.MinItemsMessage
-		if msg == "" {
-			msg = fmt.Sprintf("%s needs at least %d %s.", label, *fd.MinItems, plural(*fd.MinItems, "item"))
-		}
-		f(p, report.SeverityError, report.RuleContentMinItems, msg, fmt.Sprintf("Add %d more.", *fd.MinItems-len(list)))
+		f(p, report.RuleContentMinItems, report.CauseItems, &report.Params{Field: label, Min: report.Num(float64(*fd.MinItems)), Current: report.Num(float64(len(list))), CustomMessage: fd.MinItemsMessage})
 	}
 	if fd.MaxItems != nil && len(list) > *fd.MaxItems {
-		msg := fd.MaxItemsMessage
-		if msg == "" {
-			msg = fmt.Sprintf("%s accepts at most %d %s.", label, *fd.MaxItems, plural(*fd.MaxItems, "item"))
-		}
-		f(p, report.SeverityError, report.RuleContentMaxItems, msg, fmt.Sprintf("Remove %d.", len(list)-*fd.MaxItems))
+		f(p, report.RuleContentMaxItems, report.CauseItems, &report.Params{Field: label, Max: report.Num(float64(*fd.MaxItems)), Current: report.Num(float64(len(list))), CustomMessage: fd.MaxItemsMessage})
 	}
 
 	// Discriminators of multi-shape arrays.
@@ -305,15 +274,11 @@ func checkArray(fd schema.Field, label string, list []any, p string, f pageEmit)
 				tag, _ := m[disc].(string)
 				itemPath := schema.IndexPath(p, i)
 				if tag == "" {
-					first := "none"
-					if len(names) > 0 {
-						first = names[0]
-					}
-					f(itemPath, report.SeverityWarning, report.RuleContentItemTypeMissing, fmt.Sprintf("Item %d of %s has no `%s:` discriminator.", i+1, label, disc), fmt.Sprintf("The editor falls back to the first shape (%s). Set `%s:` to one of: %s.", first, disc, strings.Join(names, ", ")))
+					f(itemPath, report.RuleContentItemTypeMissing, "", &report.Params{Index: report.Int(int64(i + 1)), Field: label, Key: disc, Names: names})
 					continue
 				}
 				if !contains(names, tag) {
-					f(itemPath, report.SeverityError, report.RuleContentItemTypeUnknown, fmt.Sprintf("Item %d of %s has `%s: %s`, which isn't one of the allowed shapes.", i+1, label, disc, tag), "Allowed shapes: "+strings.Join(names, ", ")+". Fix the discriminator or add the shape to the schema.")
+					f(itemPath, report.RuleContentItemTypeUnknown, "", &report.Params{Index: report.Int(int64(i + 1)), Field: label, Key: disc, Value: tag, Names: names})
 				}
 			}
 		}
@@ -333,11 +298,7 @@ func checkArray(fd schema.Field, label string, list []any, p string, f pageEmit)
 				continue
 			}
 			if first, dup := seen[key]; dup {
-				msg := fd.UniqueOnMessage
-				if msg == "" {
-					msg = fmt.Sprintf("%s: item %d has the same `%s` as item %d.", label, i+1, fd.UniqueOn, first+1)
-				}
-				f(schema.IndexPath(p, i), report.SeverityError, report.RuleContentUnique, msg, fmt.Sprintf("Each item under %s must have a unique `%s`.", label, fd.UniqueOn))
+				f(schema.IndexPath(p, i), report.RuleContentUnique, "", &report.Params{Field: label, Index: report.Int(int64(i + 1)), OtherIndex: report.Int(int64(first + 1)), Key: fd.UniqueOn, CustomMessage: fd.UniqueOnMessage})
 				continue
 			}
 			seen[key] = i
@@ -415,21 +376,6 @@ func describe(v any) string {
 		return "number"
 	}
 	return fmt.Sprintf("%T", v)
-}
-
-func truncate(s string) string {
-	r := []rune(s)
-	if len(r) > 60 {
-		return string(r[:60]) + "…"
-	}
-	return s
-}
-
-func plural(n int, word string) string {
-	if n == 1 {
-		return word
-	}
-	return word + "s"
 }
 
 // valueKey renders a value for uniqueness comparison: typed prefixes

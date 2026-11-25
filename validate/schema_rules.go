@@ -32,8 +32,8 @@ func Schema(doc *load.Document, exists func(path string) bool) (out []report.Fin
 func checkSchema(doc *load.Document, exists func(path string) bool) []report.Finding {
 	cfg := doc.Config
 	var out []report.Finding
-	f := func(file, path string, sev report.Severity, rule report.Rule, msg, hint string) {
-		out = append(out, report.Finding{File: file, Path: path, Severity: sev, Rule: rule, Message: msg, Hint: hint})
+	f := func(file, path string, rule report.Rule, cause report.Cause, p *report.Params) {
+		out = append(out, report.New(file, path, rule, cause, p))
 	}
 	configFile := load.ConfigFile
 	if doc.Legacy {
@@ -43,28 +43,33 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 	// Storages.
 	for _, s := range cfg.Storages {
 		for _, problem := range resolve.ValidStorage(s) {
-			f(configFile, "storages."+s.Name, report.SeverityError, report.RuleSchemaInvalidStorage, "storage "+quote(s.Name)+": "+problem, "")
+			p := report.Params{}
+			if problem.Params != nil {
+				p = *problem.Params
+			}
+			p.Key = s.Name
+			f(configFile, "storages."+s.Name, report.RuleSchemaInvalidStorage, problem.Cause, &p)
 		}
 	}
 	if cfg.DefaultStorage != "" {
 		if _, ok := cfg.Storage(cfg.DefaultStorage); !ok {
-			f(configFile, "defaultStorage", report.SeverityError, report.RuleSchemaUnknownDefaultStorage, fmt.Sprintf("defaultStorage %q is not declared under storages", cfg.DefaultStorage), declaredStorages(cfg))
+			f(configFile, "defaultStorage", report.RuleSchemaUnknownDefaultStorage, "", &report.Params{Key: cfg.DefaultStorage, Names: cfg.StorageNames()})
 		}
 	}
 
 	// Preview block, redirects, variables.
 	if cfg.Preview.DefaultLocale != "" && len(cfg.Preview.Locales) > 0 && !contains(cfg.Preview.Locales, cfg.Preview.DefaultLocale) {
-		f(configFile, "preview.defaultLocale", report.SeverityError, report.RuleSchemaDefaultLocaleNotDeclared, fmt.Sprintf("defaultLocale %q is not in preview.locales %v", cfg.Preview.DefaultLocale, cfg.Preview.Locales), "")
+		f(configFile, "preview.defaultLocale", report.RuleSchemaDefaultLocaleNotDeclared, "", &report.Params{Locale: cfg.Preview.DefaultLocale, Locales: cfg.Preview.Locales})
 	}
 	if cfg.Redirects.File != "" && !cfg.Redirects.Enabled() {
-		f(configFile, "redirects.format", report.SeverityError, report.RuleSchemaUnknownRedirectsFormat, fmt.Sprintf("redirects.format %q is not supported (netlify, vercel)", cfg.Redirects.Format), "")
+		f(configFile, "redirects.format", report.RuleSchemaUnknownRedirectsFormat, "", &report.Params{Value: cfg.Redirects.Format})
 	}
 	if cfg.Variables.File != "" && exists != nil && !exists(cfg.Variables.File) {
-		f(configFile, "variables.file", report.SeverityError, report.RuleSchemaMissingVariablesFile, fmt.Sprintf("variables.file %q does not exist", cfg.Variables.File), "Create the variables document, or point `variables.file` at the file that holds the {key, value} list.")
+		f(configFile, "variables.file", report.RuleSchemaMissingVariablesFile, "", &report.Params{Path: cfg.Variables.File})
 	}
 
 	for _, problem := range qualityProblems(cfg.Raw, true) {
-		f(configFile, "quality", report.SeverityWarning, report.RuleSchemaInvalidQuality, problem, qualityHint)
+		f(configFile, "quality", report.RuleSchemaInvalidQuality, problem.Cause, problem.Params)
 	}
 
 	// Collections.
@@ -78,30 +83,30 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 		if coll.Path != "" {
 			byPath[coll.Path] = append(byPath[coll.Path], key)
 		} else if key != schema.DefaultCollection {
-			f(file, "path", report.SeverityWarning, report.RuleSchemaMissingCollectionPath, "the collection declares no `path`, so no file resolves to it by directory", "Add `path: <directory>` so files under it use this schema.")
+			f(file, "path", report.RuleSchemaMissingCollectionPath, "", nil)
 		}
 		if unknown := resolve.PreviewTokens(coll.PreviewPath); len(unknown) > 0 {
-			f(file, "previewPath", report.SeverityError, report.RuleSchemaUnknownPreviewToken, fmt.Sprintf("previewPath %q uses unknown token(s) %s", coll.PreviewPath, strings.Join(unknown, ", ")), "Tokens are {locale}, {slug} and {fields.<key>}.")
+			f(file, "previewPath", report.RuleSchemaUnknownPreviewToken, "", &report.Params{Value: coll.PreviewPath, Names: unknown})
 		}
 		switch {
 		case coll.LocaleFrom == "", coll.LocaleFrom == schema.LocaleFromPath, coll.LocaleFrom == schema.LocaleFromNone:
 		case strings.HasPrefix(coll.LocaleFrom, schema.LocaleFromFieldPrefix) && len(coll.LocaleFrom) > len(schema.LocaleFromFieldPrefix):
 		default:
-			f(file, "localeFrom", report.SeverityError, report.RuleSchemaInvalidLocaleFrom, fmt.Sprintf("localeFrom %q is not path, none or field:<key>", coll.LocaleFrom), "")
+			f(file, "localeFrom", report.RuleSchemaInvalidLocaleFrom, "", &report.Params{Value: coll.LocaleFrom})
 		}
-		if reason, hint := translationsProblem(coll); reason != "" {
-			f(file, "translations.by", report.SeverityError, report.RuleSchemaInvalidTranslations, reason, hint)
+		if problem, ok := translationsProblem(coll); ok {
+			f(file, "translations.by", report.RuleSchemaInvalidTranslations, problem.Cause, problem.Params)
 		}
 		for _, problem := range translationLocalesProblems(cfg, coll) {
-			f(file, "translations.locales", report.SeverityError, report.RuleSchemaInvalidTranslationLocales, problem, "List the languages this collection's pages are expected in, each one of preview.locales, or leave `locales` out to expect all of them.")
+			f(file, "translations.locales", report.RuleSchemaInvalidTranslationLocales, problem.Cause, problem.Params)
 		}
 		for _, problem := range qualityProblems(coll.Raw, false) {
-			f(file, "quality", report.SeverityWarning, report.RuleSchemaInvalidQuality, problem, qualityHint)
+			f(file, "quality", report.RuleSchemaInvalidQuality, problem.Cause, problem.Params)
 		}
 		switch coll.ExtraKeysPolicy {
 		case schema.ExtraKeysShow, schema.ExtraKeysHide, schema.ExtraKeysStrip:
 		default:
-			f(file, "extraKeysPolicy", report.SeverityWarning, report.RuleSchemaUnknownKnob, fmt.Sprintf("extraKeysPolicy %q is not show, hide or strip; show is assumed", coll.ExtraKeysPolicy), "")
+			f(file, "extraKeysPolicy", report.RuleSchemaUnknownKnob, report.CauseExtraKeysPolicy, &report.Params{Value: coll.ExtraKeysPolicy})
 		}
 		checkFields(cfg, file, "fields", coll.Fields, rootSchemaScope(coll.Fields), f)
 		checkCollectionRoles(cfg, file, coll, f)
@@ -121,7 +126,7 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 			if doc.Legacy {
 				file = configFile
 			}
-			f(file, "path", report.SeverityError, report.RuleSchemaDuplicateCollectionPath, fmt.Sprintf("collections %s share path %q and their `match` patterns cannot tell them apart; files under it resolve to one of them arbitrarily", strings.Join(keys, ", "), p), "Give each collection its own directory, merge them, or let all but one name a single file with a literal `match`.")
+			f(file, "path", report.RuleSchemaDuplicateCollectionPath, "", &report.Params{Names: keys, Path: p})
 		}
 	}
 
@@ -135,7 +140,7 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 			file = configFile
 		}
 		if b.Label == "" {
-			f(file, "label", report.SeverityError, report.RuleSchemaMissingLabel, "the block has no `label`", "")
+			f(file, "label", report.RuleSchemaMissingLabel, report.CauseBlockNoLabel, nil)
 		}
 		checkFields(cfg, file, "fields", b.Fields, rootSchemaScope(b.Fields), f)
 		checkRoles(cfg, file, "fields", b.Fields, f)
@@ -151,7 +156,8 @@ func checkSchema(doc *load.Document, exists func(path string) bool) []report.Fin
 	return out
 }
 
-type emit func(file, path string, sev report.Severity, rule report.Rule, msg, hint string)
+// emit records a finding of a rule and cause; report.New words it.
+type emit func(file, path string, rule report.Rule, cause report.Cause, p *report.Params)
 
 // checkFields checks one field list and recurses into groups and array
 // shapes. base is the schema path of the list (`fields`,
@@ -166,7 +172,7 @@ func checkFields(cfg *schema.Config, file, base string, fields []schema.Field, s
 		checkField(cfg, file, p, fd, scope, f)
 		if fd.Key != "" {
 			if prev, dup := seen[fd.Key]; dup {
-				f(file, p, report.SeverityError, report.RuleSchemaDuplicateKey, fmt.Sprintf("key %q is also used by %s in the same list", fd.Key, prev), "Keys must be unique inside one fields list; the editor and the content would not know which field a value belongs to.")
+				f(file, p, report.RuleSchemaDuplicateKey, "", &report.Params{Key: fd.Key, Other: prev})
 			}
 			seen[fd.Key] = p
 		}
@@ -185,18 +191,18 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 		label = fd.Key
 	}
 	if fd.Key == "" {
-		f(file, p, report.SeverityError, report.RuleSchemaMissingKey, "the field has no `key`", "Every field needs the frontmatter key its value lands at.")
+		f(file, p, report.RuleSchemaMissingKey, "", nil)
 	}
 	if fd.Type == "" {
-		f(file, p, report.SeverityError, report.RuleSchemaMissingType, fmt.Sprintf("field %q has no `type`", label), "")
+		f(file, p, report.RuleSchemaMissingType, report.CauseNoType, &report.Params{Field: label})
 		return
 	}
 	if !schema.KnownTypes[fd.Type] {
-		f(file, p, report.SeverityError, report.RuleSchemaUnknownType, fmt.Sprintf("field %q has type %q, which the editor does not render", label, fd.Type), "Types: text, paragraph, richtext, number, boolean, date, color, range, multichoice, link, image, file, reference, select, group, array.")
+		f(file, p, report.RuleSchemaUnknownType, "", &report.Params{Field: label, Type: fd.Type})
 		return
 	}
 	if fd.Label == "" {
-		f(file, p, report.SeverityError, report.RuleSchemaMissingLabel, fmt.Sprintf("field %q has no `label`", fd.Key), "Labels are required; the editor does not fall back to the key.")
+		f(file, p, report.RuleSchemaMissingLabel, report.CauseFieldNoLabel, &report.Params{Field: fd.Key})
 	}
 	if len(fd.Extra) > 0 {
 		keys := make([]string, 0, len(fd.Extra))
@@ -205,14 +211,14 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			hint := ""
+			cause := report.CauseUnknownKey
 			if k == "toolbar" && schema.Canonical(fd.Type) == schema.TypeRichText {
-				hint = "richtext takes `options:` (a map of flags such as bold: true, headings: [2, 3]), not a `toolbar:` list."
+				cause = report.CauseToolbarNotOptions
 			}
 			if k == "alt" || k == "decorative" {
-				hint = "`" + k + "` belongs on an image field. To mark a text field as an image's alt text, give it `role: alt` or name it from the image with `alt: <key>`."
+				cause = report.CauseAltKnobNotOnImage
 			}
-			f(file, p, report.SeverityWarning, report.RuleSchemaUnknownKnob, fmt.Sprintf("field %q has key %q, which a %s field does not read", label, k, fd.Type), hint)
+			f(file, p, report.RuleSchemaUnknownKnob, cause, &report.Params{Field: label, Key: k, Type: fd.Type})
 		}
 	}
 	t := schema.Canonical(fd.Type)
@@ -220,29 +226,29 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 	// `translatable: true` on a value that is never translated. Saying
 	// false there is harmless and is left alone.
 	if fd.Translatable != nil && *fd.Translatable && !resolve.TranslatableType(t) && t != schema.TypeGroup && t != schema.TypeArray {
-		f(file, p, report.SeverityWarning, report.RuleSchemaTranslatableIgnored, fmt.Sprintf("field %q has `translatable`, but a value of type %s is never translated", label, fd.Type), "Only text, paragraph and richtext are translated; on a group or an array the key covers the fields inside. Remove it here.")
+		f(file, p, report.RuleSchemaTranslatableIgnored, "", &report.Params{Field: label, Type: fd.Type})
 	}
 
 	// Options.
 	if t == schema.TypeSelect || t == schema.TypeMultiChoice {
 		if len(fd.Options) == 0 {
-			f(file, p, report.SeverityError, report.RuleSchemaEmptyOptions, fmt.Sprintf("%s field %q has no options", fd.Type, label), "")
+			f(file, p, report.RuleSchemaEmptyOptions, "", &report.Params{Type: fd.Type, Field: label})
 		} else if fd.HasDefault && fd.Default != nil {
 			values := schema.OptionValues(fd.Options)
 			switch d := fd.Default.(type) {
 			case string:
 				if t == schema.TypeSelect && !contains(values, d) {
-					f(file, p, report.SeverityError, report.RuleSchemaDefaultNotOption, fmt.Sprintf("default %q of %q is not one of its options", d, label), "")
+					f(file, p, report.RuleSchemaDefaultNotOption, "", &report.Params{Value: d, Field: label})
 				}
 			case []any:
 				for _, item := range d {
 					if s, ok := item.(string); ok && !contains(values, s) {
-						f(file, p, report.SeverityError, report.RuleSchemaDefaultNotOption, fmt.Sprintf("default %q of %q is not one of its options", s, label), "")
+						f(file, p, report.RuleSchemaDefaultNotOption, "", &report.Params{Value: s, Field: label})
 					}
 				}
 			default:
 				if t == schema.TypeSelect && !contains(values, fmt.Sprint(d)) {
-					f(file, p, report.SeverityError, report.RuleSchemaDefaultNotOption, fmt.Sprintf("default %v of %q is not one of its options", d, label), "")
+					f(file, p, report.RuleSchemaDefaultNotOption, "", &report.Params{Value: report.FlowValue(d), Field: label, Actual: valueKind(d)})
 				}
 			}
 		}
@@ -250,13 +256,13 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 
 	// Bounds.
 	if fd.Min != nil && fd.Max != nil && *fd.Min > *fd.Max {
-		f(file, p, report.SeverityError, report.RuleSchemaMinAboveMax, fmt.Sprintf("%q has min %v above max %v", label, *fd.Min, *fd.Max), "")
+		f(file, p, report.RuleSchemaMinAboveMax, report.CauseMinMax, &report.Params{Field: label, Min: fd.Min, Max: fd.Max})
 	}
 	if fd.MinLength != nil && fd.MaxLength != nil && *fd.MaxLength > 0 && *fd.MinLength > *fd.MaxLength {
-		f(file, p, report.SeverityError, report.RuleSchemaMinAboveMax, fmt.Sprintf("%q has minLength %d above maxLength %d", label, *fd.MinLength, *fd.MaxLength), "")
+		f(file, p, report.RuleSchemaMinAboveMax, report.CauseLength, &report.Params{Field: label, Min: report.Num(float64(*fd.MinLength)), Max: report.Num(float64(*fd.MaxLength))})
 	}
 	if fd.MinItems != nil && fd.MaxItems != nil && *fd.MinItems > *fd.MaxItems {
-		f(file, p, report.SeverityError, report.RuleSchemaMinAboveMax, fmt.Sprintf("%q has minItems %d above maxItems %d", label, *fd.MinItems, *fd.MaxItems), "")
+		f(file, p, report.RuleSchemaMinAboveMax, report.CauseItems, &report.Params{Field: label, Min: report.Num(float64(*fd.MinItems)), Max: report.Num(float64(*fd.MaxItems))})
 	}
 
 	// Patterns.
@@ -271,27 +277,27 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 			}
 		case schema.CustomValidatorExpression:
 			if cond, ok := cv.Params["condition"].(map[string]any); ok {
-				checkConditionPaths(file, p, label, parseCond(cond), scope, report.RuleSchemaUnresolvedConditionPath, "customValidators", f)
+				checkConditionPaths(file, p, label, parseCond(cond), scope, "customValidators", f)
 			}
 		default:
-			f(file, p, report.SeverityWarning, report.RuleSchemaUnknownCustomValidator, fmt.Sprintf("%q has a custom validator of type %q, which nothing implements; it is skipped", label, cv.Type), "Built-in types: regex, expression.")
+			f(file, p, report.RuleSchemaUnknownCustomValidator, "", &report.Params{Field: label, Value: cv.Type})
 		}
 	}
 
 	// Conditions and computed sources.
 	if fd.VisibleIf != nil {
-		checkConditionPaths(file, p, label, *fd.VisibleIf, scope, report.RuleSchemaUnresolvedConditionPath, "visibleIf", f)
+		checkConditionPaths(file, p, label, *fd.VisibleIf, scope, "visibleIf", f)
 	}
 	if fd.Computed != nil && fd.Computed.From != "" {
 		if ok, known := scope.pathResolves(fd.Computed.From); known && !ok {
-			f(file, p, report.SeverityWarning, report.RuleSchemaUnresolvedComputedPath, fmt.Sprintf("%q is computed from %q, which names no field here", label, fd.Computed.From), "The value never fills in while the path does not resolve.")
+			f(file, p, report.RuleSchemaUnresolvedComputedPath, "", &report.Params{Field: label, Path: fd.Computed.From})
 		}
 	}
 
 	// Storages.
 	if (t == schema.TypeImage || t == schema.TypeFile) && fd.Storage != "" {
 		if _, ok := cfg.Storage(fd.Storage); !ok {
-			f(file, p, report.SeverityWarning, report.RuleSchemaUnknownStorage, fmt.Sprintf("%q uses storage %q, which config.yml does not declare", label, fd.Storage), declaredStorages(cfg))
+			f(file, p, report.RuleSchemaUnknownStorage, "", &report.Params{Field: label, Key: fd.Storage, Names: cfg.StorageNames()})
 		}
 	}
 
@@ -302,7 +308,7 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 	if t == schema.TypeArray {
 		entries := schema.ItemEntries(fd)
 		if len(entries) == 0 && fd.Type != schema.TypeBlocks {
-			f(file, p, report.SeverityError, report.RuleSchemaMissingType, fmt.Sprintf("array %q declares no `items`", label), "List one shape for a uniform array or several for a multi-shape array.")
+			f(file, p, report.RuleSchemaMissingType, report.CauseNoItems, &report.Params{Field: label})
 		}
 		multi := schema.IsMultiShape(fd)
 		buckets := map[string][]string{}
@@ -312,7 +318,7 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 				continue
 			}
 			if multi && schema.IsGroup(e.Field.Type) && strings.HasPrefix(e.Name, "__entry_") {
-				f(file, itemPath, report.SeverityError, report.RuleSchemaAnonymousItemShapes, fmt.Sprintf("a shape of %q has no key, so no item can name it in its %q", label, schema.ArrayIDKey(fd)), "Give each entry under `items:` a key (hero, cta, …); the editor writes that key as the item's discriminator.")
+				f(file, itemPath, report.RuleSchemaAnonymousItemShapes, "", &report.Params{Field: label, Key: schema.ArrayIDKey(fd)})
 			}
 			if b := schema.PrimitiveBucket(e.Field.Type); b != "" && multi {
 				buckets[b] = append(buckets[b], e.Name)
@@ -333,40 +339,39 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 			if len(names) < 2 {
 				continue
 			}
-			f(file, p, report.SeverityError, report.RuleSchemaAmbiguousItemShapes, fmt.Sprintf("shapes %s of %q all hold %s values, so items of these shapes cannot be told apart", strings.Join(names, ", "), label, b), "Keep at most one primitive shape per value type, or wrap the others in groups so they carry a discriminator.")
+			f(file, p, report.RuleSchemaAmbiguousItemShapes, "", &report.Params{Names: names, Field: label, Type: b})
 		}
 	}
 }
 
 func checkPattern(file, p, label, knob, pattern string, f emit) {
 	if _, err := regexp.Compile(pattern); err != nil {
-		msg := fmt.Sprintf("%q has a %s that does not compile: %s", label, knob, strings.TrimPrefix(err.Error(), "error parsing regexp: "))
-		hint := ""
+		cause := report.CauseDoesNotCompile
 		if strings.Contains(err.Error(), "invalid or unsupported Perl syntax") {
-			hint = "The editor runs patterns in JavaScript, which accepts this; this check uses Go's RE2 and cannot evaluate lookarounds or backreferences, so content checks skip this pattern."
+			cause = report.CauseUnsupportedSyntax
 		}
-		f(file, p, report.SeverityWarning, report.RuleSchemaInvalidRegex, msg, hint)
+		f(file, p, report.RuleSchemaInvalidRegex, cause, &report.Params{Field: label, Knob: knob, Detail: strings.TrimPrefix(err.Error(), "error parsing regexp: ")})
 	}
 }
 
-func checkConditionPaths(file, p, label string, c schema.Condition, scope schemaScope, rule report.Rule, knob string, f emit) {
+func checkConditionPaths(file, p, label string, c schema.Condition, scope schemaScope, knob string, f emit) {
 	switch {
 	case len(c.All) > 0:
 		for _, sub := range c.All {
-			checkConditionPaths(file, p, label, sub, scope, rule, knob, f)
+			checkConditionPaths(file, p, label, sub, scope, knob, f)
 		}
 		return
 	case len(c.Any) > 0:
 		for _, sub := range c.Any {
-			checkConditionPaths(file, p, label, sub, scope, rule, knob, f)
+			checkConditionPaths(file, p, label, sub, scope, knob, f)
 		}
 		return
 	case c.Not != nil:
-		checkConditionPaths(file, p, label, *c.Not, scope, rule, knob, f)
+		checkConditionPaths(file, p, label, *c.Not, scope, knob, f)
 		return
 	}
 	if c.Op != "" && !schema.KnownOps[c.Op] {
-		f(file, p, report.SeverityError, report.RuleSchemaUnknownKnob, fmt.Sprintf("%q has a %s with operator %q, which does not exist", label, knob, c.Op), "Operators: eq, neq, in, notIn, truthy, falsy, empty, nonEmpty, gt, lt, matches.")
+		f(file, p, report.RuleSchemaUnknownKnob, report.CauseConditionOperator, &report.Params{Field: label, Knob: knob, Value: c.Op})
 	}
 	if c.Op == schema.OpMatches {
 		if pat, ok := c.Value.(string); ok {
@@ -374,14 +379,14 @@ func checkConditionPaths(file, p, label string, c schema.Condition, scope schema
 		}
 	}
 	if c.Field == "" {
-		f(file, p, report.SeverityError, report.RuleSchemaUnresolvedConditionPath, fmt.Sprintf("%q has a %s without a `field`", label, knob), "")
+		f(file, p, report.RuleSchemaUnresolvedConditionPath, report.CauseNoField, &report.Params{Field: label, Knob: knob})
 		return
 	}
 	if schema.PresenceOp(c.Op) {
 		return
 	}
 	if ok, known := scope.pathResolves(c.Field); known && !ok {
-		f(file, p, report.SeverityWarning, rule, fmt.Sprintf("%q has a %s on %q, which names no field here", label, knob, c.Field), "Common causes: a typo, a renamed sibling, or a $parent/$root path that walks too far. The field stays hidden while the path does not resolve.")
+		f(file, p, report.RuleSchemaUnresolvedConditionPath, report.CausePathUnknown, &report.Params{Field: label, Knob: knob, Path: c.Field})
 	}
 }
 
@@ -393,11 +398,21 @@ func parseCond(m map[string]any) schema.Condition {
 	return *fd.VisibleIf
 }
 
-func declaredStorages(cfg *schema.Config) string {
-	if len(cfg.Storages) == 0 {
-		return "This site declares no storages; add a `storages:` block to config.yml or remove the `storage:` line."
+// valueKind names the kind of a YAML value that is not text.
+func valueKind(v any) string {
+	switch v.(type) {
+	case bool:
+		return "boolean"
+	case int, int64, uint64, float64:
+		return "number"
+	case []any:
+		return "list"
+	case map[string]any:
+		return "object"
+	case nil:
+		return "null"
 	}
-	return "Declared storages: " + strings.Join(cfg.StorageNames(), ", ") + "."
+	return "value"
 }
 
 func contains(list []string, v string) bool {
@@ -412,8 +427,6 @@ func contains(list []string, v string) bool {
 func joinPath(base, key string) string { return schema.JoinPath(base, key) }
 
 func strconvI(i int) string { return fmt.Sprintf("%d", i) }
-
-func quote(s string) string { return fmt.Sprintf("%q", s) }
 
 // ambiguousKeys returns the collections among keys (which share one
 // path) that `match` cannot tell apart, sorted: every pattern collection
@@ -449,72 +462,73 @@ func ambiguousKeys(cfg *schema.Config, keys []string) []string {
 }
 
 // translationsProblem says what is wrong with a collection's
-// `translations` block, with a hint, or "" when it is sound or absent.
-// The block decides which pages are one page in several languages, so
-// it has to be something every page can answer: a path that carries the
-// locale, or a field every page must have.
-func translationsProblem(coll schema.Collection) (reason, hint string) {
+// `translations` block; false when it is sound or absent. The block
+// decides which pages are one page in several languages, so it has to
+// be something every page can answer: a path that carries the locale,
+// or a field every page must have.
+func translationsProblem(coll schema.Collection) (report.Problem, bool) {
 	t := coll.Translations
 	if t == nil {
-		return "", ""
+		return report.Problem{}, false
 	}
-	const forms = "Use `by: path` (the same path under each locale folder) or `by: field:<key>` (pages with the same value of that field)."
+	bad := func(c report.Cause, p *report.Params) (report.Problem, bool) {
+		return report.Problem{Cause: c, Params: p}, true
+	}
 	if t.By == "" && !coll.OneLanguagePerFile() && schema.HasLocalized(coll.Fields) {
 		// Each file holds every language in localized groups: there are
 		// no versions to link, and `locales` alone says which languages a
 		// page is expected in.
-		return "", ""
+		return report.Problem{}, false
 	}
 	if t.By == schema.TranslationsByPath {
 		if coll.LocaleFrom != schema.LocaleFromPath {
-			return "translations.by is path, but the collection's locale does not come from the path", "Add `localeFrom: path`, or link the versions by a field: `by: field:<key>`."
+			return bad(report.CauseByPathWithoutLocale, nil)
 		}
-		return "", ""
+		return report.Problem{}, false
 	}
 	key, ok := t.Field()
 	if !ok {
-		return fmt.Sprintf("translations.by %q is not path or field:<key>", t.By), forms + " A collection whose files hold every language in localized groups may list `locales` alone."
+		return bad(report.CauseByUnknown, &report.Params{Value: t.By})
 	}
 	for _, f := range coll.Fields {
 		if f.Key != key {
 			continue
 		}
 		if schema.Canonical(f.Type) != schema.TypeText {
-			return fmt.Sprintf("translations.by names %q, which is a %s field; the linking field must be text", key, f.Type), "Link the versions by a text field whose value they share."
+			return bad(report.CauseByFieldNotText, &report.Params{Key: key, Type: f.Type})
 		}
 		if !f.Required {
-			return fmt.Sprintf("translations.by names %q, which is not required, so a page could have no key", key), "Mark the field `required: true`."
+			return bad(report.CauseByFieldNotRequired, &report.Params{Key: key})
 		}
-		return "", ""
+		return report.Problem{}, false
 	}
-	return fmt.Sprintf("translations.by names %q, which is not a top-level field of the collection", key), "Add the field to the collection, or name one it has."
+	return bad(report.CauseByFieldNotTopLevel, &report.Params{Key: key})
 }
-
-const qualityHint = "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
 
 // qualityProblems says what is wrong with the `quality` block of a
 // config (site) or collection mapping. Limits are read in config.yml
 // only: an image is checked once per file, not per page.
-func qualityProblems(raw map[string]any, site bool) []string {
+func qualityProblems(raw map[string]any, site bool) []report.Problem {
 	v, has := raw["quality"]
 	if !has || v == nil {
 		return nil
 	}
+	problem := func(c report.Cause, p *report.Params) report.Problem { return report.Problem{Cause: c, Params: p} }
 	m, ok := v.(map[string]any)
 	if !ok {
-		return []string{fmt.Sprintf("quality is %v, not a mapping", v)}
+		return []report.Problem{problem(report.CauseNotMapping, &report.Params{Value: report.FlowValue(v)})}
 	}
-	var out []string
+	var out []report.Problem
 	for _, k := range sortedMapKeys(m) {
 		switch {
 		case k == schema.QualityKeyIgnore:
 		case k == schema.QualityKeyLimits && site:
 		case k == schema.QualityKeyLimits:
-			out = append(out, "quality.limits is read in config.yml only: an image is checked once per file, not per page")
+			out = append(out, problem(report.CauseLimitsNotInSite, nil))
 		case site:
-			out = append(out, fmt.Sprintf("quality has the key %q; only `ignore` and `limits` are read", k))
+			out = append(out, problem(report.CauseSiteKeyUnknown, &report.Params{Key: k}))
 		default:
-			out = append(out, fmt.Sprintf("quality has the key %q; only `ignore` is read", k))
+			out = append(out, problem(report.CauseCollectionKeyUnknown, &report.Params{Key: k}))
 		}
 	}
 	if site {
@@ -526,16 +540,16 @@ func qualityProblems(raw map[string]any, site bool) []string {
 	}
 	list, ok := ignore.([]any)
 	if !ok {
-		return append(out, fmt.Sprintf("quality.ignore is %v, not a list of rule ids", ignore))
+		return append(out, problem(report.CauseIgnoreNotList, &report.Params{Value: report.FlowValue(ignore)}))
 	}
 	for _, item := range list {
 		id, ok := item.(string)
 		if !ok {
-			out = append(out, fmt.Sprintf("quality.ignore has %v, which is not a rule id", item))
+			out = append(out, problem(report.CauseIgnoreNotRuleID, &report.Params{Value: report.FlowValue(item)}))
 			continue
 		}
 		if _, known := quality.Spec(report.Rule(strings.TrimSpace(id))); !known {
-			out = append(out, fmt.Sprintf("quality.ignore lists %q, which is not a content quality rule", id))
+			out = append(out, problem(report.CauseIgnoreUnknownRule, &report.Params{Value: id}))
 		}
 	}
 	return out
@@ -543,18 +557,18 @@ func qualityProblems(raw map[string]any, site bool) []string {
 
 // qualityLimitsProblems says what is wrong with a site's
 // `quality.limits`. A limit it reports is not applied.
-func qualityLimitsProblems(v any) []string {
+func qualityLimitsProblems(v any) []report.Problem {
 	if v == nil {
 		return nil
 	}
 	m, ok := v.(map[string]any)
 	if !ok {
-		return []string{fmt.Sprintf("quality.limits is %v, not a mapping", v)}
+		return []report.Problem{{Cause: report.CauseLimitsNotMapping, Params: &report.Params{Value: report.FlowValue(v)}}}
 	}
-	var out []string
+	var out []report.Problem
 	for _, k := range sortedMapKeys(m) {
 		if k != schema.QualityLimitImageKB {
-			out = append(out, fmt.Sprintf("quality.limits has the key %q; only `%s` is read", k, schema.QualityLimitImageKB))
+			out = append(out, report.Problem{Cause: report.CauseLimitsKeyUnknown, Params: &report.Params{Key: k, Knob: schema.QualityLimitImageKB}})
 		}
 	}
 	kb, has := m[schema.QualityLimitImageKB]
@@ -564,9 +578,9 @@ func qualityLimitsProblems(v any) []string {
 	n, ok := wholeNumber(kb)
 	switch {
 	case !ok:
-		out = append(out, fmt.Sprintf("quality.limits.imageKB is %v, not a whole number of kilobytes", kb))
+		out = append(out, report.Problem{Cause: report.CauseImageKBNotNumber, Params: &report.Params{Value: report.FlowValue(kb)}})
 	case n < schema.QualityImageKBMin || n > schema.QualityImageKBMax:
-		out = append(out, fmt.Sprintf("quality.limits.imageKB is %d, outside %d to %d", n, schema.QualityImageKBMin, schema.QualityImageKBMax))
+		out = append(out, report.Problem{Cause: report.CauseImageKBOutOfRange, Params: &report.Params{Current: report.Num(float64(n)), Min: report.Num(schema.QualityImageKBMin), Max: report.Num(schema.QualityImageKBMax)}})
 	}
 	return out
 }

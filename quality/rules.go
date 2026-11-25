@@ -42,8 +42,8 @@ const (
 	NeedsMedia   = "media"
 )
 
-// RuleSpec is one quality rule: its area, its impact, the threshold it
-// holds content against and where that comes from.
+// RuleSpec is one quality rule: its area, its impact and the data it
+// needs.
 type RuleSpec struct {
 	Rule report.Rule
 	Area Area
@@ -52,11 +52,9 @@ type RuleSpec struct {
 	// whose role was guessed). ImpactInfo rules are listed, not scored.
 	Impact report.Impact
 	// Needs names the caller data the rule runs on (Options); empty for
-	// none.
+	// none. What a rule holds content against, and where that comes
+	// from, is in the README's table of rules.
 	Needs string
-	// Threshold and Source are the README's wording.
-	Threshold string
-	Source    string
 }
 
 // Scored reports whether findings of the rule count against a score.
@@ -93,42 +91,24 @@ const (
 )
 
 var specs = []RuleSpec{
-	{report.RuleQualityTitleMissing, AreaSearch, report.ImpactHigh, NeedsNothing,
-		"No SEO title and no page title to fall back to", "Lighthouse document-title"},
-	{report.RuleQualityTitleLength, AreaSearch, report.ImpactLow, NeedsNothing,
-		"Outside 30 to 60 characters, or the field's recommendedLength", "Google sets no limit and cuts titles to the device width (Search Central, title links); 30 to 60 is the display convention tools use"},
-	{report.RuleQualityTitleDuplicate, AreaSearch, report.ImpactMedium, NeedsNothing,
-		"The same title on two or more indexable pages of one language, after trimming and ignoring case", "Google Search Central, title links"},
-	{report.RuleQualityDescriptionMissing, AreaSearch, report.ImpactMedium, NeedsNothing,
-		"An empty meta description", "Lighthouse meta-description"},
-	{report.RuleQualityDescriptionLength, AreaSearch, report.ImpactLow, NeedsNothing,
-		"Outside 70 to 160 characters, or the field's recommendedLength", "Google sets no limit and cuts snippets to fit (Search Central, snippets); 70 to 160 is the display convention tools use"},
-	{report.RuleQualityDescriptionDuplicate, AreaSearch, report.ImpactMedium, NeedsNothing,
-		"The same meta description on two or more indexable pages of one language", "Google Search Central, snippets"},
-	{report.RuleQualityShareImageMissing, AreaSearch, report.ImpactLow, NeedsNothing,
-		"No share image on a page whose collection has a share image field", "Meta, sharing best practices"},
-	{report.RuleQualityNoindex, AreaSearch, report.ImpactInfo, NeedsNothing,
-		"The page's noindex field is true, or holds a value its noindexWhen lists", ""},
-	{report.RuleQualityImageAltMissing, AreaAccessibility, report.ImpactHigh, NeedsNothing,
-		"An image that is not decorative with empty alt text", "WCAG 2.2 success criterion 1.1.1 (level A); Lighthouse image-alt"},
-	{report.RuleQualityImageAltPoor, AreaAccessibility, report.ImpactLow, NeedsNothing,
-		"Alt text that is the file name or a generic word (image, photo, obrázek, Bild…)", "Google Search Central, image SEO"},
-	{report.RuleQualityHeadingSkip, AreaAccessibility, report.ImpactLow, NeedsNothing,
-		"A heading more than one level below the heading before it, in one text", "axe heading-order (a best practice, not a WCAG requirement)"},
-	{report.RuleQualityLinkTextEmpty, AreaAccessibility, report.ImpactMedium, NeedsNothing,
-		"A link with no text and no alt text inside it", "WCAG 2.2 success criterion 2.4.4 (level A)"},
-	{report.RuleQualityLinkTextGeneric, AreaAccessibility, report.ImpactLow, NeedsNothing,
-		"Link text that is only a generic phrase (click here, read more, zde, více, hier…)", "WCAG 2.2 success criterion 2.4.4 (level A); Lighthouse link-text"},
-	{report.RuleQualityTranslationMissing, AreaLanguages, report.ImpactMedium, NeedsNothing,
-		"A page with no version in a language its collection expects (translations.locales, else every site language); a version that is a draft is listed as not published yet", ""},
-	{report.RuleQualityTranslationOutdated, AreaLanguages, report.ImpactMedium, NeedsHistory,
-		"A language version whose source (the version in the site's default language) changed a translatable text since the version was last current with it: since the version itself last changed, or since it was marked up to date. Links, images, numbers, choices and other values that are not translated never count", ""},
-	{report.RuleQualityTranslationIncomplete, AreaLanguages, report.ImpactLow, NeedsNothing,
-		"A page that holds every language in one file (localized groups) leaves a language's texts empty, or the same as the language they fall back to", ""},
-	{report.RuleQualityImageHeavy, AreaMedia, report.ImpactMedium, NeedsMedia,
-		"A raster image content uses over 200 KB (low impact) or over 1 MB (medium); quality.limits.imageKB moves both. Images in a folder the build optimizes (optimizedAtBuild) are skipped", "Lighthouse uses-optimized-images; crawlers flag 100 KB, which Sitebulb calls relatively arbitrary, so 200 KB flags only clear cases"},
-	{report.RuleQualityMediaUnused, AreaMedia, report.ImpactInfo, NeedsMedia,
-		"A file in a read-write repository storage that no content and no schema refers to, and that its storage's usedByCode does not name", ""},
+	{report.RuleQualityTitleMissing, AreaSearch, report.ImpactHigh, NeedsNothing},
+	{report.RuleQualityTitleLength, AreaSearch, report.ImpactLow, NeedsNothing},
+	{report.RuleQualityTitleDuplicate, AreaSearch, report.ImpactMedium, NeedsNothing},
+	{report.RuleQualityDescriptionMissing, AreaSearch, report.ImpactMedium, NeedsNothing},
+	{report.RuleQualityDescriptionLength, AreaSearch, report.ImpactLow, NeedsNothing},
+	{report.RuleQualityDescriptionDuplicate, AreaSearch, report.ImpactMedium, NeedsNothing},
+	{report.RuleQualityShareImageMissing, AreaSearch, report.ImpactLow, NeedsNothing},
+	{report.RuleQualityNoindex, AreaSearch, report.ImpactInfo, NeedsNothing},
+	{report.RuleQualityImageAltMissing, AreaAccessibility, report.ImpactHigh, NeedsNothing},
+	{report.RuleQualityImageAltPoor, AreaAccessibility, report.ImpactLow, NeedsNothing},
+	{report.RuleQualityHeadingSkip, AreaAccessibility, report.ImpactLow, NeedsNothing},
+	{report.RuleQualityLinkTextEmpty, AreaAccessibility, report.ImpactMedium, NeedsNothing},
+	{report.RuleQualityLinkTextGeneric, AreaAccessibility, report.ImpactLow, NeedsNothing},
+	{report.RuleQualityTranslationMissing, AreaLanguages, report.ImpactMedium, NeedsNothing},
+	{report.RuleQualityTranslationOutdated, AreaLanguages, report.ImpactMedium, NeedsHistory},
+	{report.RuleQualityTranslationIncomplete, AreaLanguages, report.ImpactLow, NeedsNothing},
+	{report.RuleQualityImageHeavy, AreaMedia, report.ImpactMedium, NeedsMedia},
+	{report.RuleQualityMediaUnused, AreaMedia, report.ImpactInfo, NeedsMedia},
 }
 
 // Specs lists every quality rule, in the order of report.QualityRules.

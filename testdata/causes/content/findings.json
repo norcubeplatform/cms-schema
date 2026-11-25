@@ -14,6 +14,10 @@
           "file": "src/content/i18n/cs/a.md",
           "severity": "warning",
           "rule": "quality.translation_missing",
+          "cause": "missing",
+          "params": {
+            "locale": "en"
+          },
           "message": "The page has no version in \"en\".",
           "hint": "Create the version in that language, or, if the collection is not meant to have one, list its languages in `translations.locales`.",
           "impact": "medium",
@@ -23,6 +27,11 @@
           "file": "src/content/i18n/cs/b.md",
           "severity": "error",
           "rule": "links.translation_collision",
+          "params": {
+            "key": "home",
+            "locale": "cs",
+            "other": "src/content/i18n/cs/a.md"
+          },
           "message": "has the translation key \"home\" in \"cs\", the same as src/content/i18n/cs/a.md",
           "hint": "A page has one version per language. Give one of the two files its own key, or move it to the language it is written in."
         },
@@ -44,6 +53,12 @@
           "file": "src/content/pages/dup.md",
           "severity": "warning",
           "rule": "content.extra_keys",
+          "cause": "not_in_schema",
+          "params": {
+            "names": [
+              "slug"
+            ]
+          },
           "message": "keys slug are not in the schema",
           "hint": "They show in the editor's out-of-schema panel. Add them to the schema or remove them."
         },
@@ -52,6 +67,10 @@
           "path": "code",
           "severity": "error",
           "rule": "content.custom",
+          "params": {
+            "field": "Code",
+            "knob": "customValidators[1]"
+          },
           "message": "Code fails the configured rule.",
           "hint": "customValidators[1]"
         },
@@ -60,6 +79,12 @@
           "path": "title",
           "severity": "notice",
           "rule": "quality.title_length",
+          "cause": "too_short",
+          "params": {
+            "min": 30,
+            "max": 60,
+            "current": 3
+          },
           "message": "The title has 3 characters, fewer than the recommended 30 to 60.",
           "hint": "A longer title says more about the page in search results.",
           "impact": "low",
@@ -76,6 +101,10 @@
           "path": "code",
           "severity": "error",
           "rule": "content.custom",
+          "params": {
+            "field": "Code",
+            "knob": "customValidators[1]"
+          },
           "message": "Code fails the configured rule.",
           "hint": "customValidators[1]"
         },
@@ -84,6 +113,9 @@
           "path": "title",
           "severity": "error",
           "rule": "content.required",
+          "params": {
+            "field": "Title"
+          },
           "message": "Title is required.",
           "hint": "Add a value to clear this error."
         },
@@ -101,6 +133,10 @@
           "path": "code",
           "severity": "error",
           "rule": "content.custom",
+          "params": {
+            "field": "Code",
+            "knob": "customValidators[1]"
+          },
           "message": "Code fails the configured rule.",
           "hint": "customValidators[1]"
         },
@@ -109,6 +145,11 @@
           "path": "title",
           "severity": "error",
           "rule": "content.min_length",
+          "params": {
+            "field": "Title",
+            "min": 3,
+            "current": 2
+          },
           "message": "Title must be at least 3 characters (currently 2)."
         },
         {
@@ -116,6 +157,12 @@
           "path": "title",
           "severity": "notice",
           "rule": "quality.title_length",
+          "cause": "too_short",
+          "params": {
+            "min": 30,
+            "max": 60,
+            "current": 2
+          },
           "message": "The title has 2 characters, fewer than the recommended 30 to 60.",
           "hint": "A longer title says more about the page in search results.",
           "impact": "low",
@@ -131,6 +178,12 @@
           "file": "src/content/pages/one.md",
           "severity": "warning",
           "rule": "content.extra_keys",
+          "cause": "not_in_schema",
+          "params": {
+            "names": [
+              "draft"
+            ]
+          },
           "message": "keys draft are not in the schema",
           "hint": "They show in the editor's out-of-schema panel. Add them to the schema or remove them."
         },
@@ -139,6 +192,12 @@
           "path": "blocks[1]",
           "severity": "error",
           "rule": "content.unique",
+          "params": {
+            "field": "Blocks",
+            "key": "id",
+            "index": 2,
+            "otherIndex": 1
+          },
           "message": "Blocks: item 2 has the same `id` as item 1.",
           "hint": "Each item under Blocks must have a unique `id`."
         },
@@ -147,6 +206,15 @@
           "path": "blocks[1]",
           "severity": "warning",
           "rule": "content.item_type_missing",
+          "params": {
+            "field": "Blocks",
+            "key": "_type",
+            "names": [
+              "hero",
+              "cta"
+            ],
+            "index": 2
+          },
           "message": "Item 2 of Blocks has no `_type:` discriminator.",
           "hint": "The editor falls back to the first shape (hero). Set `_type:` to one of: hero, cta."
         },
@@ -155,6 +223,16 @@
           "path": "blocks[2]",
           "severity": "error",
           "rule": "content.item_type_unknown",
+          "params": {
+            "field": "Blocks",
+            "key": "_type",
+            "value": "banner",
+            "names": [
+              "hero",
+              "cta"
+            ],
+            "index": 3
+          },
           "message": "Item 3 of Blocks has `_type: banner`, which isn't one of the allowed shapes.",
           "hint": "Allowed shapes: hero, cta. Fix the discriminator or add the shape to the schema."
         },
@@ -163,6 +241,10 @@
           "path": "code",
           "severity": "error",
           "rule": "content.custom",
+          "params": {
+            "field": "Code",
+            "knob": "customValidators[1]"
+          },
           "message": "Code fails the configured rule.",
           "hint": "customValidators[1]"
         },
@@ -171,6 +253,11 @@
           "path": "code",
           "severity": "error",
           "rule": "content.regex",
+          "cause": "custom_validator",
+          "params": {
+            "field": "Code",
+            "knob": "customValidators[0]"
+          },
           "message": "Code doesn't match the expected pattern.",
           "hint": "customValidators[0]"
         },
@@ -179,6 +266,11 @@
           "path": "count",
           "severity": "error",
           "rule": "content.max",
+          "params": {
+            "field": "Count",
+            "max": 5,
+            "current": 9
+          },
           "message": "Count must be at most 5 (currently 9)."
         },
         {
@@ -186,6 +278,12 @@
           "path": "few",
           "severity": "error",
           "rule": "content.min_items",
+          "cause": "items",
+          "params": {
+            "field": "Few",
+            "min": 2,
+            "current": 1
+          },
           "message": "Few needs at least 2 items.",
           "hint": "Add 1 more."
         },
@@ -194,6 +292,10 @@
           "path": "friend",
           "severity": "error",
           "rule": "links.unresolved_reference",
+          "params": {
+            "value": "ghost",
+            "knob": "field:handle"
+          },
           "message": "references \"ghost\", which names no entry by field:handle",
           "hint": "Pick the entry again, or fix the value."
         },
@@ -202,6 +304,10 @@
           "path": "hero",
           "severity": "error",
           "rule": "links.missing_asset",
+          "params": {
+            "path": "/images/missing.png",
+            "other": "public/images/missing.png"
+          },
           "message": "points at /images/missing.png, which the repository does not have (looked for public/images/missing.png)",
           "hint": "Pick the file again in the media library, or add the file."
         },
@@ -210,6 +316,7 @@
           "path": "hero",
           "severity": "notice",
           "rule": "quality.image_alt_missing",
+          "cause": "no_alt_field",
           "message": "The image has no alt text, and the schema gives it no field for one.",
           "hint": "Ask a developer to name the field that holds its alt text (`alt:` on the image field) or to mark the image `decorative: true`.",
           "impact": "low",
@@ -220,6 +327,11 @@
           "path": "kind",
           "severity": "error",
           "rule": "content.shape",
+          "cause": "option_gone",
+          "params": {
+            "field": "Kind",
+            "value": "z"
+          },
           "message": "Kind has a value that's no longer one of the allowed options.",
           "hint": "Current value: z. Pick a valid option to clear this."
         },
@@ -228,6 +340,12 @@
           "path": "many",
           "severity": "error",
           "rule": "content.max_items",
+          "cause": "items",
+          "params": {
+            "field": "Many",
+            "max": 1,
+            "current": 2
+          },
           "message": "Many accepts at most 1 item.",
           "hint": "Remove 1."
         },
@@ -236,6 +354,10 @@
           "path": "member",
           "severity": "error",
           "rule": "links.unresolved_reference",
+          "params": {
+            "key": "team",
+            "value": "src/content/team/ghost.md"
+          },
           "message": "references \"src/content/team/ghost.md\", which names no entry in collection team",
           "hint": "Pick the entry again, or fix the value."
         },
@@ -244,6 +366,9 @@
           "path": "next",
           "severity": "warning",
           "rule": "links.unresolved_link",
+          "params": {
+            "path": "/nowhere/"
+          },
           "message": "links to /nowhere/, which no content file produces",
           "hint": "If the site serves this route from code, add it to knownPaths in config.yml; otherwise fix the link."
         },
@@ -252,6 +377,9 @@
           "path": "partner",
           "severity": "error",
           "rule": "links.unresolved_reference",
+          "params": {
+            "value": "src/content/pages/ghost.md"
+          },
           "message": "references \"src/content/pages/ghost.md\", which names no entry",
           "hint": "Pick the entry again, or fix the value."
         },
@@ -260,6 +388,11 @@
           "path": "picks",
           "severity": "error",
           "rule": "content.max_items",
+          "cause": "selected",
+          "params": {
+            "field": "Picks",
+            "max": 1
+          },
           "message": "Picks accepts at most 1 selected."
         },
         {
@@ -267,6 +400,11 @@
           "path": "size",
           "severity": "error",
           "rule": "content.min",
+          "params": {
+            "field": "Size",
+            "min": 1,
+            "current": 0
+          },
           "message": "Size must be at least 1 (currently 0)."
         },
         {
@@ -274,6 +412,10 @@
           "path": "subtitle",
           "severity": "error",
           "rule": "content.required",
+          "params": {
+            "field": "Subtitle",
+            "customMessage": "Write a subtitle."
+          },
           "message": "Write a subtitle.",
           "hint": "Add a value to clear this error."
         },
@@ -282,6 +424,11 @@
           "path": "tags",
           "severity": "error",
           "rule": "content.min_items",
+          "cause": "selected",
+          "params": {
+            "field": "Tags",
+            "min": 2
+          },
           "message": "Tags needs at least 2 selected."
         },
         {
@@ -289,6 +436,14 @@
           "path": "tags",
           "severity": "error",
           "rule": "content.shape",
+          "cause": "options_gone",
+          "params": {
+            "field": "Tags",
+            "names": [
+              "zz"
+            ],
+            "count": 1
+          },
           "message": "Tags has 1 value(s) no longer in the allowed options.",
           "hint": "Stray: zz. Re-pick from the available options."
         },
@@ -297,6 +452,10 @@
           "path": "title",
           "severity": "error",
           "rule": "content.regex",
+          "cause": "regex",
+          "params": {
+            "field": "Title"
+          },
           "message": "Title doesn't match the expected format."
         },
         {
@@ -304,6 +463,12 @@
           "path": "title",
           "severity": "notice",
           "rule": "quality.title_length",
+          "cause": "too_short",
+          "params": {
+            "min": 30,
+            "max": 60,
+            "current": 3
+          },
           "message": "The title has 3 characters, fewer than the recommended 30 to 60.",
           "hint": "A longer title says more about the page in search results.",
           "impact": "low",
@@ -319,12 +484,19 @@
           "file": "src/content/pages/three.md",
           "severity": "error",
           "rule": "content.parse_error",
+          "params": {
+            "detail": "line 1: did not find expected ',' or ']'"
+          },
           "message": "not valid YAML: line 1: did not find expected ',' or ']'"
         },
         {
           "file": "src/content/pages/two.md",
           "severity": "error",
           "rule": "links.url_collision",
+          "params": {
+            "path": "/two/",
+            "other": "src/content/pages/dup.md"
+          },
           "message": "resolves to /two/, the same URL as src/content/pages/dup.md",
           "hint": "Two files cannot render at one address. Change a slug, move a file, or fix the collection's previewPath."
         },
@@ -333,6 +505,10 @@
           "path": "code",
           "severity": "error",
           "rule": "content.custom",
+          "params": {
+            "field": "Code",
+            "knob": "customValidators[1]"
+          },
           "message": "Code fails the configured rule.",
           "hint": "customValidators[1]"
         },
@@ -341,6 +517,12 @@
           "path": "count",
           "severity": "error",
           "rule": "content.shape",
+          "cause": "wrong_type",
+          "params": {
+            "field": "Count",
+            "expected": "number",
+            "actual": "string"
+          },
           "message": "Count should be a number but is a string.",
           "hint": "The schema's type was likely changed after this file was saved. Convert the value or clear it."
         },
@@ -349,6 +531,11 @@
           "path": "title",
           "severity": "error",
           "rule": "content.max_length",
+          "params": {
+            "field": "Title",
+            "max": 8,
+            "current": 20
+          },
           "message": "Title must be at most 8 characters (currently 20)."
         },
         {
@@ -356,6 +543,12 @@
           "path": "title",
           "severity": "notice",
           "rule": "quality.title_length",
+          "cause": "too_short",
+          "params": {
+            "min": 30,
+            "max": 60,
+            "current": 20
+          },
           "message": "The title has 20 characters, fewer than the recommended 30 to 60.",
           "hint": "A longer title says more about the page in search results.",
           "impact": "low",
@@ -371,6 +564,12 @@
           "file": "src/content/strict/a.md",
           "severity": "error",
           "rule": "content.extra_keys",
+          "cause": "stripped_on_save",
+          "params": {
+            "names": [
+              "extra"
+            ]
+          },
           "message": "keys extra are not in the schema and the collection's extraKeysPolicy is strip: the next save deletes them",
           "hint": "Add the fields to the schema or move the data before an editor saves the file."
         }

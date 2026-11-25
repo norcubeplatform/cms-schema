@@ -160,3 +160,65 @@ func TestCauseSitesEnglish(t *testing.T) {
 		})
 	}
 }
+
+// notInCauseSites are the causes no site can produce: a bug in this
+// module (a recovered panic) and a schema file the file system fails to
+// read. TestInternalErrorsKeepTheCatalog and the load tests make them.
+var notInCauseSites = map[report.Rule]report.Cause{
+	report.RuleSchemaInternalError:  "",
+	report.RuleContentInternalError: "",
+	report.RuleLinksInternalError:   "",
+	report.RuleSchemaParseError:     report.CauseUnreadable,
+}
+
+// TestCauseSitesKeepTheCatalog holds every finding of the causes sites
+// to its catalog entry (a listed rule and cause, exactly the params it
+// declares, Message and Hint made by report.English) and checks that
+// the sites reach every rule and cause of the catalog, and every reason
+// a quality rule is skipped.
+func TestCauseSitesKeepTheCatalog(t *testing.T) {
+	type code struct {
+		rule  report.Rule
+		cause report.Cause
+	}
+	reached := map[code]bool{}
+	for r, c := range notInCauseSites {
+		reached[code{r, c}] = true
+	}
+	skips := map[quality.SkipReason]bool{quality.SkipLanguagesCapped: true}
+	for _, dir := range causeSites(t) {
+		name := filepath.Base(dir)
+		fsys := os.DirFS(dir)
+		for run, opts := range causeSiteRuns(name, fsys) {
+			res, err := validate.Site(fsys, opts)
+			if err != nil {
+				t.Fatalf("%s %s: %v", name, run, err)
+			}
+			for _, f := range res.Findings {
+				if err := report.CheckFinding(f); err != nil {
+					t.Errorf("%s %s: %s#%s: %v", name, run, f.File, f.Path, err)
+				}
+				reached[code{f.Rule, f.Cause}] = true
+			}
+			if res.Quality == nil {
+				continue
+			}
+			for _, s := range res.Quality.Skipped {
+				skips[s.Reason] = true
+				if s.Message != s.English() {
+					t.Errorf("skipped %s: message %q, English %q", s.Reason, s.Message, s.English())
+				}
+			}
+		}
+	}
+	for _, s := range report.Catalog() {
+		if !reached[code{s.Rule, s.Cause}] {
+			t.Errorf("no causes site reaches %s %q", s.Rule, s.Cause)
+		}
+	}
+	for _, s := range quality.SkipReasons() {
+		if !skips[s.Reason] {
+			t.Errorf("no causes site skips a rule for %s", s.Reason)
+		}
+	}
+}

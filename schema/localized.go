@@ -2,10 +2,11 @@ package schema
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/norcubeplatform/cms-schema/report"
 )
 
 // Field knobs the role and language features read. Every field may carry
@@ -208,6 +209,17 @@ const (
 // ErrTemplate marks a titleTemplate that cannot be read.
 var ErrTemplate = errors.New("invalid titleTemplate")
 
+// TemplateError is a titleTemplate that cannot be read: why, as a cause
+// of report.TemplateCauses with its params. It matches ErrTemplate.
+type TemplateError struct{ report.Problem }
+
+func (e *TemplateError) Error() string { return ErrTemplate.Error() + ": " + e.Problem.String() }
+func (e *TemplateError) Unwrap() error { return ErrTemplate }
+
+func templateError(c report.Cause, p *report.Params) error {
+	return &TemplateError{report.Problem{Cause: c, Params: p}}
+}
+
 var (
 	variableToken = regexp.MustCompile(`^\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}`)
 	fieldPathRe   = regexp.MustCompile(`^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$`)
@@ -219,10 +231,10 @@ var (
 // literal text. The template must use `{value}`.
 func ParseTemplate(s string) ([]TemplatePart, error) {
 	if strings.TrimSpace(s) == "" {
-		return nil, fmt.Errorf("%w: it is empty", ErrTemplate)
+		return nil, templateError(report.CauseTemplateEmpty, nil)
 	}
 	if len(s) > MaxTemplateBytes {
-		return nil, fmt.Errorf("%w: it is longer than %d bytes", ErrTemplate, MaxTemplateBytes)
+		return nil, templateError(report.CauseTemplateTooLong, &report.Params{Max: report.Num(MaxTemplateBytes)})
 	}
 	var out []TemplatePart
 	lit := strings.Builder{}
@@ -236,7 +248,7 @@ func ParseTemplate(s string) ([]TemplatePart, error) {
 	for i := 0; i < len(s); {
 		switch s[i] {
 		case '}':
-			return nil, fmt.Errorf("%w: a lone } at byte %d", ErrTemplate, i)
+			return nil, templateError(report.CauseTemplateLoneClose, &report.Params{Offset: report.Int(int64(i))})
 		case '{':
 			if m := variableToken.FindStringSubmatch(s[i:]); m != nil {
 				flush()
@@ -246,7 +258,7 @@ func ParseTemplate(s string) ([]TemplatePart, error) {
 			}
 			end := strings.IndexByte(s[i:], '}')
 			if end < 0 {
-				return nil, fmt.Errorf("%w: a { at byte %d is never closed", ErrTemplate, i)
+				return nil, templateError(report.CauseTemplateUnclosed, &report.Params{Offset: report.Int(int64(i))})
 			}
 			tok := s[i : i+end+1]
 			inner := tok[1 : len(tok)-1]
@@ -260,12 +272,12 @@ func ParseTemplate(s string) ([]TemplatePart, error) {
 				label := strings.HasSuffix(path, TemplateLabelSuffix)
 				path = strings.TrimSuffix(path, TemplateLabelSuffix)
 				if len(path) > templateFieldPathMaxBytes || !fieldPathRe.MatchString(path) {
-					return nil, fmt.Errorf("%w: %s does not name a field (keys joined by dots)", ErrTemplate, tok)
+					return nil, templateError(report.CauseTemplateFieldPath, &report.Params{Value: tok})
 				}
 				flush()
 				out = append(out, TemplatePart{Kind: TemplateField, Path: path, Label: label})
 			default:
-				return nil, fmt.Errorf("%w: %s is not a placeholder; use {value}, {field:<key>}, {field:<key>|label} or {{variable}}", ErrTemplate, tok)
+				return nil, templateError(report.CauseTemplateUnknownPlaceholder, &report.Params{Value: tok})
 			}
 			i += len(tok)
 		default:
@@ -273,12 +285,12 @@ func ParseTemplate(s string) ([]TemplatePart, error) {
 			i++
 		}
 		if len(out) > maxTemplateParts {
-			return nil, fmt.Errorf("%w: more than %d parts", ErrTemplate, maxTemplateParts)
+			return nil, templateError(report.CauseTemplateTooManyParts, &report.Params{Max: report.Num(maxTemplateParts)})
 		}
 	}
 	flush()
 	if !hasValue {
-		return nil, fmt.Errorf("%w: it does not use {value}, the field's own text", ErrTemplate)
+		return nil, templateError(report.CauseTemplateNoValue, nil)
 	}
 	return out, nil
 }

@@ -190,11 +190,11 @@ func checkFile(cfg *schema.Config, p string, raw []byte, opts Options, want map[
 		return false, nil, nil
 	}
 	if perr != nil {
-		return true, nil, []report.Finding{{File: p, Severity: report.SeverityError, Rule: report.RuleContentParseError, Message: "not valid YAML: " + strings.TrimPrefix(perr.Error(), "yaml: ")}}
+		return true, nil, []report.Finding{report.New(p, "", report.RuleContentParseError, "", &report.Params{Detail: strings.TrimPrefix(perr.Error(), "yaml: ")})}
 	}
 	if !hasColl {
 		if want[ScopeContent] && cfg.PagesDir != "" && resolve.IsUnder(p, cfg.PagesDir) {
-			out = append(out, report.Finding{File: p, Severity: report.SeverityWarning, Rule: report.RuleContentNoCollection, Message: "the file is under the pages directory but no collection claims it", Hint: "Add a collection whose `path` covers it, or stamp the file with `_collection`."})
+			out = append(out, report.New(p, "", report.RuleContentNoCollection, "", nil))
 		}
 		return true, &Entry{Path: p, Title: resolve.FileID(p), doc: doc}, out
 	}

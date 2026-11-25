@@ -8,6 +8,10 @@
           "path": "quality",
           "severity": "warning",
           "rule": "schema.invalid_quality",
+          "cause": "image_kb_not_number",
+          "params": {
+            "value": "big"
+          },
           "message": "quality.limits.imageKB is big, not a whole number of kilobytes",
           "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
         }

@@ -96,12 +96,6 @@ func (p Page) localeOf() string {
 // page.
 func (p Page) once() bool { return p.view == nil || p.view.primary }
 
-// Skipped is a rule that did not run, and why.
-type Skipped struct {
-	Rule   report.Rule `json:"rule"`
-	Reason string      `json:"reason"`
-}
-
 // Summary says what a run checked, for a score: per rule, how many
 // instances it looked at (each indexable page for a title rule, each
 // image for alt text, each expected language version). A rule turned
@@ -218,12 +212,12 @@ func (r *run) emit(f report.Finding, impact report.Impact) {
 	f.Impact = impact
 	f.Severity = report.SeverityOf(impact)
 	f.Value = cutRunes(f.Value, maxValueRunes)
-	r.out = append(r.out, f)
+	r.out = append(r.out, f.Worded())
 }
 
-func (r *run) skip(rule report.Rule, reason string) {
+func (r *run) skip(rule report.Rule, reason SkipReason, p *report.Params) {
 	if !r.off[rule] {
-		r.skipped = append(r.skipped, Skipped{Rule: rule, Reason: reason})
+		r.skipped = append(r.skipped, newSkipped(rule, reason, p))
 	}
 }
 

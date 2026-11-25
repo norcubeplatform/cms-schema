@@ -53,3 +53,17 @@ func TestRecoverAsWithoutPanic(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+// An internal error keeps its catalog entry: the bounded cause is its
+// detail, worded by report.English.
+func TestInternalErrorsKeepTheCatalog(t *testing.T) {
+	for _, rule := range []report.Rule{report.RuleSchemaInternalError, report.RuleContentInternalError, report.RuleLinksInternalError} {
+		f := internalError("a.md", rule, strings.Repeat("x", 2*maxPanicText))
+		if err := report.CheckFinding(f); err != nil {
+			t.Error(err)
+		}
+		if want := "the check stopped on an internal error: " + strings.Repeat("x", maxPanicText) + "…"; f.Message != want {
+			t.Errorf("%s: %q", rule, f.Message)
+		}
+	}
+}
