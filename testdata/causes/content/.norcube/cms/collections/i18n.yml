@@ -1,0 +1,10 @@
+label: Translated
+path: src/content/i18n
+localeFrom: path
+previewPath: '/{locale}/{slug}/'
+translations: { by: 'field:key' }
+fields:
+  - key: key
+    type: text
+    label: Key
+    required: true

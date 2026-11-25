@@ -1,0 +1,15 @@
+label: Per file
+path: src/content/perfile
+localeFrom: path
+fields:
+  - key: name
+    type: group
+    label: Name
+    localized: true
+    fields:
+      - key: cs
+        type: text
+        label: cs
+      - key: en
+        type: text
+        label: en

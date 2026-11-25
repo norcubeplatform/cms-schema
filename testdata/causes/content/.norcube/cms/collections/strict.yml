@@ -1,0 +1,7 @@
+label: Strict
+path: src/content/strict
+extraKeysPolicy: strip
+fields:
+  - key: title
+    type: text
+    label: Title

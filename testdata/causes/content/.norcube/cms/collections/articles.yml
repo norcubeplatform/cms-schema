@@ -1,0 +1,105 @@
+label: Articles
+path: src/content/pages
+previewPath: '/{slug}/'
+localeFrom: none
+fields:
+  - key: title
+    type: text
+    label: Title
+    required: true
+    minLength: 3
+    maxLength: 8
+    regex: '^[a-z ]+$'
+  - key: subtitle
+    type: text
+    label: Subtitle
+    required: true
+    requiredMessage: Write a subtitle.
+  - key: count
+    type: number
+    label: Count
+    min: 1
+    max: 5
+  - key: size
+    type: number
+    label: Size
+    min: 1
+    max: 5
+  - key: kind
+    type: select
+    label: Kind
+    options: [a, b]
+  - key: tags
+    type: multichoice
+    label: Tags
+    options: [a, b, c]
+    min: 2
+  - key: picks
+    type: multichoice
+    label: Picks
+    options: [a, b, c]
+    max: 1
+  - key: flag
+    type: boolean
+    label: Flag
+  - key: code
+    type: text
+    label: Code
+    customValidators:
+      - type: regex
+        pattern: '^[0-9]+$'
+      - type: expression
+        condition: { field: flag, op: truthy }
+  - key: few
+    type: array
+    label: Few
+    minItems: 2
+    items:
+      key: item
+      type: text
+      label: Item
+  - key: many
+    type: array
+    label: Many
+    maxItems: 1
+    items:
+      key: item
+      type: text
+      label: Item
+  - key: blocks
+    type: array
+    label: Blocks
+    uniqueOn: id
+    items:
+      - key: hero
+        type: group
+        label: Hero
+        fields:
+          - key: id
+            type: text
+            label: Id
+      - key: cta
+        type: group
+        label: Call to action
+        fields:
+          - key: id
+            type: text
+            label: Id
+  - key: hero
+    type: image
+    label: Hero
+  - key: next
+    type: link
+    label: Next
+  - key: partner
+    type: reference
+    label: Partner
+  - key: member
+    type: reference
+    label: Member
+    collection: team
+  - key: friend
+    type: reference
+    label: Friend
+    collection: team
+    by: field:handle

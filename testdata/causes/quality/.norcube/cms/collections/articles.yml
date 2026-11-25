@@ -1,0 +1,10 @@
+label: Articles
+path: src/content/articles
+previewPath: '/articles/{slug}/'
+localeFrom: none
+fields:
+  - {key: title, type: text, label: Title, role: seoTitle, titleTemplate: '{value} – the long name of this whole website'}
+  - {key: body, type: richtext, label: Body, role: seoDescription, excerpt: firstParagraph}
+  - {key: cover, type: image, label: Cover, alt: {from: [painter, technique]}}
+  - {key: painter, type: text, label: Painter}
+  - {key: technique, type: text, label: Technique}

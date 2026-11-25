@@ -1,0 +1,2 @@
+pagesDir: src/content/pages
+inputsFromGlob: 'shared/**/*.yml'

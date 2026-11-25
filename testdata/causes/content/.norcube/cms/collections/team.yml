@@ -1,0 +1,6 @@
+label: Team
+path: src/content/team
+fields:
+  - key: handle
+    type: text
+    label: Handle

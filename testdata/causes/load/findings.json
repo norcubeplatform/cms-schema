@@ -1,0 +1,62 @@
+{
+  "runs": [
+    {
+      "name": "full",
+      "findings": [
+        {
+          "file": ".norcube/cms/blocks/listy.yml",
+          "severity": "error",
+          "rule": "schema.not_mapping",
+          "message": "the document must be a mapping (key: value pairs) at the top level",
+          "hint": "A schema file is a mapping of label, fields and preview; a list or a bare value cannot be loaded."
+        },
+        {
+          "file": ".norcube/cms/blocks/loop-a.yml",
+          "severity": "error",
+          "rule": "schema.ref_cycle",
+          "message": "$ref \"loop-b\" nests deeper than 10 levels; the blocks reference each other in a cycle"
+        },
+        {
+          "file": ".norcube/cms/blocks/loop-b.yml",
+          "severity": "error",
+          "rule": "schema.ref_cycle",
+          "message": "$ref \"loop-a\" nests deeper than 10 levels; the blocks reference each other in a cycle"
+        },
+        {
+          "file": ".norcube/cms/collections/broken.yml",
+          "severity": "error",
+          "rule": "schema.parse_error",
+          "message": "not valid YAML: line 1: did not find expected ',' or ']'"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "severity": "error",
+          "rule": "schema.ref_cycle",
+          "message": "$ref \"loop-a\" nests deeper than 10 levels; the blocks reference each other in a cycle"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "severity": "error",
+          "rule": "schema.unresolved_ref",
+          "message": "$ref \"nowhere\" names no block and no input",
+          "hint": "Add .norcube/cms/blocks/nowhere.yml or .norcube/cms/inputs/nowhere.yml, or fix the name."
+        },
+        {
+          "file": ".norcube/cms/collections/versioned.yml",
+          "path": "schemaVersion",
+          "severity": "error",
+          "rule": "schema.unsupported_version",
+          "message": "schemaVersion \"2\" is not supported (supported: 1)"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "inputsFromGlob",
+          "severity": "warning",
+          "rule": "schema.inputs_glob_unsupported",
+          "message": "pattern \"shared/**/*.yml\" is not supported and is ignored",
+          "hint": "Only `\u003cdir\u003e/*.yml` and `\u003cdir\u003e/*.yaml` patterns are read."
+        }
+      ]
+    }
+  ]
+}

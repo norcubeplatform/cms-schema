@@ -1,0 +1,6 @@
+label: Dup
+path: src/content/dup
+fields:
+  - key: title
+    type: text
+    label: Title

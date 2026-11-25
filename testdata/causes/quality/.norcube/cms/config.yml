@@ -1,0 +1,16 @@
+pagesDir: src/content/pages
+preview:
+  defaultLocale: cs
+  locales: [cs, en]
+  prefixDefaultLocale: true
+storages:
+  images:
+    type: repo
+    path: public/images
+    publicUrl: /images
+  uploads:
+    type: repo
+    path: uploads
+    publicUrl: /uploads
+    optimizedAtBuild: false
+defaultStorage: images

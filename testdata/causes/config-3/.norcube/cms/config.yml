@@ -1,0 +1,4 @@
+pagesDir: src/content/pages
+quality:
+  limits:
+    imageKB: big

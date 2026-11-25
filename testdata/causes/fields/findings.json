@@ -1,0 +1,266 @@
+{
+  "runs": [
+    {
+      "name": "full",
+      "findings": [
+        {
+          "file": ".norcube/cms/blocks/nolabel.yml",
+          "path": "label",
+          "severity": "error",
+          "rule": "schema.missing_label",
+          "message": "the block has no `label`"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "extraKeysPolicy",
+          "severity": "warning",
+          "rule": "schema.unknown_knob",
+          "message": "extraKeysPolicy \"keep\" is not show, hide or strip; show is assumed"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.body",
+          "severity": "warning",
+          "rule": "schema.unknown_knob",
+          "message": "field \"Body\" has key \"toolbar\", which a richtext field does not read",
+          "hint": "richtext takes `options:` (a map of flags such as bold: true, headings: [2, 3]), not a `toolbar:` list."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.caption",
+          "severity": "warning",
+          "rule": "schema.unknown_knob",
+          "message": "field \"Caption\" has key \"decorative\", which a text field does not read",
+          "hint": "`decorative` belongs on an image field. To mark a text field as an image's alt text, give it `role: alt` or name it from the image with `alt: \u003ckey\u003e`."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.cards.items[__entry_0]",
+          "severity": "error",
+          "rule": "schema.anonymous_item_shapes",
+          "message": "a shape of \"Cards\" has no key, so no item can name it in its \"_type\"",
+          "hint": "Give each entry under `items:` a key (hero, cta, …); the editor writes that key as the item's discriminator."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.code",
+          "severity": "warning",
+          "rule": "schema.invalid_regex",
+          "message": "\"Code\" has a customValidators[0].pattern that does not compile: missing closing ]: `[unclosed`"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.code",
+          "severity": "warning",
+          "rule": "schema.unknown_custom_validator",
+          "message": "\"Code\" has a custom validator of type \"remote\", which nothing implements; it is skipped",
+          "hint": "Built-in types: regex, expression."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.code",
+          "severity": "warning",
+          "rule": "schema.unresolved_condition_path",
+          "message": "\"Code\" has a customValidators on \"ghost\", which names no field here",
+          "hint": "Common causes: a typo, a renamed sibling, or a $parent/$root path that walks too far. The field stays hidden while the path does not resolve."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.dup",
+          "severity": "error",
+          "rule": "schema.duplicate_key",
+          "message": "key \"dup\" is also used by fields.dup in the same list",
+          "hint": "Keys must be unique inside one fields list; the editor and the content would not know which field a value belongs to."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.few",
+          "severity": "error",
+          "rule": "schema.min_above_max",
+          "message": "\"Few\" has minItems 3 above maxItems 2"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.few.items[__entry_0]",
+          "severity": "error",
+          "rule": "schema.missing_key",
+          "message": "the field has no `key`",
+          "hint": "Every field needs the frontmatter key its value lands at."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.fieldless",
+          "severity": "error",
+          "rule": "schema.unresolved_condition_path",
+          "message": "\"Fieldless\" has a visibleIf without a `field`"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.kind",
+          "severity": "error",
+          "rule": "schema.empty_options",
+          "message": "select field \"Kind\" has no options"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.level",
+          "severity": "error",
+          "rule": "schema.default_not_option",
+          "message": "default 3 of \"Level\" is not one of its options"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.like",
+          "severity": "error",
+          "rule": "schema.unknown_knob",
+          "message": "\"Like\" has a visibleIf with operator \"like\", which does not exist",
+          "hint": "Operators: eq, neq, in, notIn, truthy, falsy, empty, nonEmpty, gt, lt, matches."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.look",
+          "severity": "warning",
+          "rule": "schema.invalid_regex",
+          "message": "\"Look\" has a regex that does not compile: invalid or unsupported Perl syntax: `(?!`",
+          "hint": "The editor runs patterns in JavaScript, which accepts this; this check uses Go's RE2 and cannot evaluate lookarounds or backreferences, so content checks skip this pattern."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.matching",
+          "severity": "warning",
+          "rule": "schema.invalid_regex",
+          "message": "\"Matching\" has a visibleIf pattern that does not compile: missing closing ]: `[bad`"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.mystery",
+          "severity": "error",
+          "rule": "schema.unknown_type",
+          "message": "field \"Mystery\" has type \"wysiwyg\", which the editor does not render",
+          "hint": "Types: text, paragraph, richtext, number, boolean, date, color, range, multichoice, link, image, file, reference, select, group, array."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.noitems",
+          "severity": "error",
+          "rule": "schema.missing_type",
+          "message": "array \"No items\" declares no `items`",
+          "hint": "List one shape for a uniform array or several for a multi-shape array."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.nolabel",
+          "severity": "error",
+          "rule": "schema.missing_label",
+          "message": "field \"nolabel\" has no `label`",
+          "hint": "Labels are required; the editor does not fall back to the key."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.notype",
+          "severity": "error",
+          "rule": "schema.missing_type",
+          "message": "field \"No type\" has no `type`"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.odd",
+          "severity": "warning",
+          "rule": "schema.unknown_knob",
+          "message": "field \"Odd\" has key \"widget\", which a text field does not read"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.photo",
+          "severity": "warning",
+          "rule": "schema.translatable_ignored",
+          "message": "field \"Photo\" has `translatable`, but a value of type image is never translated",
+          "hint": "Only text, paragraph and richtext are translated; on a group or an array the key covers the fields inside. Remove it here."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.photo",
+          "severity": "warning",
+          "rule": "schema.unknown_storage",
+          "message": "\"Photo\" uses storage \"pictures\", which config.yml does not declare",
+          "hint": "Declared storages: images."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.seats",
+          "severity": "error",
+          "rule": "schema.min_above_max",
+          "message": "\"Seats\" has min 10 above max 1"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.short",
+          "severity": "error",
+          "rule": "schema.min_above_max",
+          "message": "\"Short\" has minLength 10 above maxLength 5"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.shown",
+          "severity": "warning",
+          "rule": "schema.unresolved_condition_path",
+          "message": "\"Shown\" has a visibleIf on \"nothere\", which names no field here",
+          "hint": "Common causes: a typo, a renamed sibling, or a $parent/$root path that walks too far. The field stays hidden while the path does not resolve."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.slug",
+          "severity": "warning",
+          "rule": "schema.unresolved_computed_path",
+          "message": "\"Slug\" is computed from \"headline\", which names no field here",
+          "hint": "The value never fills in while the path does not resolve."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.tags",
+          "severity": "error",
+          "rule": "schema.default_not_option",
+          "message": "default \"z\" of \"Tags\" is not one of its options"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.tier",
+          "severity": "error",
+          "rule": "schema.default_not_option",
+          "message": "default \"enterprise\" of \"Tier\" is not one of its options"
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.words",
+          "severity": "error",
+          "rule": "schema.ambiguous_item_shapes",
+          "message": "shapes short, long of \"Words\" all hold string values, so items of these shapes cannot be told apart",
+          "hint": "Keep at most one primitive shape per value type, or wrap the others in groups so they carry a discriminator."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields[0]",
+          "severity": "error",
+          "rule": "schema.missing_key",
+          "message": "the field has no `key`",
+          "hint": "Every field needs the frontmatter key its value lands at."
+        },
+        {
+          "file": "src/content/pages/index.md",
+          "severity": "warning",
+          "rule": "content.extra_keys",
+          "message": "keys title are not in the schema",
+          "hint": "They show in the editor's out-of-schema panel. Add them to the schema or remove them."
+        },
+        {
+          "file": "src/content/pages/index.md",
+          "path": "code",
+          "severity": "error",
+          "rule": "content.custom",
+          "message": "Code fails the configured rule.",
+          "hint": "customValidators[2]"
+        }
+      ]
+    }
+  ]
+}

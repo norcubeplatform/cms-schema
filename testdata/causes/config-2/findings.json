@@ -1,0 +1,41 @@
+{
+  "runs": [
+    {
+      "name": "full",
+      "findings": [
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.title",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "group \"Title\" is localized, but the site declares no languages",
+          "hint": "List the site's languages in preview.locales."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "translations.locales",
+          "severity": "error",
+          "rule": "schema.invalid_translation_locales",
+          "message": "translations.locales lists \"cs\", but the site declares no preview.locales",
+          "hint": "List the languages this collection's pages are expected in, each one of preview.locales, or leave `locales` out to expect all of them."
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "quality",
+          "severity": "warning",
+          "rule": "schema.invalid_quality",
+          "message": "quality.limits is 5, not a mapping",
+          "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
+        },
+        {
+          "file": "src/content/pages/index.md",
+          "path": "title",
+          "severity": "error",
+          "rule": "content.shape",
+          "message": "Title should be a group of fields but is a string.",
+          "hint": "The schema's type was likely changed after this file was saved. Convert the value or clear it."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+label: Pages
+path: src/content/pages
+fields:
+  - key: title
+    type: text
+    label: Title
+  - $ref: nowhere
+  - $ref: loop-a

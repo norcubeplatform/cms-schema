@@ -1,0 +1,63 @@
+pagesDir: src/content/pages
+storages:
+  notype:
+    path: public/a
+  cloud:
+    type: s3
+  nopath:
+    type: repo
+  odd:
+    type: repo
+    path: public/b
+    mode: readonly
+    naming: slugh
+    inline: base64
+    dedup: md5
+  dedupe:
+    type: repo
+    path: public/c
+    naming: slug
+    dedup: hash
+  maybe:
+    type: repo
+    path: public/d
+    optimizedAtBuild: sometimes
+  onefile:
+    type: repo
+    path: public/e
+    usedByCode: logo.svg
+  toomany:
+    type: repo
+    path: public/f
+    usedByCode: [f0.png, f1.png, f2.png, f3.png, f4.png, f5.png, f6.png, f7.png, f8.png, f9.png, f10.png, f11.png, f12.png, f13.png, f14.png, f15.png, f16.png, f17.png, f18.png, f19.png, f20.png, f21.png, f22.png, f23.png, f24.png, f25.png, f26.png, f27.png, f28.png, f29.png, f30.png, f31.png, f32.png, f33.png, f34.png, f35.png, f36.png, f37.png, f38.png, f39.png, f40.png, f41.png, f42.png, f43.png, f44.png, f45.png, f46.png, f47.png, f48.png, f49.png, f50.png, f51.png, f52.png, f53.png, f54.png, f55.png, f56.png, f57.png, f58.png, f59.png, f60.png, f61.png, f62.png, f63.png, f64.png, f65.png, f66.png, f67.png, f68.png, f69.png, f70.png, f71.png, f72.png, f73.png, f74.png, f75.png, f76.png, f77.png, f78.png, f79.png, f80.png, f81.png, f82.png, f83.png, f84.png, f85.png, f86.png, f87.png, f88.png, f89.png, f90.png, f91.png, f92.png, f93.png, f94.png, f95.png, f96.png, f97.png, f98.png, f99.png, f100.png, f101.png, f102.png, f103.png, f104.png, f105.png, f106.png, f107.png, f108.png, f109.png, f110.png, f111.png, f112.png, f113.png, f114.png, f115.png, f116.png, f117.png, f118.png, f119.png, f120.png, f121.png, f122.png, f123.png, f124.png, f125.png, f126.png, f127.png, f128.png, f129.png, f130.png, f131.png, f132.png, f133.png, f134.png, f135.png, f136.png, f137.png, f138.png, f139.png, f140.png, f141.png, f142.png, f143.png, f144.png, f145.png, f146.png, f147.png, f148.png, f149.png, f150.png, f151.png, f152.png, f153.png, f154.png, f155.png, f156.png, f157.png, f158.png, f159.png, f160.png, f161.png, f162.png, f163.png, f164.png, f165.png, f166.png, f167.png, f168.png, f169.png, f170.png, f171.png, f172.png, f173.png, f174.png, f175.png, f176.png, f177.png, f178.png, f179.png, f180.png, f181.png, f182.png, f183.png, f184.png, f185.png, f186.png, f187.png, f188.png, f189.png, f190.png, f191.png, f192.png, f193.png, f194.png, f195.png, f196.png, f197.png, f198.png, f199.png, f200.png, f201.png, f202.png, f203.png, f204.png, f205.png, f206.png, f207.png, f208.png, f209.png, f210.png, f211.png, f212.png, f213.png, f214.png, f215.png, f216.png, f217.png, f218.png, f219.png, f220.png, f221.png, f222.png, f223.png, f224.png, f225.png, f226.png, f227.png, f228.png, f229.png, f230.png, f231.png, f232.png, f233.png, f234.png, f235.png, f236.png, f237.png, f238.png, f239.png, f240.png, f241.png, f242.png, f243.png, f244.png, f245.png, f246.png, f247.png, f248.png, f249.png, f250.png, f251.png, f252.png, f253.png, f254.png, f255.png, f256.png, f257.png, f258.png, f259.png, f260.png, f261.png, f262.png, f263.png, f264.png, f265.png, f266.png, f267.png, f268.png, f269.png, f270.png, f271.png, f272.png, f273.png, f274.png, f275.png, f276.png, f277.png, f278.png, f279.png, f280.png, f281.png, f282.png, f283.png, f284.png, f285.png, f286.png, f287.png, f288.png, f289.png, f290.png, f291.png, f292.png, f293.png, f294.png, f295.png, f296.png, f297.png, f298.png, f299.png, f300.png, f301.png, f302.png, f303.png, f304.png, f305.png, f306.png, f307.png, f308.png, f309.png, f310.png, f311.png, f312.png, f313.png, f314.png, f315.png, f316.png, f317.png, f318.png, f319.png, f320.png, f321.png, f322.png, f323.png, f324.png, f325.png, f326.png, f327.png, f328.png, f329.png, f330.png, f331.png, f332.png, f333.png, f334.png, f335.png, f336.png, f337.png, f338.png, f339.png, f340.png, f341.png, f342.png, f343.png, f344.png, f345.png, f346.png, f347.png, f348.png, f349.png, f350.png, f351.png, f352.png, f353.png, f354.png, f355.png, f356.png, f357.png, f358.png, f359.png, f360.png, f361.png, f362.png, f363.png, f364.png, f365.png, f366.png, f367.png, f368.png, f369.png, f370.png, f371.png, f372.png, f373.png, f374.png, f375.png, f376.png, f377.png, f378.png, f379.png, f380.png, f381.png, f382.png, f383.png, f384.png, f385.png, f386.png, f387.png, f388.png, f389.png, f390.png, f391.png, f392.png, f393.png, f394.png, f395.png, f396.png, f397.png, f398.png, f399.png, f400.png, f401.png, f402.png, f403.png, f404.png, f405.png, f406.png, f407.png, f408.png, f409.png, f410.png, f411.png, f412.png, f413.png, f414.png, f415.png, f416.png, f417.png, f418.png, f419.png, f420.png, f421.png, f422.png, f423.png, f424.png, f425.png, f426.png, f427.png, f428.png, f429.png, f430.png, f431.png, f432.png, f433.png, f434.png, f435.png, f436.png, f437.png, f438.png, f439.png, f440.png, f441.png, f442.png, f443.png, f444.png, f445.png, f446.png, f447.png, f448.png, f449.png, f450.png, f451.png, f452.png, f453.png, f454.png, f455.png, f456.png, f457.png, f458.png, f459.png, f460.png, f461.png, f462.png, f463.png, f464.png, f465.png, f466.png, f467.png, f468.png, f469.png, f470.png, f471.png, f472.png, f473.png, f474.png, f475.png, f476.png, f477.png, f478.png, f479.png, f480.png, f481.png, f482.png, f483.png, f484.png, f485.png, f486.png, f487.png, f488.png, f489.png, f490.png, f491.png, f492.png, f493.png, f494.png, f495.png, f496.png, f497.png, f498.png, f499.png, f500.png]
+  patterns:
+    type: repo
+    path: public/g
+    usedByCode:
+      - 5
+      - ''
+      - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      - /logo.svg
+      - 'a\b.svg'
+      - "a\x01b.svg"
+      - a//b.svg
+      - ../up.svg
+      - a**b/c.svg
+      - '['
+      - twice.svg
+      - twice.svg
+defaultStorage: nope
+preview:
+  defaultLocale: de
+  locales: [cs, en]
+redirects:
+  file: public/_redirects
+  format: apache
+variables:
+  file: src/content/settings/missing.yml
+quality:
+  foo: 1
+  ignore: [3, quality.nope]
+  limits:
+    bar: 1
+    imageKB: 5

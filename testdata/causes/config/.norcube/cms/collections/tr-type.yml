@@ -1,0 +1,7 @@
+label: By number
+path: src/content/tr-type
+translations: { by: 'field:count' }
+fields:
+  - key: count
+    type: number
+    label: Count

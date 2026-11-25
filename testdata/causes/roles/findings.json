@@ -1,0 +1,223 @@
+{
+  "runs": [
+    {
+      "name": "full",
+      "findings": [
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i1",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I1\" has decorative maybe; it is true or false"
+        },
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i10",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I10\" takes its alt text from \"ghost\", but no field in the same list has that key",
+          "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
+        },
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i11",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I11\" has alt , which names no field",
+          "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
+        },
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i2",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I2\" is decorative and also says where its alt text is",
+          "hint": "A decorative image needs no alt text: keep one of the two."
+        },
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i3",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I3\" has alt.foo, which a composed alt text does not read",
+          "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
+        },
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i4",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I4\" composes its alt text from []; alt.from lists 1 to 10 fields",
+          "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
+        },
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i5",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I5\" lists \"cap\" twice in alt.from",
+          "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
+        },
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i6",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I6\" has alt.separator 5; it is text of at most 20 bytes",
+          "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
+        },
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i7",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I7\" has alt 5, which names no field",
+          "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
+        },
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i8",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I8\" names itself as its alt text",
+          "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
+        },
+        {
+          "file": ".norcube/cms/collections/images.yml",
+          "path": "fields.i9",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "image \"I9\" takes its alt text from \"num\", which is a number field",
+          "hint": "`alt:` names the field next to the image, in the same fields list, that holds its alt text (a text or paragraph field, or a localized group of them), or composes it: `alt: { from: [title, technique], separator: \" – \" }`."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.both.fields.words",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "field \"Words\" has role alt, but image \"p1\" names \"other\" as its alt text",
+          "hint": "Keep one of the two declarations."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.decor.fields.words",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "field \"Words\" has role alt, but image \"p1\" is decorative",
+          "hint": "A decorative image has no alt text: remove the role, or `decorative: true` from the image."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.desc2",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"Description again\" has role seoDescription, which fields.desc already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.grp",
+          "severity": "error",
+          "rule": "schema.role_type_mismatch",
+          "message": "group \"Group\" has role seoTitle; a group holds a role only when it is localized",
+          "hint": "When the group's fields are the site's languages, mark it `localized: true` and keep the role on the group; else put the role on the field inside it."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.items.items[__entry_0].fields.heading",
+          "severity": "error",
+          "rule": "schema.misplaced_role",
+          "message": "field \"Heading\" has role seoTitle inside a list, where it repeats per item; a page has one seoTitle",
+          "hint": "Declare it on a field at the top level of the collection or inside a group, not inside a list."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.name",
+          "severity": "error",
+          "rule": "schema.role_type_mismatch",
+          "message": "field \"Name\" has role shareImage, which a localized group of text fields cannot hold",
+          "hint": "shareImage goes on a field of type image."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.noimage.fields.words",
+          "severity": "error",
+          "rule": "schema.misplaced_role",
+          "message": "field \"Words\" has role alt, but its fields list holds no image",
+          "hint": "role: alt marks the alt text of the image next to it, in the same group or list item."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.odd",
+          "severity": "error",
+          "rule": "schema.unknown_role",
+          "message": "field \"Odd\" has role bogus, which is not a role",
+          "hint": "Roles: seoTitle, seoDescription, shareImage, noindex, canonical, draft, alt, or none (no role, never guessed)."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.picture",
+          "severity": "error",
+          "rule": "schema.role_type_mismatch",
+          "message": "field \"Picture\" has role shareImage, which a text field cannot hold",
+          "hint": "shareImage goes on a field of type image."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.sections",
+          "severity": "error",
+          "rule": "schema.misplaced_role",
+          "message": "block \"seoblock\", an item of this list, has a field with role seoTitle, which would repeat per item; a page has one seoTitle",
+          "hint": "Declare page roles at the top level of the collection or inside a group, not inside a list."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.twoalts.fields.alt2",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"Alt two\" has role alt, which fields.twoalts.fields.alt1 already declares in the same list",
+          "hint": "One field holds an image's alt text."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.twoimages.fields.words",
+          "severity": "error",
+          "rule": "schema.invalid_alt",
+          "message": "field \"Words\" has role alt, but its fields list holds 2 images",
+          "hint": "Say which image it describes with `alt: words` on that image instead."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.w1",
+          "severity": "error",
+          "rule": "schema.invalid_when_empty",
+          "message": "field \"W1\" has whenEmpty sometimes, which is not a value it takes",
+          "hint": "whenEmpty is generated (the site makes the value per page in code, such as a share card rendered at build time) or siteDefault (the site falls back to one site-wide value)."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.w2",
+          "severity": "error",
+          "rule": "schema.invalid_when_empty",
+          "message": "field \"W2\" has whenEmpty but no role",
+          "hint": "whenEmpty says what the site does when a role field is empty; give the field its role (seoTitle, seoDescription, shareImage) or remove whenEmpty."
+        },
+        {
+          "file": ".norcube/cms/collections/pages.yml",
+          "path": "fields.w3",
+          "severity": "error",
+          "rule": "schema.invalid_when_empty",
+          "message": "field \"W3\" has whenEmpty on role canonical, whose empty value a site does not fill in code",
+          "hint": "whenEmpty goes on a field with role seoTitle, seoDescription, shareImage."
+        },
+        {
+          "file": "src/content/pages/index.md",
+          "severity": "warning",
+          "rule": "content.extra_keys",
+          "message": "keys title are not in the schema",
+          "hint": "They show in the editor's out-of-schema panel. Add them to the schema or remove them."
+        }
+      ]
+    }
+  ]
+}

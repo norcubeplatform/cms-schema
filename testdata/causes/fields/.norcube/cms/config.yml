@@ -1,0 +1,6 @@
+pagesDir: src/content/pages
+storages:
+  images:
+    type: repo
+    path: public/images
+    publicUrl: /images

@@ -1,0 +1,374 @@
+{
+  "runs": [
+    {
+      "name": "full",
+      "findings": [
+        {
+          "file": ".norcube/cms/collections/perfile.yml",
+          "path": "fields.name",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "group \"Name\" is localized, but each file of this collection is one language",
+          "hint": "A localized group holds every language in one file. In a collection whose files are one language each (localeFrom path or field, translations.by), use a plain field."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.e1",
+          "severity": "error",
+          "rule": "schema.invalid_excerpt",
+          "message": "field \"E1\" has excerpt all, which is not a value it takes",
+          "hint": "A rich text field with role seoDescription says which part is the meta description: `excerpt: firstParagraph` (the plain text of its first paragraph)."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.e2",
+          "severity": "error",
+          "rule": "schema.invalid_excerpt",
+          "message": "field \"E2\" has excerpt, which only a rich text field with role seoDescription reads",
+          "hint": "A rich text field with role seoDescription says which part is the meta description: `excerpt: firstParagraph` (the plain text of its first paragraph)."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.e3",
+          "severity": "error",
+          "rule": "schema.invalid_excerpt",
+          "message": "field \"E3\" is rich text with role seoDescription, but does not say which part of it is the description",
+          "hint": "A rich text field with role seoDescription says which part is the meta description: `excerpt: firstParagraph` (the plain text of its first paragraph)."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.l1",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "group \"L1\" has localized maybe; it is true or false",
+          "hint": "A localized group has one field per language of preview.locales, keyed by the language (cs, en, …), all text, paragraph or rich text of one type; `fallback: \u003clanguage\u003e` names the language an empty one shows."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.l2",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "group \"L2\" has a fallback but is not localized",
+          "hint": "fallback names the language an empty language of a localized group shows; add `localized: true` or remove it."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.l3",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "group \"L3\" falls back to de, which is not in preview.locales [cs en]",
+          "hint": "A localized group has one field per language of preview.locales, keyed by the language (cs, en, …), all text, paragraph or rich text of one type; `fallback: \u003clanguage\u003e` names the language an empty one shows."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.l4",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "group \"L4\" is localized, but has no field for \"en\"",
+          "hint": "A localized group has one field per language of preview.locales, keyed by the language (cs, en, …), all text, paragraph or rich text of one type; `fallback: \u003clanguage\u003e` names the language an empty one shows."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.l4",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "group \"L4\" is localized, but its field \"de\" is not a language of the site [cs en]",
+          "hint": "A localized group has one field per language of preview.locales, keyed by the language (cs, en, …), all text, paragraph or rich text of one type; `fallback: \u003clanguage\u003e` names the language an empty one shows."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.l5",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "group \"L5\" is localized, but its field \"cs\" is a number field",
+          "hint": "A localized group has one field per language of preview.locales, keyed by the language (cs, en, …), all text, paragraph or rich text of one type; `fallback: \u003clanguage\u003e` names the language an empty one shows."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.l6",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "field \"en\" of localized group \"L6\" has a role of its own",
+          "hint": "Declare the role on the localized group: it then means the field in each language."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.l6",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "group \"L6\" is localized, but its fields mix text and paragraph",
+          "hint": "A localized group has one field per language of preview.locales, keyed by the language (cs, en, …), all text, paragraph or rich text of one type; `fallback: \u003clanguage\u003e` names the language an empty one shows."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.list.items[__entry_0]",
+          "severity": "error",
+          "rule": "schema.missing_key",
+          "message": "the field has no `key`",
+          "hint": "Every field needs the frontmatter key its value lands at."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.n1",
+          "severity": "error",
+          "rule": "schema.invalid_role_values",
+          "message": "select \"N1\" has role noindex but no noindexWhen: which of its values hide the page from search engines?",
+          "hint": "List them: `noindexWhen: [index, hide]`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.n2",
+          "severity": "error",
+          "rule": "schema.invalid_role_values",
+          "message": "field \"N2\" has noindexWhen, which only a select with role noindex reads",
+          "hint": "A boolean with role noindex needs no list: true hide the page from search engines."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.n3",
+          "severity": "error",
+          "rule": "schema.invalid_role_values",
+          "message": "select \"N3\" has draftWhen []; it lists 1 to 100 of its values"
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.n4",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"N4\" has role noindex, which fields.n1 already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.n4",
+          "severity": "error",
+          "rule": "schema.invalid_role_values",
+          "message": "select \"N4\" lists \"a\" twice in noindexWhen"
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.n4",
+          "severity": "error",
+          "rule": "schema.invalid_role_values",
+          "message": "select \"N4\" lists \"zzz\" in noindexWhen, which is not one of its options",
+          "hint": "Options: a, b."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.opts",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "option a of \"Options\" has labels nope; it maps languages to labels"
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.opts",
+          "severity": "error",
+          "rule": "schema.invalid_localized",
+          "message": "option b of \"Options\" has a label for \"de\", which is not a language of the site or not text",
+          "hint": "labels maps each language of preview.locales to the option's label in it."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t1",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T1\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t1",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T1\" has titleTemplate 5, which is not text",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t10",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T10\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t10",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T10\": invalid titleTemplate: it does not use {value}, the field's own text",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t11",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T11\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t11",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T11\" has a titleTemplate that names {field:nope}, which is not a field of the page outside lists",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t12",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T12\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t12",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T12\" has a titleTemplate that asks for the label of \"plain\", which is a text field, not a select",
+          "hint": "`|label` reads a select's option label; drop it to use the value."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t13",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T13\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t13",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T13\" has a titleTemplate that names \"list\", a array, which has no one value",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t2",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T2\" has a titleTemplate but not role seoTitle",
+          "hint": "titleTemplate says how the site composes the page title from its seoTitle field; give the field `role: seoTitle` or remove it."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t3",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T3\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t3",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T3\": invalid titleTemplate: it is empty",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t4",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T4\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t4",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T4\": invalid titleTemplate: it is longer than 300 bytes",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t5",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T5\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t5",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T5\": invalid titleTemplate: a lone } at byte 8",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t6",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T6\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t6",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T6\": invalid titleTemplate: a { at byte 8 is never closed",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t7",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T7\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t7",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T7\": invalid titleTemplate: {field:a b} does not name a field (keys joined by dots)",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t8",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T8\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t8",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T8\": invalid titleTemplate: {foo} is not a placeholder; use {value}, {field:\u003ckey\u003e}, {field:\u003ckey\u003e|label} or {{variable}}",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t9",
+          "severity": "error",
+          "rule": "schema.duplicate_role",
+          "message": "field \"T9\" has role seoTitle, which fields.l6.fields.en already declares",
+          "hint": "A page has one field per role; keep the role on one of them."
+        },
+        {
+          "file": ".norcube/cms/collections/works.yml",
+          "path": "fields.t9",
+          "severity": "error",
+          "rule": "schema.invalid_title_template",
+          "message": "field \"T9\": invalid titleTemplate: more than 50 parts",
+          "hint": "titleTemplate is the page title as the site composes it: `{value}` (this field) with literal text, `{field:\u003ckey\u003e}` (another field of the page), `{field:\u003ckey\u003e|label}` (a select's option label) and `{{variable}}` (a site variable), such as `{value} – {{site_name}}`."
+        }
+      ]
+    }
+  ]
+}

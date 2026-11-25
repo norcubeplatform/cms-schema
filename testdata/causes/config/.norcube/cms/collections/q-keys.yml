@@ -1,0 +1,10 @@
+label: Quality keys
+path: src/content/q-keys
+quality:
+  foo: 1
+  limits: { imageKB: 300 }
+  ignore: quality.noindex
+fields:
+  - key: title
+    type: text
+    label: Title

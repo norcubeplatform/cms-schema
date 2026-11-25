@@ -1,0 +1,177 @@
+label: Works
+path: src/content/works
+fields:
+  - key: l1
+    type: group
+    label: L1
+    localized: maybe
+    fields:
+      - key: cs
+        type: text
+        label: cs
+  - key: l2
+    type: group
+    label: L2
+    fallback: cs
+    fields:
+      - key: a
+        type: text
+        label: A
+  - key: l3
+    type: group
+    label: L3
+    localized: true
+    fallback: de
+    fields:
+      - key: cs
+        type: text
+        label: cs
+      - key: en
+        type: text
+        label: en
+  - key: l4
+    type: group
+    label: L4
+    localized: true
+    fields:
+      - key: cs
+        type: text
+        label: cs
+      - key: de
+        type: text
+        label: de
+  - key: l5
+    type: group
+    label: L5
+    localized: true
+    fields:
+      - key: cs
+        type: number
+        label: cs
+      - key: en
+        type: text
+        label: en
+  - key: l6
+    type: group
+    label: L6
+    localized: true
+    fields:
+      - key: cs
+        type: text
+        label: cs
+      - key: en
+        type: paragraph
+        label: en
+        role: seoTitle
+  - key: opts
+    type: select
+    label: Options
+    options:
+      - { value: a, label: A, labels: nope }
+      - { value: b, label: B, labels: { cs: Bé, de: Be } }
+  - key: plain
+    type: text
+    label: Plain
+  - key: list
+    type: array
+    label: List
+    items:
+      type: text
+      label: Item
+  - key: t1
+    type: text
+    label: T1
+    role: seoTitle
+    titleTemplate: 5
+  - key: t2
+    type: text
+    label: T2
+    titleTemplate: '{value}'
+  - key: t3
+    type: text
+    label: T3
+    role: seoTitle
+    titleTemplate: ''
+  - key: t4
+    type: text
+    label: T4
+    role: seoTitle
+    titleTemplate: '{value}xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+  - key: t5
+    type: text
+    label: T5
+    role: seoTitle
+    titleTemplate: '{value} }'
+  - key: t6
+    type: text
+    label: T6
+    role: seoTitle
+    titleTemplate: '{value} {'
+  - key: t7
+    type: text
+    label: T7
+    role: seoTitle
+    titleTemplate: '{value} {field:a b}'
+  - key: t8
+    type: text
+    label: T8
+    role: seoTitle
+    titleTemplate: '{value} {foo}'
+  - key: t9
+    type: text
+    label: T9
+    role: seoTitle
+    titleTemplate: '{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x{value}x'
+  - key: t10
+    type: text
+    label: T10
+    role: seoTitle
+    titleTemplate: 'Title'
+  - key: t11
+    type: text
+    label: T11
+    role: seoTitle
+    titleTemplate: '{value} {field:nope}'
+  - key: t12
+    type: text
+    label: T12
+    role: seoTitle
+    titleTemplate: '{value} {field:plain|label}'
+  - key: t13
+    type: text
+    label: T13
+    role: seoTitle
+    titleTemplate: '{value} {field:list}'
+  - key: n1
+    type: select
+    label: N1
+    options: [index, hide]
+    role: noindex
+  - key: n2
+    type: text
+    label: N2
+    noindexWhen: [x]
+  - key: n3
+    type: select
+    label: N3
+    options: [on, off]
+    role: draft
+    draftWhen: []
+  - key: n4
+    type: select
+    label: N4
+    options: [a, b]
+    role: noindex
+    noindexWhen: [a, a, zzz]
+  - key: e1
+    type: text
+    label: E1
+    excerpt: all
+  - key: e2
+    type: text
+    label: E2
+    excerpt: firstParagraph
+  - key: e3
+    type: richtext
+    label: E3
+    role: seoDescription

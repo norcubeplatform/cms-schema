@@ -1,0 +1,8 @@
+label: By path
+path: src/content/tr-path
+localeFrom: none
+translations: { by: path }
+fields:
+  - key: title
+    type: text
+    label: Title

@@ -1,0 +1,20 @@
+label: Works
+path: src/content/works
+previewPath: '/works/{slug}/'
+fields:
+  - key: name
+    type: group
+    label: Name
+    localized: true
+    role: seoTitle
+    fields:
+      - {key: cs, type: text, label: Czech}
+      - {key: en, type: text, label: English}
+  - key: about
+    type: group
+    label: About
+    localized: true
+    fallback: cs
+    fields:
+      - {key: cs, type: paragraph, label: Czech}
+      - {key: en, type: paragraph, label: English}

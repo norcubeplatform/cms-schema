@@ -1,0 +1,7 @@
+label: By slug
+path: src/content/tr-bad
+translations: { by: slug }
+fields:
+  - key: title
+    type: text
+    label: Title

@@ -1,0 +1,8 @@
+label: Locales mixed
+path: src/content/tl-mixed
+localeFrom: path
+translations: { by: path, locales: [3, cs, cs, de] }
+fields:
+  - key: title
+    type: text
+    label: Title

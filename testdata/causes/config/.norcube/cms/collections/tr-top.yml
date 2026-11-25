@@ -1,0 +1,8 @@
+label: By nothing
+path: src/content/tr-top
+translations: { by: 'field:nope' }
+fields:
+  - key: key
+    type: text
+    label: Key
+    required: true

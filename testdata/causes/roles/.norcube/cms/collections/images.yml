@@ -1,0 +1,54 @@
+label: Images
+path: src/content/images
+fields:
+  - key: cap
+    type: text
+    label: Caption
+  - key: num
+    type: number
+    label: Number
+  - key: i1
+    type: image
+    label: I1
+    decorative: maybe
+  - key: i2
+    type: image
+    label: I2
+    decorative: true
+    alt: cap
+  - key: i3
+    type: image
+    label: I3
+    alt: { from: [cap], foo: 1 }
+  - key: i4
+    type: image
+    label: I4
+    alt: { from: [] }
+  - key: i5
+    type: image
+    label: I5
+    alt: { from: [cap, cap] }
+  - key: i6
+    type: image
+    label: I6
+    alt: { from: [cap], separator: 5 }
+  - key: i7
+    type: image
+    label: I7
+    alt: 5
+  - key: i8
+    type: image
+    label: I8
+    alt: i8
+  - key: i9
+    type: image
+    label: I9
+    alt: num
+  - key: i10
+    type: image
+    label: I10
+    alt: ghost
+  - key: i11
+    type: image
+    label: I11
+    alt: ''

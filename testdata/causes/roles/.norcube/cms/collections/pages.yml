@@ -1,0 +1,131 @@
+label: Pages
+path: src/content/pages
+fields:
+  - key: odd
+    type: text
+    label: Odd
+    role: bogus
+  - key: grp
+    type: group
+    label: Group
+    role: seoTitle
+    fields:
+      - key: a
+        type: text
+        label: A
+  - key: picture
+    type: text
+    label: Picture
+    role: shareImage
+  - key: name
+    type: group
+    label: Name
+    localized: true
+    role: shareImage
+    fields:
+      - key: cs
+        type: text
+        label: Czech
+      - key: en
+        type: text
+        label: English
+  - key: desc
+    type: text
+    label: Description
+    role: seoDescription
+  - key: desc2
+    type: text
+    label: Description again
+    role: seoDescription
+  - key: items
+    type: array
+    label: Items
+    items:
+      type: group
+      label: Item
+      fields:
+        - key: heading
+          type: text
+          label: Heading
+          role: seoTitle
+  - key: sections
+    type: blocks
+    label: Sections
+    components: [seoblock]
+  - key: twoalts
+    type: group
+    label: Two alts
+    fields:
+      - key: pic
+        type: image
+        label: Pic
+      - key: alt1
+        type: text
+        label: Alt one
+        role: alt
+      - key: alt2
+        type: text
+        label: Alt two
+        role: alt
+  - key: noimage
+    type: group
+    label: No image
+    fields:
+      - key: words
+        type: text
+        label: Words
+        role: alt
+  - key: twoimages
+    type: group
+    label: Two images
+    fields:
+      - key: p1
+        type: image
+        label: P1
+      - key: p2
+        type: image
+        label: P2
+      - key: words
+        type: text
+        label: Words
+        role: alt
+  - key: decor
+    type: group
+    label: Decorative
+    fields:
+      - key: p1
+        type: image
+        label: P1
+        decorative: true
+      - key: words
+        type: text
+        label: Words
+        role: alt
+  - key: both
+    type: group
+    label: Both
+    fields:
+      - key: p1
+        type: image
+        label: P1
+        alt: other
+      - key: other
+        type: text
+        label: Other
+      - key: words
+        type: text
+        label: Words
+        role: alt
+  - key: w1
+    type: text
+    label: W1
+    whenEmpty: sometimes
+  - key: w2
+    type: text
+    label: W2
+    whenEmpty: generated
+  - key: w3
+    type: text
+    label: W3
+    role: canonical
+    whenEmpty: generated

@@ -1,0 +1,44 @@
+label: Pages
+path: src/content/pages
+match: '**/*.md'
+hasBody: true
+previewPath: '/{locale}/{slug}/'
+localeFrom: path
+translations:
+  by: path
+fields:
+  - {key: title, type: text, label: Title}
+  - key: seo
+    type: group
+    label: SEO
+    fields:
+      - {key: page_title, type: text, label: SEO title, role: seoTitle}
+      - {key: page_description, type: paragraph, label: Description, role: seoDescription}
+      - {key: image, type: image, label: Share image, role: shareImage, alt: image_alt}
+      - {key: image_alt, type: text, label: Share image alt}
+      - {key: no_index, type: boolean, label: Hide, role: noindex}
+  - key: blocks
+    type: array
+    label: Blocks
+    items:
+      - key: hero
+        type: group
+        label: Hero
+        fields:
+          - {key: photo, type: image, label: Photo, alt: photo_alt}
+          - {key: photo_alt, type: text, label: Alt}
+          - {key: loose, type: image, label: Loose}
+          - {key: label, type: text, label: Button label}
+          - {key: link, type: link, label: Button link}
+      - key: logos
+        type: group
+        label: Logos
+        fields:
+          - key: list
+            type: array
+            label: Logos
+            items:
+              - type: group
+                fields:
+                  - {key: img, type: image, label: Logo}
+                  - {key: name, type: text, label: Name}

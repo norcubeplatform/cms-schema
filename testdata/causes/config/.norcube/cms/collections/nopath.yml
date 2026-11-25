@@ -1,0 +1,7 @@
+label: No path
+previewPath: '/{lang}/{slug}/'
+localeFrom: folder
+fields:
+  - key: title
+    type: text
+    label: Title

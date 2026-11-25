@@ -1,0 +1,7 @@
+label: No body
+path: src/content/nobody
+hasBody: false
+fields:
+  - key: title
+    type: text
+    label: Title

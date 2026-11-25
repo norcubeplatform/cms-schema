@@ -1,0 +1,384 @@
+{
+  "runs": [
+    {
+      "name": "full",
+      "findings": [
+        {
+          "file": ".norcube/cms/collections/dup-a.yml",
+          "path": "path",
+          "severity": "error",
+          "rule": "schema.duplicate_collection_path",
+          "message": "collections dup-a, dup-b share path \"src/content/dup\" and their `match` patterns cannot tell them apart; files under it resolve to one of them arbitrarily",
+          "hint": "Give each collection its own directory, merge them, or let all but one name a single file with a literal `match`."
+        },
+        {
+          "file": ".norcube/cms/collections/dup-b.yml",
+          "path": "path",
+          "severity": "error",
+          "rule": "schema.duplicate_collection_path",
+          "message": "collections dup-a, dup-b share path \"src/content/dup\" and their `match` patterns cannot tell them apart; files under it resolve to one of them arbitrarily",
+          "hint": "Give each collection its own directory, merge them, or let all but one name a single file with a literal `match`."
+        },
+        {
+          "file": ".norcube/cms/collections/nopath.yml",
+          "path": "localeFrom",
+          "severity": "error",
+          "rule": "schema.invalid_locale_from",
+          "message": "localeFrom \"folder\" is not path, none or field:\u003ckey\u003e"
+        },
+        {
+          "file": ".norcube/cms/collections/nopath.yml",
+          "path": "path",
+          "severity": "warning",
+          "rule": "schema.missing_collection_path",
+          "message": "the collection declares no `path`, so no file resolves to it by directory",
+          "hint": "Add `path: \u003cdirectory\u003e` so files under it use this schema."
+        },
+        {
+          "file": ".norcube/cms/collections/nopath.yml",
+          "path": "previewPath",
+          "severity": "error",
+          "rule": "schema.unknown_preview_token",
+          "message": "previewPath \"/{lang}/{slug}/\" uses unknown token(s) {lang}",
+          "hint": "Tokens are {locale}, {slug} and {fields.\u003ckey\u003e}."
+        },
+        {
+          "file": ".norcube/cms/collections/q-keys.yml",
+          "path": "quality",
+          "severity": "warning",
+          "rule": "schema.invalid_quality",
+          "message": "quality has the key \"foo\"; only `ignore` is read",
+          "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
+        },
+        {
+          "file": ".norcube/cms/collections/q-keys.yml",
+          "path": "quality",
+          "severity": "warning",
+          "rule": "schema.invalid_quality",
+          "message": "quality.ignore is quality.noindex, not a list of rule ids",
+          "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
+        },
+        {
+          "file": ".norcube/cms/collections/q-keys.yml",
+          "path": "quality",
+          "severity": "warning",
+          "rule": "schema.invalid_quality",
+          "message": "quality.limits is read in config.yml only: an image is checked once per file, not per page",
+          "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
+        },
+        {
+          "file": ".norcube/cms/collections/q-notmap.yml",
+          "path": "quality",
+          "severity": "warning",
+          "rule": "schema.invalid_quality",
+          "message": "quality is off, not a mapping",
+          "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
+        },
+        {
+          "file": ".norcube/cms/collections/tl-empty.yml",
+          "path": "translations.locales",
+          "severity": "error",
+          "rule": "schema.invalid_translation_locales",
+          "message": "translations.locales lists no language",
+          "hint": "List the languages this collection's pages are expected in, each one of preview.locales, or leave `locales` out to expect all of them."
+        },
+        {
+          "file": ".norcube/cms/collections/tl-mixed.yml",
+          "path": "translations.locales",
+          "severity": "error",
+          "rule": "schema.invalid_translation_locales",
+          "message": "translations.locales has 3, which is not a language code",
+          "hint": "List the languages this collection's pages are expected in, each one of preview.locales, or leave `locales` out to expect all of them."
+        },
+        {
+          "file": ".norcube/cms/collections/tl-mixed.yml",
+          "path": "translations.locales",
+          "severity": "error",
+          "rule": "schema.invalid_translation_locales",
+          "message": "translations.locales lists \"cs\" twice",
+          "hint": "List the languages this collection's pages are expected in, each one of preview.locales, or leave `locales` out to expect all of them."
+        },
+        {
+          "file": ".norcube/cms/collections/tl-mixed.yml",
+          "path": "translations.locales",
+          "severity": "error",
+          "rule": "schema.invalid_translation_locales",
+          "message": "translations.locales lists \"de\", which is not in preview.locales [cs en]",
+          "hint": "List the languages this collection's pages are expected in, each one of preview.locales, or leave `locales` out to expect all of them."
+        },
+        {
+          "file": ".norcube/cms/collections/tl-notlist.yml",
+          "path": "translations.locales",
+          "severity": "error",
+          "rule": "schema.invalid_translation_locales",
+          "message": "translations.locales is cs, not a list of languages",
+          "hint": "List the languages this collection's pages are expected in, each one of preview.locales, or leave `locales` out to expect all of them."
+        },
+        {
+          "file": ".norcube/cms/collections/tr-bad.yml",
+          "path": "translations.by",
+          "severity": "error",
+          "rule": "schema.invalid_translations",
+          "message": "translations.by \"slug\" is not path or field:\u003ckey\u003e",
+          "hint": "Use `by: path` (the same path under each locale folder) or `by: field:\u003ckey\u003e` (pages with the same value of that field). A collection whose files hold every language in localized groups may list `locales` alone."
+        },
+        {
+          "file": ".norcube/cms/collections/tr-path.yml",
+          "path": "translations.by",
+          "severity": "error",
+          "rule": "schema.invalid_translations",
+          "message": "translations.by is path, but the collection's locale does not come from the path",
+          "hint": "Add `localeFrom: path`, or link the versions by a field: `by: field:\u003ckey\u003e`."
+        },
+        {
+          "file": ".norcube/cms/collections/tr-req.yml",
+          "path": "translations.by",
+          "severity": "error",
+          "rule": "schema.invalid_translations",
+          "message": "translations.by names \"key\", which is not required, so a page could have no key",
+          "hint": "Mark the field `required: true`."
+        },
+        {
+          "file": ".norcube/cms/collections/tr-top.yml",
+          "path": "translations.by",
+          "severity": "error",
+          "rule": "schema.invalid_translations",
+          "message": "translations.by names \"nope\", which is not a top-level field of the collection",
+          "hint": "Add the field to the collection, or name one it has."
+        },
+        {
+          "file": ".norcube/cms/collections/tr-type.yml",
+          "path": "translations.by",
+          "severity": "error",
+          "rule": "schema.invalid_translations",
+          "message": "translations.by names \"count\", which is a number field; the linking field must be text",
+          "hint": "Link the versions by a text field whose value they share."
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "defaultStorage",
+          "severity": "error",
+          "rule": "schema.unknown_default_storage",
+          "message": "defaultStorage \"nope\" is not declared under storages",
+          "hint": "Declared storages: cloud, dedupe, maybe, nopath, notype, odd, onefile, patterns, toomany."
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "preview.defaultLocale",
+          "severity": "error",
+          "rule": "schema.default_locale_not_declared",
+          "message": "defaultLocale \"de\" is not in preview.locales [cs en]"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "quality",
+          "severity": "warning",
+          "rule": "schema.invalid_quality",
+          "message": "quality has the key \"foo\"; only `ignore` and `limits` are read",
+          "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "quality",
+          "severity": "warning",
+          "rule": "schema.invalid_quality",
+          "message": "quality.ignore has 3, which is not a rule id",
+          "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "quality",
+          "severity": "warning",
+          "rule": "schema.invalid_quality",
+          "message": "quality.ignore lists \"quality.nope\", which is not a content quality rule",
+          "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "quality",
+          "severity": "warning",
+          "rule": "schema.invalid_quality",
+          "message": "quality.limits has the key \"bar\"; only `imageKB` is read",
+          "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "quality",
+          "severity": "warning",
+          "rule": "schema.invalid_quality",
+          "message": "quality.limits.imageKB is 5, outside 20 to 10000",
+          "hint": "`quality: { ignore: [quality.share_image_missing] }` turns content quality checks off and, in config.yml, `quality: { limits: { imageKB: 300 } }` sets the image weight limit; the rule ids are listed in the module's README."
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "redirects.format",
+          "severity": "error",
+          "rule": "schema.unknown_redirects_format",
+          "message": "redirects.format \"apache\" is not supported (netlify, vercel)"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.cloud",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"cloud\": type \"s3\" is not implemented (only repo is)"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.dedupe",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"dedupe\": `dedup: hash` requires `naming: slug+hash`"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.maybe",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"maybe\": `optimizedAtBuild` is sometimes, not true or false"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.nopath",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"nopath\": missing `path:`"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.notype",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"notype\": missing `type:` (the only shipped driver is repo)"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.odd",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"odd\": invalid dedup \"md5\" (allowed: hash)"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.odd",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"odd\": invalid inline \"base64\" (allowed: ref, svg)"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.odd",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"odd\": invalid mode \"readonly\" (allowed: read-only, read-write)"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.odd",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"odd\": invalid naming \"slugh\" (allowed: slug, slug+hash, uuid, or empty for original)"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.onefile",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"onefile\": `usedByCode` is not a list of paths"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode` holds 5, not a path"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode` lists \"twice.svg\" twice"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode`: \"\" is empty"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode`: \"../up.svg\" names . or .."
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode`: \"/logo.svg\" starts with /: write it relative to the storage's path"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode`: \"[\" is not a valid pattern"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode`: \"a**b/c.svg\" uses ** inside a name: ** stands alone between slashes"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode`: \"a//b.svg\" has an empty name between slashes"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode`: \"a\\\\b.svg\" holds a backslash"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode`: \"a\\x01b.svg\" holds a control character"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.patterns",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"patterns\": `usedByCode`: \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" is longer than 300 bytes"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "storages.toomany",
+          "severity": "error",
+          "rule": "schema.invalid_storage",
+          "message": "storage \"toomany\": `usedByCode` lists 501 paths, at most 500"
+        },
+        {
+          "file": ".norcube/cms/config.yml",
+          "path": "variables.file",
+          "severity": "error",
+          "rule": "schema.missing_variables_file",
+          "message": "variables.file \"src/content/settings/missing.yml\" does not exist",
+          "hint": "Create the variables document, or point `variables.file` at the file that holds the {key, value} list."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+label: Locales empty
+path: src/content/tl-empty
+localeFrom: path
+translations: { by: path, locales: [] }
+fields:
+  - key: title
+    type: text
+    label: Title

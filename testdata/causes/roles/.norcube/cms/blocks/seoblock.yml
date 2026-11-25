@@ -1,0 +1,6 @@
+label: SEO block
+fields:
+  - key: title
+    type: text
+    label: Title
+    role: seoTitle

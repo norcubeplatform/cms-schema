@@ -1,0 +1,7 @@
+label: Versioned
+path: src/content/v
+schemaVersion: 2
+fields:
+  - key: title
+    type: text
+    label: Title

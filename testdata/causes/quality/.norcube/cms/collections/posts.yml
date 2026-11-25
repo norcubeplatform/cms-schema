@@ -1,0 +1,10 @@
+label: Posts
+path: src/content/posts
+previewPath: '/{locale}/posts/{slug}/'
+localeFrom: path
+translations:
+  by: path
+fields:
+  - {key: title, type: text, label: Title}
+  - {key: robots, type: select, label: Robots, options: [index, hide], role: noindex, noindexWhen: [hide]}
+  - {key: draft, type: boolean, label: Draft, role: draft}

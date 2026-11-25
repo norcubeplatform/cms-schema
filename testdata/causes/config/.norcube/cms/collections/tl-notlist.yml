@@ -1,0 +1,8 @@
+label: Locales text
+path: src/content/tl-notlist
+localeFrom: path
+translations: { by: path, locales: cs }
+fields:
+  - key: title
+    type: text
+    label: Title

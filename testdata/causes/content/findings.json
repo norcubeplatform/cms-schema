@@ -1,0 +1,380 @@
+{
+  "runs": [
+    {
+      "name": "full",
+      "findings": [
+        {
+          "file": ".norcube/cms/meta/src/content/pages/deleted.yml",
+          "severity": "warning",
+          "rule": "links.orphan_sidecar",
+          "message": "the sidecar belongs to a content file that no longer exists",
+          "hint": "Delete it, or restore the content file; the CMS recovers a renamed file's sidecar through the page's inline _id."
+        },
+        {
+          "file": "src/content/i18n/cs/a.md",
+          "severity": "warning",
+          "rule": "quality.translation_missing",
+          "message": "The page has no version in \"en\".",
+          "hint": "Create the version in that language, or, if the collection is not meant to have one, list its languages in `translations.locales`.",
+          "impact": "medium",
+          "value": "en"
+        },
+        {
+          "file": "src/content/i18n/cs/b.md",
+          "severity": "error",
+          "rule": "links.translation_collision",
+          "message": "has the translation key \"home\" in \"cs\", the same as src/content/i18n/cs/a.md",
+          "hint": "A page has one version per language. Give one of the two files its own key, or move it to the language it is written in."
+        },
+        {
+          "file": "src/content/nobody/a.md",
+          "severity": "warning",
+          "rule": "content.unexpected_body",
+          "message": "the file has a Markdown body but the collection has `hasBody: false`",
+          "hint": "The editor does not show the body; set `hasBody: true` or move the text into a field."
+        },
+        {
+          "file": "src/content/orphan.md",
+          "severity": "warning",
+          "rule": "content.no_collection",
+          "message": "the file is under the pages directory but no collection claims it",
+          "hint": "Add a collection whose `path` covers it, or stamp the file with `_collection`."
+        },
+        {
+          "file": "src/content/pages/dup.md",
+          "severity": "warning",
+          "rule": "content.extra_keys",
+          "message": "keys slug are not in the schema",
+          "hint": "They show in the editor's out-of-schema panel. Add them to the schema or remove them."
+        },
+        {
+          "file": "src/content/pages/dup.md",
+          "path": "code",
+          "severity": "error",
+          "rule": "content.custom",
+          "message": "Code fails the configured rule.",
+          "hint": "customValidators[1]"
+        },
+        {
+          "file": "src/content/pages/dup.md",
+          "path": "title",
+          "severity": "notice",
+          "rule": "quality.title_length",
+          "message": "The title has 3 characters, fewer than the recommended 30 to 60.",
+          "hint": "A longer title says more about the page in search results.",
+          "impact": "low",
+          "value": "dup",
+          "measure": {
+            "value": 3,
+            "unit": "characters",
+            "min": 30,
+            "max": 60
+          }
+        },
+        {
+          "file": "src/content/pages/five.md",
+          "path": "code",
+          "severity": "error",
+          "rule": "content.custom",
+          "message": "Code fails the configured rule.",
+          "hint": "customValidators[1]"
+        },
+        {
+          "file": "src/content/pages/five.md",
+          "path": "title",
+          "severity": "error",
+          "rule": "content.required",
+          "message": "Title is required.",
+          "hint": "Add a value to clear this error."
+        },
+        {
+          "file": "src/content/pages/five.md",
+          "path": "title",
+          "severity": "warning",
+          "rule": "quality.title_missing",
+          "message": "The page has no title for search results.",
+          "hint": "Write a title that says what the page is about, in a few words.",
+          "impact": "high"
+        },
+        {
+          "file": "src/content/pages/four.md",
+          "path": "code",
+          "severity": "error",
+          "rule": "content.custom",
+          "message": "Code fails the configured rule.",
+          "hint": "customValidators[1]"
+        },
+        {
+          "file": "src/content/pages/four.md",
+          "path": "title",
+          "severity": "error",
+          "rule": "content.min_length",
+          "message": "Title must be at least 3 characters (currently 2)."
+        },
+        {
+          "file": "src/content/pages/four.md",
+          "path": "title",
+          "severity": "notice",
+          "rule": "quality.title_length",
+          "message": "The title has 2 characters, fewer than the recommended 30 to 60.",
+          "hint": "A longer title says more about the page in search results.",
+          "impact": "low",
+          "value": "ab",
+          "measure": {
+            "value": 2,
+            "unit": "characters",
+            "min": 30,
+            "max": 60
+          }
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "severity": "warning",
+          "rule": "content.extra_keys",
+          "message": "keys draft are not in the schema",
+          "hint": "They show in the editor's out-of-schema panel. Add them to the schema or remove them."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "blocks[1]",
+          "severity": "error",
+          "rule": "content.unique",
+          "message": "Blocks: item 2 has the same `id` as item 1.",
+          "hint": "Each item under Blocks must have a unique `id`."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "blocks[1]",
+          "severity": "warning",
+          "rule": "content.item_type_missing",
+          "message": "Item 2 of Blocks has no `_type:` discriminator.",
+          "hint": "The editor falls back to the first shape (hero). Set `_type:` to one of: hero, cta."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "blocks[2]",
+          "severity": "error",
+          "rule": "content.item_type_unknown",
+          "message": "Item 3 of Blocks has `_type: banner`, which isn't one of the allowed shapes.",
+          "hint": "Allowed shapes: hero, cta. Fix the discriminator or add the shape to the schema."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "code",
+          "severity": "error",
+          "rule": "content.custom",
+          "message": "Code fails the configured rule.",
+          "hint": "customValidators[1]"
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "code",
+          "severity": "error",
+          "rule": "content.regex",
+          "message": "Code doesn't match the expected pattern.",
+          "hint": "customValidators[0]"
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "count",
+          "severity": "error",
+          "rule": "content.max",
+          "message": "Count must be at most 5 (currently 9)."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "few",
+          "severity": "error",
+          "rule": "content.min_items",
+          "message": "Few needs at least 2 items.",
+          "hint": "Add 1 more."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "friend",
+          "severity": "error",
+          "rule": "links.unresolved_reference",
+          "message": "references \"ghost\", which names no entry by field:handle",
+          "hint": "Pick the entry again, or fix the value."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "hero",
+          "severity": "error",
+          "rule": "links.missing_asset",
+          "message": "points at /images/missing.png, which the repository does not have (looked for public/images/missing.png)",
+          "hint": "Pick the file again in the media library, or add the file."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "hero",
+          "severity": "notice",
+          "rule": "quality.image_alt_missing",
+          "message": "The image has no alt text, and the schema gives it no field for one.",
+          "hint": "Ask a developer to name the field that holds its alt text (`alt:` on the image field) or to mark the image `decorative: true`.",
+          "impact": "low",
+          "value": "/images/missing.png"
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "kind",
+          "severity": "error",
+          "rule": "content.shape",
+          "message": "Kind has a value that's no longer one of the allowed options.",
+          "hint": "Current value: z. Pick a valid option to clear this."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "many",
+          "severity": "error",
+          "rule": "content.max_items",
+          "message": "Many accepts at most 1 item.",
+          "hint": "Remove 1."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "member",
+          "severity": "error",
+          "rule": "links.unresolved_reference",
+          "message": "references \"src/content/team/ghost.md\", which names no entry in collection team",
+          "hint": "Pick the entry again, or fix the value."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "next",
+          "severity": "warning",
+          "rule": "links.unresolved_link",
+          "message": "links to /nowhere/, which no content file produces",
+          "hint": "If the site serves this route from code, add it to knownPaths in config.yml; otherwise fix the link."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "partner",
+          "severity": "error",
+          "rule": "links.unresolved_reference",
+          "message": "references \"src/content/pages/ghost.md\", which names no entry",
+          "hint": "Pick the entry again, or fix the value."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "picks",
+          "severity": "error",
+          "rule": "content.max_items",
+          "message": "Picks accepts at most 1 selected."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "size",
+          "severity": "error",
+          "rule": "content.min",
+          "message": "Size must be at least 1 (currently 0)."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "subtitle",
+          "severity": "error",
+          "rule": "content.required",
+          "message": "Write a subtitle.",
+          "hint": "Add a value to clear this error."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "tags",
+          "severity": "error",
+          "rule": "content.min_items",
+          "message": "Tags needs at least 2 selected."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "tags",
+          "severity": "error",
+          "rule": "content.shape",
+          "message": "Tags has 1 value(s) no longer in the allowed options.",
+          "hint": "Stray: zz. Re-pick from the available options."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "title",
+          "severity": "error",
+          "rule": "content.regex",
+          "message": "Title doesn't match the expected format."
+        },
+        {
+          "file": "src/content/pages/one.md",
+          "path": "title",
+          "severity": "notice",
+          "rule": "quality.title_length",
+          "message": "The title has 3 characters, fewer than the recommended 30 to 60.",
+          "hint": "A longer title says more about the page in search results.",
+          "impact": "low",
+          "value": "AB1",
+          "measure": {
+            "value": 3,
+            "unit": "characters",
+            "min": 30,
+            "max": 60
+          }
+        },
+        {
+          "file": "src/content/pages/three.md",
+          "severity": "error",
+          "rule": "content.parse_error",
+          "message": "not valid YAML: line 1: did not find expected ',' or ']'"
+        },
+        {
+          "file": "src/content/pages/two.md",
+          "severity": "error",
+          "rule": "links.url_collision",
+          "message": "resolves to /two/, the same URL as src/content/pages/dup.md",
+          "hint": "Two files cannot render at one address. Change a slug, move a file, or fix the collection's previewPath."
+        },
+        {
+          "file": "src/content/pages/two.md",
+          "path": "code",
+          "severity": "error",
+          "rule": "content.custom",
+          "message": "Code fails the configured rule.",
+          "hint": "customValidators[1]"
+        },
+        {
+          "file": "src/content/pages/two.md",
+          "path": "count",
+          "severity": "error",
+          "rule": "content.shape",
+          "message": "Count should be a number but is a string.",
+          "hint": "The schema's type was likely changed after this file was saved. Convert the value or clear it."
+        },
+        {
+          "file": "src/content/pages/two.md",
+          "path": "title",
+          "severity": "error",
+          "rule": "content.max_length",
+          "message": "Title must be at most 8 characters (currently 20)."
+        },
+        {
+          "file": "src/content/pages/two.md",
+          "path": "title",
+          "severity": "notice",
+          "rule": "quality.title_length",
+          "message": "The title has 20 characters, fewer than the recommended 30 to 60.",
+          "hint": "A longer title says more about the page in search results.",
+          "impact": "low",
+          "value": "far too long a title",
+          "measure": {
+            "value": 20,
+            "unit": "characters",
+            "min": 30,
+            "max": 60
+          }
+        },
+        {
+          "file": "src/content/strict/a.md",
+          "severity": "error",
+          "rule": "content.extra_keys",
+          "message": "keys extra are not in the schema and the collection's extraKeysPolicy is strip: the next save deletes them",
+          "hint": "Add the fields to the schema or move the data before an editor saves the file."
+        }
+      ]
+    }
+  ]
+}

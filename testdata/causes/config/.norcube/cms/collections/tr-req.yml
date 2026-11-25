@@ -1,0 +1,7 @@
+label: By optional
+path: src/content/tr-req
+translations: { by: 'field:key' }
+fields:
+  - key: key
+    type: text
+    label: Key

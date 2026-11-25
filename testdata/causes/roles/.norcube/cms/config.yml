@@ -1,0 +1,4 @@
+pagesDir: src/content/pages
+preview:
+  defaultLocale: cs
+  locales: [cs, en]

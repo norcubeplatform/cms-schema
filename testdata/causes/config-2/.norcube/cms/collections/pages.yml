@@ -1,0 +1,12 @@
+label: Pages
+path: src/content/pages
+translations: { locales: [cs] }
+fields:
+  - key: title
+    type: group
+    label: Title
+    localized: true
+    fields:
+      - key: cs
+        type: text
+        label: Czech

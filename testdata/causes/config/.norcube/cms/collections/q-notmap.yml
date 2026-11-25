@@ -1,0 +1,7 @@
+label: Quality off
+path: src/content/q-notmap
+quality: off
+fields:
+  - key: title
+    type: text
+    label: Title
