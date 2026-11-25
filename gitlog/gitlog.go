@@ -44,12 +44,41 @@ type Options struct {
 // ErrNotARepository is returned for a directory git does not track.
 var ErrNotARepository = errors.New("not a git checkout")
 
+// ErrShallowHistory is returned for a shallow clone (`git clone
+// --depth`, the default of most CI checkouts). Its oldest commit lists
+// every file as added, so the history would make every file look last
+// changed there; it is refused rather than read. Fetch the full history
+// (`git fetch --unshallow`, `fetch-depth: 0` in actions/checkout).
+var ErrShallowHistory = errors.New("shallow clone: the git history is incomplete")
+
+// checkRepository fails with ErrNotARepository when git does not track
+// dir and with ErrShallowHistory when the clone is shallow.
+func checkRepository(ctx context.Context, git, dir string) error {
+	if _, err := run(ctx, git, dir, "rev-parse", "--is-inside-work-tree"); err != nil {
+		return fmt.Errorf("%w: %s", ErrNotARepository, dir)
+	}
+	out, err := run(ctx, git, dir, "rev-parse", "--is-shallow-repository")
+	if err != nil {
+		return err
+	}
+	switch strings.TrimSpace(string(out)) {
+	case "false":
+		return nil
+	case "true":
+		return fmt.Errorf("%w: %s", ErrShallowHistory, dir)
+	default:
+		// A git too old to answer (before 2.15) can't rule it out.
+		return fmt.Errorf("%w: %s: git can't tell whether the clone is shallow", ErrShallowHistory, dir)
+	}
+}
+
 // LastChanged maps each file under dir, as a path relative to dir with
 // forward slashes, to when it last changed: the commit time of the
 // newest of the last MaxCommits commits that touched it, or Now for a
 // file changed in the working tree (modified, staged or untracked). It
 // reads at most MaxOutputBytes per command and stops at ctx's deadline
 // (DefaultTimeout when ctx has none); on any error it returns no dates.
+// A shallow clone is ErrShallowHistory.
 func LastChanged(ctx context.Context, dir string, opts Options) (map[string]time.Time, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
@@ -65,8 +94,8 @@ func LastChanged(ctx context.Context, dir string, opts Options) (map[string]time
 	if opts.Git == "" {
 		opts.Git = "git"
 	}
-	if _, err := run(ctx, opts.Git, dir, "rev-parse", "--is-inside-work-tree"); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrNotARepository, dir)
+	if err := checkRepository(ctx, opts.Git, dir); err != nil {
+		return nil, err
 	}
 	log, err := run(ctx, opts.Git, dir, "log", "--relative", "--no-renames", "--name-only",
 		"--format=%x1e%ct", "-n", strconv.Itoa(opts.MaxCommits), "--", ".")

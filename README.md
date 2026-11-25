@@ -36,6 +36,17 @@ compare each language version's source with what it said when the
 version was last current (see "Outdated translations" under [Content quality](#content-quality)).
 Package `gitlog` does it; the checking packages never run a program.
 
+`--git` needs the full history: in a shallow clone (`git clone --depth`)
+every file looks added by the oldest commit, so it stops with an error
+(exit 2) instead of finding every translation current. In CI, check out
+with `fetch-depth: 0`:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0 # --git reads the whole history
+```
+
 Exit codes: `0` clean, `1` findings at error severity, `2` usage or I/O
 error, `3` not a CMS site.
 
@@ -729,7 +740,9 @@ newest of the last 5000 commits touching each version, relative to the
 directory asked about; a version changed and not committed is current;
 one `git cat-file --batch` for every base; at most 64 MB of output per
 command, 4 MB per file and a 30 second deadline; on any error, no
-answers and the rule is skipped):
+answers and the rule is skipped; a shallow clone is
+`gitlog.ErrShallowHistory`, since its history would make every version
+current):
 
 ```go
 bases, cancel := gitlog.SourceBases(ctx, dir, gitlog.Options{}) // or the caller's own quality.BaseReader

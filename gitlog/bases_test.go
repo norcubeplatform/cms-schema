@@ -2,6 +2,7 @@ package gitlog_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -199,5 +200,51 @@ func TestParseCommits(t *testing.T) {
 		if got[p] != c {
 			t.Errorf("%s: %s", p, got[p])
 		}
+	}
+}
+
+// shallowClone clones repo with --depth 1, as CI checkouts do.
+func shallowClone(t *testing.T, repo string) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "shallow")
+	git(t, repo, nil, "clone", "-q", "--depth", "1", "file://"+repo, dir)
+	return dir
+}
+
+// A shallow clone's oldest commit lists every file as added, so every
+// version would look current with its source: the history is refused,
+// never judged, while a full clone of the same repository is read.
+func TestShallowCloneIsRefused(t *testing.T) {
+	f := newFixture(t)
+	f.commit(map[string]string{
+		".norcube/cms/config.yml":            fixtureConfig,
+		".norcube/cms/collections/pages.yml": fixturePages,
+		enPage:                               fixturePage("Community", "Everyone can start", "/en/join/"),
+		csPage:                               fixturePage("Komunita", "Každý může začít", "/cs/pridat/"),
+	})
+	f.commit(map[string]string{enPage: fixturePage("Community", "Anyone can start a team", "/en/join/")})
+	if got := f.outdated(); len(got) != 1 {
+		t.Fatalf("the full repository: %v", got)
+	}
+	shallow := shallowClone(t, f.repo)
+	queries := []quality.BaseQuery{{Translation: csPage, Source: enPage}}
+
+	reader, cancel := gitlog.SourceBases(context.Background(), shallow, gitlog.Options{})
+	defer cancel()
+	if got, err := reader(queries); !errors.Is(err, gitlog.ErrShallowHistory) || got != nil {
+		t.Fatalf("SourceBases on a shallow clone: %v, %v", got, err)
+	}
+	if got, err := gitlog.LastChanged(context.Background(), shallow, gitlog.Options{}); !errors.Is(err, gitlog.ErrShallowHistory) || got != nil {
+		t.Fatalf("LastChanged on a shallow clone: %v, %v", got, err)
+	}
+
+	// The same repository cloned in full is read.
+	full := filepath.Join(t.TempDir(), "full")
+	git(t, f.repo, nil, "clone", "-q", "file://"+f.repo, full)
+	reader, cancel = gitlog.SourceBases(context.Background(), full, gitlog.Options{})
+	defer cancel()
+	got, err := reader(queries)
+	if err != nil || len(got) != 1 || !got[0].Known || got[0].Same {
+		t.Fatalf("a full clone: %v, %v", got, err)
 	}
 }

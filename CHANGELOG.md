@@ -2,6 +2,12 @@
 
 Notable changes, newest first.
 
+## 0.11.1 (2026-11-25)
+
+### Fixes
+
+- **A shallow clone is refused, not judged.** In a clone made with `--depth` (the default of `actions/checkout` and most CI checkouts) the oldest commit lists every file as added, so `gitlog.SourceBases` made every language version look current with its source and `quality.translation_outdated` found nothing. `gitlog.SourceBases` and `gitlog.LastChanged` now return the new **`gitlog.ErrShallowHistory`** in a shallow clone (`git rev-parse --is-shallow-repository`; a git too old to answer is treated as shallow), and `cms-schema-validate --quality --git` exits 2 saying so. The read stays lazy: a run without language versions to judge reads no history. CI needs the full history: `fetch-depth: 0` in `actions/checkout`, or `git fetch --unshallow`.
+
 ## 0.11.0 (2026-11-25)
 
 ### Behaviour changes

@@ -97,6 +97,10 @@ func run(args []string) int {
 	}
 
 	if historyErr != nil {
+		if errors.Is(historyErr, gitlog.ErrShallowHistory) {
+			fmt.Fprintf(os.Stderr, "error: --git: %s is a shallow clone, so its history can't tell which translations are out of date; fetch the full history (git fetch --unshallow, or fetch-depth: 0 in actions/checkout), or drop --git\n", path)
+			return 2
+		}
 		fmt.Fprintln(os.Stderr, "error: reading the git history:", historyErr)
 		return 2
 	}

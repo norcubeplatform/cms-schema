@@ -35,7 +35,9 @@ const MaxFileBytes = 4 << 20
 // The history is read once, when the reader is first called; it reads
 // at most MaxOutputBytes per command and stops at ctx's deadline
 // (DefaultTimeout when ctx has none). The returned reader must be called
-// before cancel. On a failure it returns an error and no answers.
+// before cancel. On a failure it returns an error and no answers:
+// ErrNotARepository outside a checkout, ErrShallowHistory in a shallow
+// clone, whose history can't tell when a version last changed.
 func SourceBases(ctx context.Context, dir string, opts Options) (reader quality.BaseReader, cancel func()) {
 	if _, ok := ctx.Deadline(); !ok {
 		ctx, cancel = context.WithTimeout(ctx, DefaultTimeout)
@@ -54,8 +56,8 @@ func SourceBases(ctx context.Context, dir string, opts Options) (reader quality.
 }
 
 func readBases(ctx context.Context, dir string, opts Options, queries []quality.BaseQuery) ([]quality.SourceBase, error) {
-	if _, err := run(ctx, opts.Git, dir, "rev-parse", "--is-inside-work-tree"); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrNotARepository, dir)
+	if err := checkRepository(ctx, opts.Git, dir); err != nil {
+		return nil, err
 	}
 	prefixOut, err := run(ctx, opts.Git, dir, "rev-parse", "--show-prefix")
 	if err != nil {
