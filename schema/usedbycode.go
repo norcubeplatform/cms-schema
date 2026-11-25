@@ -17,7 +17,7 @@ var ErrCodePattern = errors.New("not a usedByCode path")
 // It matches ErrCodePattern.
 type CodePatternError struct{ report.Problem }
 
-func (e *CodePatternError) Error() string { return ErrCodePattern.Error() + ": " + e.Problem.String() }
+func (e *CodePatternError) Error() string { return ErrCodePattern.Error() + ": " + e.String() }
 func (e *CodePatternError) Unwrap() error { return ErrCodePattern }
 
 // CheckCodePattern reports what is wrong with one usedByCode entry: a

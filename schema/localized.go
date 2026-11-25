@@ -213,7 +213,7 @@ var ErrTemplate = errors.New("invalid titleTemplate")
 // of report.TemplateCauses with its params. It matches ErrTemplate.
 type TemplateError struct{ report.Problem }
 
-func (e *TemplateError) Error() string { return ErrTemplate.Error() + ": " + e.Problem.String() }
+func (e *TemplateError) Error() string { return ErrTemplate.Error() + ": " + e.String() }
 func (e *TemplateError) Unwrap() error { return ErrTemplate }
 
 func templateError(c report.Cause, p *report.Params) error {

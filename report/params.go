@@ -224,7 +224,8 @@ func (p *Params) Keys() []ParamKey {
 	v := reflect.ValueOf(p).Elem()
 	var out []ParamKey
 	for _, s := range paramSpecs {
-		if !v.Field(s.field).IsZero() && !(v.Field(s.field).Kind() == reflect.Slice && v.Field(s.field).Len() == 0) {
+		f := v.Field(s.field)
+		if f.Kind() == reflect.Slice && f.Len() > 0 || f.Kind() != reflect.Slice && !f.IsZero() {
 			out = append(out, s.Key)
 		}
 	}
