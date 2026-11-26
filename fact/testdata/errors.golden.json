@@ -640,9 +640,35 @@
         ".norcube/cms/collections/cases.yml",
         ".norcube/cms/config.yml"
       ],
-      "kind": "collection"
+      "declarationKind": "collection"
     },
     "error": "fact 0: ambiguous: collection \"cases\" is declared in .norcube/cms/collections/cases.yml and .norcube/cms/config.yml"
+  },
+  "make/declared-twice-block": {
+    "kind": "ambiguous",
+    "code": "declared_twice",
+    "params": {
+      "key": "card",
+      "names": [
+        ".norcube/cms/blocks/card.yml",
+        ".norcube/cms/config.yml"
+      ],
+      "declarationKind": "block"
+    },
+    "error": "fact 0: ambiguous: block \"card\" is declared in .norcube/cms/blocks/card.yml and .norcube/cms/config.yml"
+  },
+  "make/declared-twice-input": {
+    "kind": "ambiguous",
+    "code": "declared_twice",
+    "params": {
+      "key": "og",
+      "names": [
+        ".norcube/cms/inputs/og.yml",
+        ".norcube/cms/config.yml"
+      ],
+      "declarationKind": "input"
+    },
+    "error": "fact 0: ambiguous: input \"og\" is declared in .norcube/cms/inputs/og.yml and .norcube/cms/config.yml"
   },
   "make/field": {
     "kind": "not_in_schema",

@@ -2,6 +2,23 @@
 
 Notable changes, newest first.
 
+## 0.12.2 (2026-11-26)
+
+The kind of schema declaration a refused fact names is a code, so a
+client words it like every other code. The English a terminal prints is
+unchanged.
+
+### New
+
+- **`report.DeclarationKind`**: `collection`, `block`, `input`, frozen like causes. `report.DeclarationKinds()` lists them; `DeclarationKind.English()` gives the words this module's sentences use.
+- **`params.declarationKind`** (`report.ParamDeclarationKind`, class vocabulary): the kind of declaration a refused fact looks up. `report/catalog.json` lists the declaration kinds as its values, so a client generated from it has them as a type.
+
+### Behaviour changes
+
+- **`no_file_declares` and `declared_twice` now send `declarationKind` instead of `kind`**: `"declarationKind": "collection"` where 0.12.1 sent `"kind": "collection"`. Their params in `fact.ErrorCodes()` and `catalog.json` are `declarationKind key` and `declarationKind key names`. `kind` is a fact kind only (`owner_not_one`, `field_missing`…); its doc comment says so.
+- `fact.CheckError` refuses a `no_file_declares` or `declared_twice` stored by 0.12.1 (it sets `kind`, which these codes no longer declare, and lacks `declarationKind`), and a `declarationKind` that is no kind. Such a stored refusal's `Error()` still reads as it did.
+- Every refusal reads word for word as 0.12.1 printed it (`collection "cases" is declared in …`).
+
 ## 0.12.1 (2026-11-26)
 
 The kinds of value a finding names are codes, so a client words them

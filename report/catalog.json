@@ -99,6 +99,16 @@
       "class": "vocabulary"
     },
     {
+      "key": "declarationKind",
+      "type": "string",
+      "class": "vocabulary",
+      "values": [
+        "collection",
+        "block",
+        "input"
+      ]
+    },
+    {
       "key": "framework",
       "type": "string",
       "class": "vocabulary"
@@ -2451,7 +2461,7 @@
       "kind": "not_in_schema",
       "code": "no_file_declares",
       "params": [
-        "kind",
+        "declarationKind",
         "key"
       ]
     },
@@ -2566,7 +2576,7 @@
       "kind": "ambiguous",
       "code": "declared_twice",
       "params": [
-        "kind",
+        "declarationKind",
         "key",
         "names"
       ]

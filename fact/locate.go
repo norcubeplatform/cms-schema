@@ -87,7 +87,7 @@ func (l *locator) locate(f Fact) (Edit, error) {
 				return Edit{}, refuse(CodeNotSiteLocale, &report.Params{Locale: loc})
 			}
 		}
-		file, in, err := l.source(kindCollections, f.Collection)
+		file, in, err := l.source(report.DeclarationKindCollection, f.Collection)
 		if err != nil {
 			return Edit{}, err
 		}
@@ -118,11 +118,14 @@ func (l *locator) locate(f Fact) (Edit, error) {
 	return Edit{}, refuse(CodeKindNotPlaced, &report.Params{Value: f.Kind})
 }
 
-const (
-	kindCollections = "collections"
-	kindBlocks      = "blocks"
-	kindInputs      = "inputs"
-)
+// declarationPlaces is where each kind of declaration is written: its
+// own folder, and the key of the config file's mapping that holds it
+// inline.
+var declarationPlaces = map[report.DeclarationKind]struct{ dir, key string }{
+	report.DeclarationKindCollection: {dir: load.CollectionsDir, key: "collections"},
+	report.DeclarationKindBlock:      {dir: load.BlocksDir, key: "blocks"},
+	report.DeclarationKindInput:      {dir: load.InputsDir, key: "inputs"},
+}
 
 // role places a role fact: the field must hold the role as the fact
 // declares it (a rich text description with its excerpt, a select with
@@ -237,14 +240,14 @@ func (l *locator) field(f Fact) (Edit, schema.Field, []schema.Field, error) {
 			return fail(refuse(CodeCollectionNotFound, &report.Params{Key: f.Collection}))
 		}
 		fields = coll.Fields
-		file, in, err = l.source(kindCollections, f.Collection)
+		file, in, err = l.source(report.DeclarationKindCollection, f.Collection)
 	} else {
 		b, ok := l.cfg.Blocks[f.Block]
 		if !ok {
 			return fail(refuse(CodeBlockNotFound, &report.Params{Key: f.Block}))
 		}
 		fields = b.Fields
-		file, in, err = l.source(kindBlocks, f.Block)
+		file, in, err = l.source(report.DeclarationKindBlock, f.Block)
 	}
 	if err != nil {
 		return fail(err)
@@ -291,7 +294,7 @@ func (l *locator) field(f Fact) (Edit, schema.Field, []schema.Field, error) {
 			if !ok || !slices.Contains(cur.Components, st.Shape) {
 				return fail(refuse(CodeListBlockNotFound, &report.Params{Key: st.Shape, Field: f.Field}))
 			}
-			if file, in, err = l.source(kindBlocks, st.Shape); err != nil {
+			if file, in, err = l.source(report.DeclarationKindBlock, st.Shape); err != nil {
 				return fail(err)
 			}
 			rel, fields = nil, b.Fields
@@ -345,10 +348,10 @@ func pickEntry(entries []schema.Entry, shape, field string) (schema.Entry, error
 // block of the same name, as in the loader.
 func (l *locator) refSource(name string) (string, []string, error) {
 	if _, ok := l.cfg.Inputs[name]; ok {
-		return l.source(kindInputs, name)
+		return l.source(report.DeclarationKindInput, name)
 	}
 	if _, ok := l.cfg.Blocks[name]; ok {
-		return l.source(kindBlocks, name)
+		return l.source(report.DeclarationKindBlock, name)
 	}
 	return "", nil, refuse(CodeRefNotFound, &report.Params{Key: name})
 }
@@ -356,14 +359,17 @@ func (l *locator) refSource(name string) (string, []string, error) {
 // source is the one place a collection, block or input is written: its
 // own file, or an entry in the config file. Written in two places (a
 // file and inline, or two files) it is ambiguous.
-func (l *locator) source(kind, name string) (string, []string, error) {
+func (l *locator) source(kind report.DeclarationKind, name string) (string, []string, error) {
+	place, ok := declarationPlaces[kind]
+	if !ok {
+		panic("fact: no place for declaration kind " + string(kind))
+	}
 	type cand struct {
 		file string
 		in   []string
 	}
 	var cands []cand
 	if !l.doc.Legacy {
-		dir := map[string]string{kindCollections: load.CollectionsDir, kindBlocks: load.BlocksDir, kindInputs: load.InputsDir}[kind]
 		seen := map[string]bool{}
 		for _, f := range l.doc.Files {
 			ext := strings.ToLower(path.Ext(f))
@@ -372,19 +378,19 @@ func (l *locator) source(kind, name string) (string, []string, error) {
 			}
 			d := path.Dir(f)
 			// Inputs also come from inputsFromGlob folders.
-			glob := kind == kindInputs && f != load.ConfigFile && d != load.CollectionsDir && d != load.BlocksDir
-			if d == dir || glob {
+			glob := kind == report.DeclarationKindInput && f != load.ConfigFile && d != load.CollectionsDir && d != load.BlocksDir
+			if d == place.dir || glob {
 				seen[f] = true
 				cands = append(cands, cand{file: f})
 			}
 		}
 	}
-	if child(child(l.root, kind), name) != nil {
-		cands = append(cands, cand{file: l.configFile, in: []string{kind, name}})
+	if child(child(l.root, place.key), name) != nil {
+		cands = append(cands, cand{file: l.configFile, in: []string{place.key, name}})
 	}
 	switch len(cands) {
 	case 0:
-		return "", nil, refuse(CodeNoFileDeclares, &report.Params{Kind: strings.TrimSuffix(kind, "s"), Key: name})
+		return "", nil, refuse(CodeNoFileDeclares, &report.Params{DeclarationKind: kind, Key: name})
 	case 1:
 		return cands[0].file, cands[0].in, nil
 	}
@@ -392,7 +398,7 @@ func (l *locator) source(kind, name string) (string, []string, error) {
 	for i, c := range cands {
 		files[i] = c.file
 	}
-	return "", nil, refuse(CodeDeclaredTwice, &report.Params{Kind: strings.TrimSuffix(kind, "s"), Key: name, Names: files})
+	return "", nil, refuse(CodeDeclaredTwice, &report.Params{DeclarationKind: kind, Key: name, Names: files})
 }
 
 var pathToken = regexp.MustCompile(`([^.\[\]]+)|\[([^\[\]]*)\]`)

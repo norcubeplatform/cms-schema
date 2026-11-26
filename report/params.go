@@ -22,9 +22,10 @@ import (
 //     where the site wrote nothing, so a client treats a missing
 //     customer key as empty text.
 //   - vocabulary: one of a fixed set of words of this module (field
-//     types, value kinds, roles, schema keys, frameworks). A client may
-//     translate it. Where the set is closed, ParamSpecs lists it (the
-//     value kinds of Expected and Actual).
+//     types, value kinds, declaration kinds, roles, schema keys,
+//     frameworks). A client may translate it. Where the set is closed,
+//     ParamSpecs lists it (the value kinds of Expected and Actual, the
+//     declaration kinds of DeclarationKind).
 //   - code: a language code.
 //   - derived: a repository path, URL or schema path, shown as is.
 //   - number: a count, bound, size or position.
@@ -64,8 +65,12 @@ type Params struct {
 	Knob string `json:"knob,omitempty" class:"vocabulary"`
 	// Role is a field role.
 	Role string `json:"role,omitempty" class:"vocabulary"`
-	// Kind is a fact kind (package fact).
+	// Kind is a fact kind (package fact: `alt`, `localized`,
+	// `optimizedAtBuild`), and nothing else.
 	Kind string `json:"kind,omitempty" class:"vocabulary"`
+	// DeclarationKind is the kind of schema declaration a refused fact
+	// looks up (`collection`, `block`, `input`).
+	DeclarationKind DeclarationKind `json:"declarationKind,omitempty" class:"vocabulary"`
 	// Framework is the build framework a guess came from.
 	Framework string `json:"framework,omitempty" class:"vocabulary"`
 	// Allowed lists the values that would be accepted.
@@ -108,39 +113,40 @@ type ParamKey string
 
 // Param keys.
 const (
-	ParamField         ParamKey = "field"
-	ParamSchemaKey     ParamKey = "key"
-	ParamValue         ParamKey = "value"
-	ParamNames         ParamKey = "names"
-	ParamMore          ParamKey = "more"
-	ParamSameAs        ParamKey = "sameAs"
-	ParamType          ParamKey = "type"
-	ParamOtherType     ParamKey = "otherType"
-	ParamExpected      ParamKey = "expected"
-	ParamActual        ParamKey = "actual"
-	ParamKnob          ParamKey = "knob"
-	ParamRole          ParamKey = "role"
-	ParamKind          ParamKey = "kind"
-	ParamFramework     ParamKey = "framework"
-	ParamAllowed       ParamKey = "allowed"
-	ParamLocale        ParamKey = "locale"
-	ParamLocales       ParamKey = "locales"
-	ParamPath          ParamKey = "path"
-	ParamOther         ParamKey = "other"
-	ParamMin           ParamKey = "min"
-	ParamMax           ParamKey = "max"
-	ParamCurrent       ParamKey = "current"
-	ParamCount         ParamKey = "count"
-	ParamTotal         ParamKey = "total"
-	ParamIndex         ParamKey = "index"
-	ParamOtherIndex    ParamKey = "otherIndex"
-	ParamOffset        ParamKey = "offset"
-	ParamLevel         ParamKey = "level"
-	ParamExpectedLevel ParamKey = "expectedLevel"
-	ParamBytes         ParamKey = "bytes"
-	ParamLimitBytes    ParamKey = "limitBytes"
-	ParamCustomMessage ParamKey = "customMessage"
-	ParamDetail        ParamKey = "detail"
+	ParamField           ParamKey = "field"
+	ParamSchemaKey       ParamKey = "key"
+	ParamValue           ParamKey = "value"
+	ParamNames           ParamKey = "names"
+	ParamMore            ParamKey = "more"
+	ParamSameAs          ParamKey = "sameAs"
+	ParamType            ParamKey = "type"
+	ParamOtherType       ParamKey = "otherType"
+	ParamExpected        ParamKey = "expected"
+	ParamActual          ParamKey = "actual"
+	ParamKnob            ParamKey = "knob"
+	ParamRole            ParamKey = "role"
+	ParamKind            ParamKey = "kind"
+	ParamDeclarationKind ParamKey = "declarationKind"
+	ParamFramework       ParamKey = "framework"
+	ParamAllowed         ParamKey = "allowed"
+	ParamLocale          ParamKey = "locale"
+	ParamLocales         ParamKey = "locales"
+	ParamPath            ParamKey = "path"
+	ParamOther           ParamKey = "other"
+	ParamMin             ParamKey = "min"
+	ParamMax             ParamKey = "max"
+	ParamCurrent         ParamKey = "current"
+	ParamCount           ParamKey = "count"
+	ParamTotal           ParamKey = "total"
+	ParamIndex           ParamKey = "index"
+	ParamOtherIndex      ParamKey = "otherIndex"
+	ParamOffset          ParamKey = "offset"
+	ParamLevel           ParamKey = "level"
+	ParamExpectedLevel   ParamKey = "expectedLevel"
+	ParamBytes           ParamKey = "bytes"
+	ParamLimitBytes      ParamKey = "limitBytes"
+	ParamCustomMessage   ParamKey = "customMessage"
+	ParamDetail          ParamKey = "detail"
 )
 
 // Classes of a param key (see Params).
@@ -178,11 +184,28 @@ type ParamSpec struct {
 	Type  string   `json:"type"`
 	Class string   `json:"class"`
 	// Values are every value a vocabulary key takes, for a key whose
-	// vocabulary is closed (ValueKinds for Expected and Actual); a value
-	// outside them breaks the key's declaration (CheckParams).
+	// vocabulary is closed (ValueKinds for Expected and Actual,
+	// DeclarationKinds for DeclarationKind); a value outside them breaks
+	// the key's declaration (CheckParams).
 	Values []string `json:"values,omitempty"`
 	// field is the index of the key's field in Params.
 	field int
+}
+
+// closedVocabularies are the types of Params fields whose values are a
+// closed set, each with its values in the order its enum lists them. A
+// new closed vocabulary is its enum type and one entry here.
+var closedVocabularies = map[reflect.Type]func() []string{
+	reflect.TypeFor[ValueKind]():       func() []string { return codes(ValueKinds()) },
+	reflect.TypeFor[DeclarationKind](): func() []string { return codes(DeclarationKinds()) },
+}
+
+func codes[T ~string](list []T) []string {
+	out := make([]string, len(list))
+	for i, v := range list {
+		out[i] = string(v)
+	}
+	return out
 }
 
 // paramSpecs is read from the Params struct itself, so the list of keys
@@ -195,19 +218,18 @@ var paramSpecs = func() []ParamSpec {
 		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
 		var typ string
 		var values []string
-		switch f.Type {
-		case reflect.TypeFor[string]():
+		closed, isClosed := closedVocabularies[f.Type]
+		switch {
+		case isClosed:
 			typ = ParamTypeString
-		case reflect.TypeFor[ValueKind]():
+			values = closed()
+		case f.Type == reflect.TypeFor[string]():
 			typ = ParamTypeString
-			for _, k := range ValueKinds() {
-				values = append(values, string(k))
-			}
-		case reflect.TypeFor[[]string]():
+		case f.Type == reflect.TypeFor[[]string]():
 			typ = ParamTypeStringList
-		case reflect.TypeFor[*float64]():
+		case f.Type == reflect.TypeFor[*float64]():
 			typ = ParamTypeNumber
-		case reflect.TypeFor[*int64]():
+		case f.Type == reflect.TypeFor[*int64]():
 			typ = ParamTypeInteger
 		default:
 			panic("report: Params." + f.Name + " has an unsupported type " + f.Type.String())

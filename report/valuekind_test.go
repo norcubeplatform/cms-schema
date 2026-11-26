@@ -1,15 +1,8 @@
 package report
 
 import (
-	"encoding/json"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"math"
-	"os"
-	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -17,33 +10,14 @@ import (
 // Every ValueKind constant of valuekind.go is in the table, once, with
 // a code a client can key on and English no other kind has.
 func TestValueKindsAreTheConstants(t *testing.T) {
-	file, err := parser.ParseFile(token.NewFileSet(), "valuekind.go", nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	consts := map[ValueKind]string{}
-	ast.Inspect(file, func(n ast.Node) bool {
-		vs, ok := n.(*ast.ValueSpec)
-		if !ok || vs.Type == nil || vs.Type.(*ast.Ident).Name != "ValueKind" {
-			return true
-		}
-		for i, name := range vs.Names {
-			v, _ := strconv.Unquote(vs.Values[i].(*ast.BasicLit).Value)
-			if prev, dup := consts[ValueKind(v)]; dup {
-				t.Errorf("%s and %s are both %q", prev, name.Name, v)
-			}
-			consts[ValueKind(v)] = name.Name
-		}
-		return true
-	})
-	code := regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
+	consts := enumConstants(t, "valuekind.go", "ValueKind")
 	english := map[string]ValueKind{}
 	for _, k := range ValueKinds() {
-		if _, ok := consts[k]; !ok {
+		if _, ok := consts[string(k)]; !ok {
 			t.Errorf("value kind %q is not a constant in valuekind.go", k)
 		}
-		delete(consts, k)
-		if !code.MatchString(string(k)) {
+		delete(consts, string(k))
+		if !codePattern.MatchString(string(k)) {
 			t.Errorf("value kind %q is not a snake_case code", k)
 		}
 		w := k.English()
@@ -122,60 +96,6 @@ func TestValueKindOf(t *testing.T) {
 		if got := ValueKindOf(c.v); got != c.want {
 			t.Errorf("ValueKindOf(%#v) = %q, want %q", c.v, got, c.want)
 		}
-	}
-}
-
-// The params expected and actual, and no others, have a closed
-// vocabulary: every value kind, in the order of ValueKinds, in
-// ParamSpecs and in catalog.json, which clients are generated from.
-func TestCatalogListsTheValueKinds(t *testing.T) {
-	var kinds []string
-	for _, k := range ValueKinds() {
-		kinds = append(kinds, string(k))
-	}
-	// What a caller does with the list it gets changes nothing here.
-	for _, s := range ParamSpecs() {
-		if s.Key == ParamExpected {
-			s.Values[0] = "changed"
-		}
-	}
-	for _, s := range ParamSpecs() {
-		switch s.Key {
-		case ParamExpected, ParamActual:
-			if !slices.Equal(s.Values, kinds) || s.Class != ParamClassVocabulary || s.Type != ParamTypeString {
-				t.Errorf("%s: %s %s %v, want a vocabulary string of %v", s.Key, s.Class, s.Type, s.Values, kinds)
-			}
-		default:
-			if s.Values != nil {
-				t.Errorf("%s has values %v", s.Key, s.Values)
-			}
-		}
-	}
-	raw, err := os.ReadFile("catalog.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var file struct {
-		Params []struct {
-			Key    string   `json:"key"`
-			Values []string `json:"values"`
-		} `json:"params"`
-	}
-	if err := json.Unmarshal(raw, &file); err != nil {
-		t.Fatal(err)
-	}
-	listed := 0
-	for _, p := range file.Params {
-		if p.Values == nil {
-			continue
-		}
-		listed++
-		if (p.Key != string(ParamExpected) && p.Key != string(ParamActual)) || !slices.Equal(p.Values, kinds) {
-			t.Errorf("catalog.json lists %s: %v, want the value kinds %v", p.Key, p.Values, kinds)
-		}
-	}
-	if listed != 2 {
-		t.Errorf("catalog.json lists the values of %d params, want expected and actual", listed)
 	}
 }
 

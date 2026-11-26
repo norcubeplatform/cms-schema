@@ -139,7 +139,7 @@ replaces the sentence.
 - **`report.Params`** holds the keys; `report.ParamSpecs()` gives each
   key's type and class: `customer` (text the site wrote: shown as
   written, never translated, may be empty), `vocabulary` (field types,
-  value kinds, roles, schema keys), `code` (languages), `derived`
+  value kinds, declaration kinds, roles, schema keys), `code` (languages), `derived`
   (paths, URLs), `number`, `technical` (a parser's or the runtime's own
   error text). Every string is at most 300 characters
   (`report.MaxParamRunes`, cut with "…"); `names` lists at most 10
@@ -157,6 +157,13 @@ replaces the sentence.
   and `report.CheckFinding` refuses any other value. Field types are in
   `type` (and `otherType`, the one compared with), as the schema writes
   them.
+- **Declaration kinds** are a closed vocabulary too: `declarationKind`
+  is the kind of schema declaration a refused fact looks up, a
+  `report.DeclarationKind` code, `collection`, `block` or `input`
+  (`report.DeclarationKinds()`; `DeclarationKind.English()` gives this
+  module's words). `ParamSpec.Values` and `catalog.json` list them, and
+  `report.CheckParams` refuses any other value. `kind` is a fact kind
+  only (`alt`, `localized`, `optimizedAtBuild`…).
 - **[`report/catalog.json`](report/catalog.json)** is the catalog as a
   file, with the reasons a quality rule is skipped and the codes of a
   refused fact: what the dashboard's message tables and the CMS's

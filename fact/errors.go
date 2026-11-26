@@ -278,6 +278,16 @@ func ownerNoun(kind string) string {
 	return "a field"
 }
 
+// declarationKind is the kind of declaration a refusal names, in
+// English. A refusal stored by 0.12.1 named it in English in kind, and
+// reads as it did (CheckError refuses it).
+func declarationKind(p *report.Params) string {
+	if p.DeclarationKind == "" {
+		return p.Kind
+	}
+	return p.DeclarationKind.English()
+}
+
 // entryNoun is what one entry of a fact's list is.
 func entryNoun(knob string) string {
 	if knob == "altFrom" {
@@ -439,8 +449,8 @@ var errorSpecs = append(append([]ErrorSpec{
 		return "item shape " + q(p.Key)
 	}),
 	spec(nf, CodeRefNotFound, "key", "", prefixNone, func(p *report.Params) string { return "block or input " + q(p.Key) }),
-	spec(nf, CodeNoFileDeclares, "kind key", "", prefixNone, func(p *report.Params) string {
-		return "no file declares " + p.Kind + " " + q(p.Key)
+	spec(nf, CodeNoFileDeclares, "declarationKind key", "", prefixNone, func(p *report.Params) string {
+		return "no file declares " + declarationKind(p) + " " + q(p.Key)
 	}),
 	spec(nf, CodeNoMappingAt, "path knob", "", prefixNone, func(p *report.Params) string {
 		return p.Path + " has no mapping at " + p.Knob
@@ -472,8 +482,8 @@ var errorSpecs = append(append([]ErrorSpec{
 	spec(amb, CodeShapesNamedTwice, "count key", "field", prefixField, func(p *report.Params) string {
 		return count(p.Count) + " item shapes are named " + q(p.Key)
 	}),
-	spec(amb, CodeDeclaredTwice, "kind key names", "", prefixNone, func(p *report.Params) string {
-		return p.Kind + " " + q(p.Key) + " is declared in " + strings.Join(p.Names, " and ")
+	spec(amb, CodeDeclaredTwice, "declarationKind key names", "", prefixNone, func(p *report.Params) string {
+		return declarationKind(p) + " " + q(p.Key) + " is declared in " + strings.Join(p.Names, " and ")
 	}),
 
 	spec(unpl, CodeNoPosition, "", "path", prefixPath, says("no position")),

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -129,6 +130,26 @@ func declaredTwice() fstest.MapFS {
 	return fsys
 }
 
+// declaredTwiceBlock declares the card block in its own file and in
+// config.yml.
+func declaredTwiceBlock() fstest.MapFS {
+	fsys := errorSite()
+	config := string(fsys[load.ConfigFile].Data) + "blocks:\n  card:\n    label: Card\n    fields:\n      - {key: caption, type: text, label: Caption}\n"
+	fsys[load.ConfigFile] = &fstest.MapFile{Data: []byte(config)}
+	return fsys
+}
+
+// declaredTwiceInput declares the og input, which pages pulls in, in
+// its own file and in config.yml.
+func declaredTwiceInput() fstest.MapFS {
+	fsys := errorSite()
+	config := string(fsys[load.ConfigFile].Data) + "inputs:\n  og:\n    type: image\n    label: Share image\n"
+	fsys[load.ConfigFile] = &fstest.MapFile{Data: []byte(config)}
+	fsys[load.InputsDir+"/og.yml"] = &fstest.MapFile{Data: []byte("type: image\nlabel: Share image\n")}
+	fsys[load.CollectionsDir+"/pages.yml"] = &fstest.MapFile{Data: []byte("label: Pages\npath: src/content/pages\nfields:\n  - key: title\n    type: text\n    label: Title\n  - $ref: og\n")}
+	return fsys
+}
+
 func long(n int) string { return strings.Repeat("a", n) }
 
 func names(n int) []string {
@@ -229,6 +250,8 @@ func errorCases() []errorCase {
 		{name: "make/shape", make: mk(works("list[c].a", schema.RoleNone))},
 		{name: "make/shapes-named-twice", make: mk(works("same[a].b", schema.RoleNone))},
 		{name: "make/declared-twice", fsys: declaredTwice(), make: mk(fact.Fact{Kind: fact.KindRole, Collection: "cases", Field: "title", Role: schema.RoleNone})},
+		{name: "make/declared-twice-block", fsys: declaredTwiceBlock(), make: mk(fact.Fact{Kind: fact.KindRole, Block: "card", Field: "caption", Role: schema.RoleNone})},
+		{name: "make/declared-twice-input", fsys: declaredTwiceInput(), make: mk(fact.Fact{Kind: fact.KindRole, Collection: "pages", Field: "og", Role: schema.RoleNone})},
 		{name: "make/path-list-first", make: mk(works("[a].b", schema.RoleNone))},
 		{name: "make/path", make: mk(works("seo..title", schema.RoleNone))},
 		// fact.Apply.
@@ -367,7 +390,9 @@ func TestDefensiveCodesEnglish(t *testing.T) {
 	}{
 		{fact.CodeTooDeep, &report.Params{Field: "a.b", Max: report.Num(12)}, `invalid fact: "a.b" nests deeper than 12`},
 		{fact.CodeRefNotFound, &report.Params{Key: "seo"}, `not in the schema: block or input "seo"`},
-		{fact.CodeNoFileDeclares, &report.Params{Kind: "collection", Key: "pages"}, `not in the schema: no file declares collection "pages"`},
+		{fact.CodeNoFileDeclares, &report.Params{DeclarationKind: report.DeclarationKindCollection, Key: "pages"}, `not in the schema: no file declares collection "pages"`},
+		{fact.CodeNoFileDeclares, &report.Params{DeclarationKind: report.DeclarationKindBlock, Key: "card"}, `not in the schema: no file declares block "card"`},
+		{fact.CodeNoFileDeclares, &report.Params{DeclarationKind: report.DeclarationKindInput, Key: "og"}, `not in the schema: no file declares input "og"`},
 		{fact.CodeNoPosition, &report.Params{Path: "x.yml"}, `x.yml: cannot be placed: no position`},
 		{fact.CodeNoPosition, nil, `cannot be placed: no position`},
 		{fact.CodeEmptyValue, nil, `cannot be placed: an empty value`},
@@ -393,6 +418,37 @@ func TestDefensiveCodesEnglish(t *testing.T) {
 		}
 		if !errors.Is(e, kind.Sentinel()) {
 			t.Errorf("%s does not match %v", c.code, kind.Sentinel())
+		}
+	}
+}
+
+// The kind of declaration a refusal names is a report.DeclarationKind
+// code in declarationKind, never words in kind: a refusal with another
+// value, or one stored by 0.12.1 with the words in kind, breaks its
+// entry, and the stored one still reads as it did.
+func TestDeclarationKindRefusals(t *testing.T) {
+	for _, code := range []fact.ErrorCode{fact.CodeNoFileDeclares, fact.CodeDeclaredTwice} {
+		var spec fact.ErrorSpec
+		for _, s := range fact.ErrorCodes() {
+			if s.Code == code {
+				spec = s
+			}
+		}
+		if !slices.Contains(spec.Params, report.ParamDeclarationKind) || slices.Contains(spec.Params, report.ParamKind) || slices.Contains(spec.Optional, report.ParamKind) {
+			t.Errorf("%s declares %v %v, want declarationKind and no kind", code, spec.Params, spec.Optional)
+		}
+		names := []string{"a.yml", "b.yml"}
+		unknown := &fact.Error{Kind: spec.Kind, Code: code, Params: &report.Params{DeclarationKind: "storage", Key: "pages", Names: names}}
+		if err := fact.CheckError(unknown); err == nil || !strings.Contains(err.Error(), "none of its values") {
+			t.Errorf("%s with declarationKind storage: %v", code, err)
+		}
+		current := &fact.Error{Kind: spec.Kind, Code: code, Params: &report.Params{DeclarationKind: report.DeclarationKindCollection, Key: "pages", Names: names}}
+		stored := &fact.Error{Kind: spec.Kind, Code: code, Params: &report.Params{Kind: "collection", Key: "pages", Names: names}}
+		if err := fact.CheckError(stored); err == nil {
+			t.Errorf("%s stored by 0.12.1 keeps to its entry", code)
+		}
+		if stored.Error() != current.Error() {
+			t.Errorf("%s stored by 0.12.1 reads %q, want %q", code, stored.Error(), current.Error())
 		}
 	}
 }
