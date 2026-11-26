@@ -90,7 +90,12 @@ var qualityCauses = append(append([]CauseSpec{
 		text("The image has no alt text (the field for it was guessed from field names)."), text(describeHint)),
 	// path is the image's address as the text writes it, when it has one.
 	spec(RuleQualityImageAltMissing, CauseInText, warn, "", "path",
-		func(x in) string { return "The image " + orNowhere(x.Path) + " in the text has no alt text." },
+		func(x in) string {
+			if x.Path == "" {
+				return "An image in the text has no address and no alt text."
+			}
+			return "The image " + x.Path + " in the text has no alt text."
+		},
 		text("Describe what the image shows between the square brackets: ![a team at work](...).")),
 	spec(RuleQualityImageAltPoor, CauseGenericWord, notice, "value", "",
 		func(x in) string { return "The image's alt text " + q(x.Value) + " is a generic word." }, text(poorAltHint)),

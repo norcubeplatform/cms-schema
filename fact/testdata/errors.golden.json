@@ -629,7 +629,7 @@
     "params": {
       "max": 50
     },
-    "error": "invalid fact: 1 to 50 facts"
+    "error": "invalid fact: a change holds 1 to 50 facts"
   },
   "make/declared-twice": {
     "kind": "ambiguous",

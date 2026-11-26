@@ -27,12 +27,16 @@ const (
 )
 
 // declaredStorages is the hint of a storage name the config does not
-// declare: the names it does.
-func declaredStorages(x in) string {
-	if len(x.Names) == 0 {
-		return "This site declares no storages; add a `storages:` block to config.yml or remove the `storage:` line."
+// declare: the names it does, or, with none, to declare one or drop the
+// line that names it (line: `storage:` on a field, `defaultStorage:` in
+// config.yml).
+func declaredStorages(line string) func(x in) string {
+	return func(x in) string {
+		if len(x.Names) == 0 {
+			return "This site declares no storages; add a `storages:` block to config.yml or remove the `" + line + ":` line."
+		}
+		return "Declared storages: " + comma(x.Names) + more(x.Params) + "."
 	}
-	return "Declared storages: " + comma(x.Names) + more(x.Params) + "."
 }
 
 // whenVerb says what the values of noindexWhen or draftWhen do.
@@ -347,10 +351,10 @@ var schemaCauses = append(append([]CauseSpec{
 		func(x in) string {
 			return q(x.Field) + " uses storage " + q(x.Key) + ", which config.yml does not declare"
 		},
-		declaredStorages),
+		declaredStorages("storage")),
 	spec(RuleSchemaUnknownDefaultStorage, "", err, "key", "names more",
 		func(x in) string { return "defaultStorage " + q(x.Key) + " is not declared under storages" },
-		declaredStorages),
+		declaredStorages("defaultStorage")),
 	spec(RuleSchemaTranslatableIgnored, "", warn, "field type", "",
 		func(x in) string {
 			return "field " + q(x.Field) + " has `translatable`, but a value of type " + x.Type + " is never translated"

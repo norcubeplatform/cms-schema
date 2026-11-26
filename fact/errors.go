@@ -375,7 +375,7 @@ var errorSpecs = append(append([]ErrorSpec{
 		return q(p.Value) + " is not a name"
 	}),
 	spec(inv, CodeFactsCount, "max", "", prefixNone, func(p *report.Params) string {
-		return "1 to " + num(p.Max) + " facts"
+		return "a change holds 1 to " + num(p.Max) + " facts"
 	}),
 	spec(inv, CodeKindNotPlaced, "value", "", prefixNone, func(p *report.Params) string {
 		return "kind " + q(p.Value)

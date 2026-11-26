@@ -37,11 +37,10 @@ var contentCauses = []CauseSpec{
 			return "Item " + integer(x.Index) + " of " + x.Field + " has no `" + x.Key + ":` discriminator."
 		},
 		func(x in) string {
-			first := "none"
-			if len(x.Names) > 0 {
-				first = x.Names[0]
+			if len(x.Names) == 0 {
+				return "Set `" + x.Key + ":` to the key of one of the list's shapes."
 			}
-			return "The editor falls back to the first shape (" + first + "). Set `" + x.Key + ":` to one of: " + comma(x.Names) + more(x.Params) + "."
+			return "The editor falls back to the first shape (" + x.Names[0] + "). Set `" + x.Key + ":` to one of: " + comma(x.Names) + more(x.Params) + "."
 		}),
 	spec(RuleContentItemTypeUnknown, "", err, "index field key value", "names more",
 		func(x in) string {

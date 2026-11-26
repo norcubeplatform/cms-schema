@@ -2,6 +2,18 @@
 
 Notable changes, newest first.
 
+## Unreleased
+
+English a terminal prints that read wrong, from the dashboard's Czech
+review. Codes, params and the catalog are unchanged.
+
+### Behaviour changes
+
+- `quality.image_alt_missing.in_text` with no address reads "An image in the text has no address and no alt text." (was "The image nowhere in the text …").
+- `content.item_type_missing`'s hint with no shape names reads "Set `<key>:` to the key of one of the list's shapes." (was "… first shape (none). Set `<key>:` to one of: .").
+- `schema.unknown_default_storage`'s hint for a site with no storages says to remove the `defaultStorage:` line (it said `storage:`, the field's key).
+- `facts_count` reads "a change holds 1 to 50 facts" (was "1 to 50 facts").
+
 ## 0.12.2 (2026-11-26)
 
 The kind of schema declaration a refused fact names is a code, so a
