@@ -136,31 +136,30 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 	}
 
 	// shape
-	actual := describe(v.Value)
-	shape := func(expected string) {
-		f(v.Path, report.RuleContentShape, report.CauseWrongType, &report.Params{Field: label, Expected: expected, Actual: actual})
+	shape := func(expected report.ValueKind) {
+		f(v.Path, report.RuleContentShape, report.CauseWrongType, &report.Params{Field: label, Expected: expected, Actual: report.ValueKindOf(v.Value)})
 	}
 	switch t {
 	case schema.TypeText, schema.TypeParagraph, schema.TypeRichText, schema.TypeLink, schema.TypeDate, schema.TypeImage, schema.TypeFile, schema.TypeColor:
 		if _, ok := v.Value.(string); !ok {
-			shape("text")
+			shape(report.ValueKindText)
 			return
 		}
 	case schema.TypeReference:
 		if fd.Multiple {
 			list, ok := v.Value.([]any)
 			if !ok || !allStrings(list) {
-				shape("list of references")
+				shape(report.ValueKindListOfReferences)
 				return
 			}
 		} else if _, ok := v.Value.(string); !ok {
-			shape("reference")
+			shape(report.ValueKindReference)
 			return
 		}
 	case schema.TypeNumber, schema.TypeRange:
 		n, ok := numberOf(v.Value)
 		if !ok {
-			shape("number")
+			shape(report.ValueKindNumber)
 			return
 		}
 		if fd.Min != nil && n < *fd.Min {
@@ -171,7 +170,7 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 		}
 	case schema.TypeBoolean:
 		if _, ok := v.Value.(bool); !ok {
-			shape("boolean")
+			shape(report.ValueKindBoolean)
 			return
 		}
 	case schema.TypeSelect:
@@ -180,7 +179,7 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 			if sv := scalarText(v.Value); sv != "" {
 				s = sv
 			} else {
-				shape("selectable value")
+				shape(report.ValueKindSelectableValue)
 				return
 			}
 		}
@@ -190,7 +189,7 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 	case schema.TypeMultiChoice:
 		list, ok := v.Value.([]any)
 		if !ok {
-			shape("list of selectable values")
+			shape(report.ValueKindListOfSelectableValues)
 			return
 		}
 		allowed := schema.OptionValues(fd.Options)
@@ -212,13 +211,13 @@ func checkValue(cfg *schema.Config, v schema.Visit, f pageEmit) {
 		}
 	case schema.TypeGroup:
 		if _, ok := v.Value.(map[string]any); !ok {
-			shape("group of fields")
+			shape(report.ValueKindGroupOfFields)
 			return
 		}
 	case schema.TypeArray:
 		list, ok := v.Value.([]any)
 		if !ok {
-			shape("list")
+			shape(report.ValueKindList)
 			return
 		}
 		checkArray(fd, label, list, v.Path, f)
@@ -355,27 +354,6 @@ func scalarText(v any) string {
 		return "false"
 	}
 	return ""
-}
-
-func describe(v any) string {
-	switch x := v.(type) {
-	case nil:
-		return "null"
-	case []any:
-		return "list"
-	case map[string]any:
-		return "object"
-	case string:
-		return "string"
-	case bool:
-		return "boolean"
-	case float64:
-		if math.IsNaN(x) {
-			return "NaN"
-		}
-		return "number"
-	}
-	return fmt.Sprintf("%T", v)
 }
 
 // valueKey renders a value for uniqueness comparison: typed prefixes

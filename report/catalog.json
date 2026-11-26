@@ -37,14 +37,51 @@
       "class": "vocabulary"
     },
     {
-      "key": "expected",
+      "key": "otherType",
       "type": "string",
       "class": "vocabulary"
     },
     {
+      "key": "expected",
+      "type": "string",
+      "class": "vocabulary",
+      "values": [
+        "text",
+        "reference",
+        "list_of_references",
+        "number",
+        "boolean",
+        "selectable_value",
+        "list_of_selectable_values",
+        "group_of_fields",
+        "list",
+        "string",
+        "object",
+        "null",
+        "nan",
+        "other"
+      ]
+    },
+    {
       "key": "actual",
       "type": "string",
-      "class": "vocabulary"
+      "class": "vocabulary",
+      "values": [
+        "text",
+        "reference",
+        "list_of_references",
+        "number",
+        "boolean",
+        "selectable_value",
+        "list_of_selectable_values",
+        "group_of_fields",
+        "list",
+        "string",
+        "object",
+        "null",
+        "nan",
+        "other"
+      ]
     },
     {
       "key": "knob",
@@ -1093,8 +1130,8 @@
       "severity": "error",
       "params": [
         "field",
-        "expected",
-        "actual"
+        "type",
+        "otherType"
       ]
     },
     {

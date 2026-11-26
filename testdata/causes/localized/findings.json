@@ -159,8 +159,8 @@
           "cause": "mixed_types",
           "params": {
             "field": "L6",
-            "expected": "text",
-            "actual": "paragraph"
+            "type": "text",
+            "otherType": "paragraph"
           },
           "message": "group \"L6\" is localized, but its fields mix text and paragraph",
           "hint": "A localized group has one field per language of preview.locales, keyed by the language (cs, en, …), all text, paragraph or rich text of one type; `fallback: \u003clanguage\u003e` names the language an empty one shows."

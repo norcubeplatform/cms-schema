@@ -139,12 +139,24 @@ replaces the sentence.
 - **`report.Params`** holds the keys; `report.ParamSpecs()` gives each
   key's type and class: `customer` (text the site wrote: shown as
   written, never translated, may be empty), `vocabulary` (field types,
-  roles, schema keys), `code` (languages), `derived` (paths, URLs),
-  `number`, `technical` (a parser's or the runtime's own error text).
-  Every string is at most 300 characters (`report.MaxParamRunes`, cut
-  with "…"); `names` lists at most 10 (`report.MaxParamNames`) and
-  `more` counts the rest. `value` is a value as written: text as is,
-  anything else in YAML flow style (`null`, `[a, b]`), never Go syntax.
+  value kinds, roles, schema keys), `code` (languages), `derived`
+  (paths, URLs), `number`, `technical` (a parser's or the runtime's own
+  error text). Every string is at most 300 characters
+  (`report.MaxParamRunes`, cut with "…"); `names` lists at most 10
+  (`report.MaxParamNames`) and `more` counts the rest. `value` is a
+  value as written: text as is, anything else in YAML flow style
+  (`null`, `[a, b]`), never Go syntax.
+- **Value kinds** are a closed vocabulary: `expected` (the kind a value
+  must have) and `actual` (the kind it has) are `report.ValueKind`
+  codes, `text`, `reference`, `list_of_references`, `number`, `boolean`,
+  `selectable_value`, `list_of_selectable_values`, `group_of_fields`,
+  `list`, `string`, `object`, `null`, `nan` and `other`
+  (`report.ValueKinds()`; `ValueKind.English()` gives this module's
+  words, "group of fields"; `report.ValueKindOf(v)` is a value's kind).
+  `ParamSpec.Values` and `catalog.json` list them for these two keys,
+  and `report.CheckFinding` refuses any other value. Field types are in
+  `type` (and `otherType`, the one compared with), as the schema writes
+  them.
 - **[`report/catalog.json`](report/catalog.json)** is the catalog as a
   file, with the reasons a quality rule is skipped and the codes of a
   refused fact: what the dashboard's message tables and the CMS's
@@ -155,8 +167,8 @@ replaces the sentence.
   the catalog's severity, the params held to their bounds, `Message` and
   `Hint` in English. `report.CheckFinding(f)` reports a finding that
   breaks its entry (a cause or key not declared, a required key missing,
-  a message other than `English(f)`), for tests and for readers that
-  store findings.
+  a value outside its key's closed vocabulary, a message other than
+  `English(f)`), for tests and for readers that store findings.
 - **Identity.** `Finding.Key()` is file, path, rule, cause and params:
   two findings with one key say the same thing about the same place, in
   any language. `fact.Plan.NewErrors` compares keys, and `report.Sort`

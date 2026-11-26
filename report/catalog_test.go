@@ -91,16 +91,20 @@ func TestCauseConstantsAreTheCatalog(t *testing.T) {
 	}
 }
 
-// sample sets every key of keys to a value of its type.
+// sample sets every key of keys to a value of its type, a key with a
+// closed vocabulary to its first value (TestValueKindsInEveryCause
+// words every value).
 func sample(keys []ParamKey) *Params {
 	p := &Params{}
 	raw := map[string]any{}
 	for _, k := range keys {
 		s, _ := paramSpec(k)
-		switch s.Type {
-		case ParamTypeString:
+		switch {
+		case len(s.Values) > 0:
+			raw[string(k)] = s.Values[0]
+		case s.Type == ParamTypeString:
 			raw[string(k)] = "s-" + string(k)
-		case ParamTypeStringList:
+		case s.Type == ParamTypeStringList:
 			raw[string(k)] = []string{"a-" + string(k), "b-" + string(k)}
 		default:
 			raw[string(k)] = 7
@@ -129,7 +133,9 @@ func TestEnglishWordsEveryCause(t *testing.T) {
 			}
 			for _, k := range s.Params {
 				ps, _ := paramSpec(k)
-				if ps.Type != ParamTypeString || f.Params.CustomMessage != "" {
+				// A key with a closed vocabulary shows as its value's
+				// words: TestValueKindsInEveryCause holds those.
+				if ps.Type != ParamTypeString || len(ps.Values) > 0 || f.Params.CustomMessage != "" {
 					continue
 				}
 				// A required text param shows in the sentence or the

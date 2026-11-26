@@ -12,7 +12,9 @@ var contentCauses = []CauseSpec{
 		func(x in) string { return custom(x, x.Field+" is required.") },
 		text("Add a value to clear this error.")),
 	spec(RuleContentShape, CauseWrongType, err, "field expected actual", "",
-		func(x in) string { return x.Field + " should be a " + x.Expected + " but is a " + x.Actual + "." },
+		func(x in) string {
+			return x.Field + " should be a " + x.Expected.English() + " but is a " + x.Actual.English() + "."
+		},
 		text(shapeHint)),
 	spec(RuleContentShape, CauseOptionGone, err, "field value", "",
 		func(x in) string { return x.Field + " has a value that's no longer one of the allowed options." },

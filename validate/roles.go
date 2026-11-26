@@ -427,7 +427,7 @@ func (rc *roleCheck) localized(p, label string, fd schema.Field) {
 			bad(report.CauseFieldType, report.Params{Key: c.Key, Type: c.Type})
 			typeSaid = true
 		case t != "" && ct != t:
-			bad(report.CauseMixedTypes, report.Params{Expected: t, Actual: ct})
+			bad(report.CauseMixedTypes, report.Params{Type: t, OtherType: ct})
 			typeSaid = true
 		}
 		if t == "" {

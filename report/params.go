@@ -23,7 +23,8 @@ import (
 //     customer key as empty text.
 //   - vocabulary: one of a fixed set of words of this module (field
 //     types, value kinds, roles, schema keys, frameworks). A client may
-//     translate it.
+//     translate it. Where the set is closed, ParamSpecs lists it (the
+//     value kinds of Expected and Actual).
 //   - code: a language code.
 //   - derived: a repository path, URL or schema path, shown as is.
 //   - number: a count, bound, size or position.
@@ -50,11 +51,14 @@ type Params struct {
 	// SameAs parallels Names on quality.translation_incomplete: the
 	// language a text is the same as, "" where it is empty.
 	SameAs []string `json:"sameAs,omitempty" class:"code"`
-	// Type, Expected and Actual are field types and value kinds (`text`,
-	// `list`, `group of fields`).
-	Type     string `json:"type,omitempty" class:"vocabulary"`
-	Expected string `json:"expected,omitempty" class:"vocabulary"`
-	Actual   string `json:"actual,omitempty" class:"vocabulary"`
+	// Type is a field type (`text`, `richtext`); OtherType is the field
+	// type it is compared with.
+	Type      string `json:"type,omitempty" class:"vocabulary"`
+	OtherType string `json:"otherType,omitempty" class:"vocabulary"`
+	// Expected and Actual are value kinds: the kind a value must have and
+	// the kind it has (`group_of_fields`, `string`).
+	Expected ValueKind `json:"expected,omitempty" class:"vocabulary"`
+	Actual   ValueKind `json:"actual,omitempty" class:"vocabulary"`
 	// Knob is the schema key concerned (`regex`, `visibleIf`,
 	// `noindexWhen`, `customValidators[0]`).
 	Knob string `json:"knob,omitempty" class:"vocabulary"`
@@ -111,6 +115,7 @@ const (
 	ParamMore          ParamKey = "more"
 	ParamSameAs        ParamKey = "sameAs"
 	ParamType          ParamKey = "type"
+	ParamOtherType     ParamKey = "otherType"
 	ParamExpected      ParamKey = "expected"
 	ParamActual        ParamKey = "actual"
 	ParamKnob          ParamKey = "knob"
@@ -172,12 +177,16 @@ type ParamSpec struct {
 	Key   ParamKey `json:"key"`
 	Type  string   `json:"type"`
 	Class string   `json:"class"`
+	// Values are every value a vocabulary key takes, for a key whose
+	// vocabulary is closed (ValueKinds for Expected and Actual); a value
+	// outside them breaks the key's declaration (CheckParams).
+	Values []string `json:"values,omitempty"`
 	// field is the index of the key's field in Params.
 	field int
 }
 
 // paramSpecs is read from the Params struct itself, so the list of keys
-// can never drift from the type.
+// can never drift from the type, nor a closed vocabulary from its enum.
 var paramSpecs = func() []ParamSpec {
 	t := reflect.TypeOf(Params{})
 	out := make([]ParamSpec, 0, t.NumField())
@@ -185,25 +194,37 @@ var paramSpecs = func() []ParamSpec {
 		f := t.Field(i)
 		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
 		var typ string
-		switch f.Type.String() {
-		case "string":
+		var values []string
+		switch f.Type {
+		case reflect.TypeFor[string]():
 			typ = ParamTypeString
-		case "[]string":
+		case reflect.TypeFor[ValueKind]():
+			typ = ParamTypeString
+			for _, k := range ValueKinds() {
+				values = append(values, string(k))
+			}
+		case reflect.TypeFor[[]string]():
 			typ = ParamTypeStringList
-		case "*float64":
+		case reflect.TypeFor[*float64]():
 			typ = ParamTypeNumber
-		case "*int64":
+		case reflect.TypeFor[*int64]():
 			typ = ParamTypeInteger
 		default:
 			panic("report: Params." + f.Name + " has an unsupported type " + f.Type.String())
 		}
-		out = append(out, ParamSpec{Key: ParamKey(name), Type: typ, Class: f.Tag.Get("class"), field: i})
+		out = append(out, ParamSpec{Key: ParamKey(name), Type: typ, Class: f.Tag.Get("class"), Values: values, field: i})
 	}
 	return out
 }()
 
 // ParamSpecs lists every key of Params, in the order of the struct.
-func ParamSpecs() []ParamSpec { return append([]ParamSpec(nil), paramSpecs...) }
+func ParamSpecs() []ParamSpec {
+	out := append([]ParamSpec(nil), paramSpecs...)
+	for i := range out {
+		out[i].Values = append([]string(nil), out[i].Values...)
+	}
+	return out
+}
 
 func paramSpec(k ParamKey) (ParamSpec, bool) {
 	for _, s := range paramSpecs {

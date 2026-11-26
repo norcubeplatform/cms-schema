@@ -47,7 +47,7 @@
           "cause": "wrong_type",
           "params": {
             "field": "Title",
-            "expected": "group of fields",
+            "expected": "group_of_fields",
             "actual": "string"
           },
           "message": "Title should be a group of fields but is a string.",

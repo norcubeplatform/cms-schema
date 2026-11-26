@@ -159,9 +159,9 @@ func English(f Finding) (message, hint string) {
 // CheckFinding reports how a finding breaks its catalog entry: a rule
 // or cause the catalog lacks, a Params key the cause does not declare, a
 // required key that is not set (customer text excepted: it may be
-// empty), strings or lists over their bounds, or a Message and Hint
-// other than English(f). Nil when it keeps to it. For tests and for
-// readers that store findings.
+// empty), a value outside its key's closed vocabulary, strings or lists
+// over their bounds, or a Message and Hint other than English(f). Nil
+// when it keeps to it. For tests and for readers that store findings.
 func CheckFinding(f Finding) error {
 	s, ok := Lookup(f.Rule, f.Cause)
 	if !ok {
@@ -179,14 +179,21 @@ func CheckFinding(f Finding) error {
 
 // CheckParams reports how p breaks a declaration of required and
 // optional keys: a key set that neither lists, a required key not set
-// (customer text excepted: it may be empty), or strings and lists over
-// their bounds. Nil when it keeps to it.
+// (customer text excepted: it may be empty), a value outside its key's
+// closed vocabulary (ParamSpec.Values), or strings and lists over their
+// bounds. Nil when it keeps to it. A reader of params stored by an
+// older version learns from it whether this version can word them.
 func CheckParams(p *Params, required, optional []ParamKey) error {
 	var errs []error
 	set := p.Keys()
 	for _, k := range set {
 		if !slices.Contains(required, k) && !slices.Contains(optional, k) {
 			errs = append(errs, fmt.Errorf("sets %s, which it does not declare", k))
+		}
+		if ps, ok := paramSpec(k); ok && len(ps.Values) > 0 {
+			if v := reflect.ValueOf(p).Elem().Field(ps.field).String(); !slices.Contains(ps.Values, v) {
+				errs = append(errs, fmt.Errorf("sets %s to %q, which is none of its values", k, v))
+			}
 		}
 	}
 	for _, k := range required {

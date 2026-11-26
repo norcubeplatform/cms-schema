@@ -2,6 +2,24 @@
 
 Notable changes, newest first.
 
+## 0.12.1 (2026-11-26)
+
+The kinds of value a finding names are codes, so a client words them
+like every other code. The English a terminal prints is unchanged.
+
+### New
+
+- **`report.ValueKind`**: `text`, `reference`, `list_of_references`, `number`, `boolean`, `selectable_value`, `list_of_selectable_values`, `group_of_fields`, `list`, `string`, `object`, `null`, `nan`, `other`, frozen like causes. `report.ValueKinds()` lists them; `ValueKind.English()` gives the words this module's sentences use ("group of fields"), and a value that is no kind is its own words, so a finding stored by 0.12.0 reads as it did; `report.ValueKindOf(v)` is the kind of a value.
+- **`ParamSpec.Values`** (JSON `values`): the closed vocabulary of a key. `report/catalog.json` lists the value kinds as the values of `expected` and `actual`, so a client generated from it has them as a type.
+- **`params.otherType`** (`report.ParamOtherType`, class vocabulary): the field type `type` is compared with.
+
+### Behaviour changes
+
+- **`params.expected` and `params.actual` are value kind codes**, no longer English words: `content.shape` `wrong_type` sends `"expected": "group_of_fields"` where 0.12.0 sent `"group of fields"`. `list_of_references`, `selectable_value`, `list_of_selectable_values`, `group_of_fields` and `nan` replace `list of references`, `selectable value`, `list of selectable values`, `group of fields` and `NaN`; `text`, `reference`, `number`, `boolean`, `list`, `string`, `object` and `null` are spelled as before. `schema.default_not_option` sets `actual` the same way. In Go, `Params.Expected` and `Params.Actual` are `report.ValueKind`.
+- **`schema.invalid_localized` `mixed_types` sets `type` and `otherType`**, the two field types the group's fields mix, instead of `expected` and `actual`, which now hold value kinds only.
+- `report.CheckParams` and `CheckFinding` refuse a value outside its key's closed vocabulary: a reader of findings stored by 0.12.0 learns from them which it can still word from their codes.
+- Every message and hint is word for word what 0.12.0 printed for the values a file or JSON holds (the causes sites pin it). A value of a Go type no document produces, which only a caller's own values hold, is named `number` (an `int`) or `value` (anything else) instead of its Go type.
+
 ## 0.12.0 (2026-11-25)
 
 Findings, skipped rules and refused facts are codes with typed

@@ -537,9 +537,9 @@ var schemaCauses = append(append([]CauseSpec{
 		func(x in) string {
 			return "group " + q(x.Field) + " is localized, but its field " + q(x.Key) + " is a " + x.Type + " field"
 		}, text(localizedHint)),
-	spec(RuleSchemaInvalidLocalized, CauseMixedTypes, err, "field expected actual", "",
+	spec(RuleSchemaInvalidLocalized, CauseMixedTypes, err, "field type otherType", "",
 		func(x in) string {
-			return "group " + q(x.Field) + " is localized, but its fields mix " + x.Expected + " and " + x.Actual
+			return "group " + q(x.Field) + " is localized, but its fields mix " + x.Type + " and " + x.OtherType
 		}, text(localizedHint)),
 	spec(RuleSchemaInvalidLocalized, CauseLanguageFieldRole, err, "key field", "",
 		func(x in) string {

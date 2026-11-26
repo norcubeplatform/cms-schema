@@ -248,7 +248,7 @@ func checkField(cfg *schema.Config, file, p string, fd schema.Field, scope schem
 				}
 			default:
 				if t == schema.TypeSelect && !contains(values, fmt.Sprint(d)) {
-					f(file, p, report.RuleSchemaDefaultNotOption, "", &report.Params{Value: report.FlowValue(d), Field: label, Actual: valueKind(d)})
+					f(file, p, report.RuleSchemaDefaultNotOption, "", &report.Params{Value: report.FlowValue(d), Field: label, Actual: report.ValueKindOf(d)})
 				}
 			}
 		}
@@ -396,23 +396,6 @@ func parseCond(m map[string]any) schema.Condition {
 		return schema.Condition{}
 	}
 	return *fd.VisibleIf
-}
-
-// valueKind names the kind of a YAML value that is not text.
-func valueKind(v any) string {
-	switch v.(type) {
-	case bool:
-		return "boolean"
-	case int, int64, uint64, float64:
-		return "number"
-	case []any:
-		return "list"
-	case map[string]any:
-		return "object"
-	case nil:
-		return "null"
-	}
-	return "value"
 }
 
 func contains(list []string, v string) bool {
